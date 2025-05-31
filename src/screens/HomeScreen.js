@@ -1,20 +1,19 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faBaby, faPencil, faChartBar, faSuitcaseMedical, faCalendarDays, faWallet, faNewspaper, faStar, faLocationDot } from '@fortawesome/free-solid-svg-icons';
 
-import Header from '../component/Header';
-import Footer from '../component/Footer';
 
 const features = [
-  { key: 'add_baby', label: 'Thêm bé', icon: <Ionicons name="baby-outline" size={32} color="#1565C0" /> },
-  { key: 'input', label: 'Nhập chỉ số', icon: <Ionicons name="create-outline" size={32} color="#1565C0" /> },
-  { key: 'chart', label: 'Biểu đồ', icon: <Ionicons name="stats-chart-outline" size={32} color="#1565C0" /> },
-  { key: 'history', label: 'Lịch sử tiêm', icon: <Ionicons name="medical-outline" size={32} color="#1565C0" /> },
-  { key: 'schedule', label: 'Đặt lịch', icon: <Ionicons name="calendar-outline" size={32} color="#1565C0" /> },
-  { key: 'wallet', label: 'Ví', icon: <Ionicons name="wallet-outline" size={32} color="#1565C0" /> },
-  { key: 'news', label: 'Tin tức', icon: <Ionicons name="newspaper-outline" size={32} color="#1565C0" /> },
-  { key: 'vip', label: 'Gói VIP', icon: <Ionicons name="star-outline" size={32} color="#1565C0" /> },
-  { key: 'find', label: 'Tìm cơ sở', icon: <Ionicons name="location-outline" size={32} color="#1565C0" /> },
+  { key: 'add_baby', label: 'Thêm bé', icon: <FontAwesomeIcon icon={faBaby} size={32} color="#1565C0" /> },
+  { key: 'add_vaccine', label: 'Thêm vắc xin', icon: <FontAwesomeIcon icon={faPencil} size={32} color="#1565C0" /> },
+  { key: 'growth_chart', label: 'Biểu đồ tăng trưởng', icon: <FontAwesomeIcon icon={faChartBar} size={32} color="#1565C0" /> },
+  { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
+  { key: 'vaccine_spot', label: 'Điểm tiêm', icon: <FontAwesomeIcon icon={faLocationDot} size={32} color="#1565C0" /> },
+  { key: 'health_record', label: 'Sổ khám bệnh', icon: <FontAwesomeIcon icon={faSuitcaseMedical} size={32} color="#1565C0" /> },
+  { key: 'payment_history', label: 'Lịch sử thanh toán', icon: <FontAwesomeIcon icon={faWallet} size={32} color="#1565C0" /> },
+  { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
+  { key: 'rating', label: 'Đánh giá', icon: <FontAwesomeIcon icon={faStar} size={32} color="#1565C0" /> },
 ];
 
 const newsTabs = [
