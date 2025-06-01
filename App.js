@@ -5,6 +5,7 @@ import { View } from 'react-native';
 
 import LoginScreen from './src/screens/LoginScreen';
 import HomeScreen from './src/screens/HomeScreen';
+import RegisterScreen from './src/screens/Register';
 import Header from './src/component/Header';
 import Footer from './src/component/Footer';
 
@@ -27,18 +28,19 @@ export default function App() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <Header />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{
-          headerShown: false
-        }}>
-          <Stack.Screen name="Home" component={HomeScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-      <Footer currentTab={currentTab} onTabPress={handleTabPress} />
-    </View>
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home">
+          {(props) => (
+            <View style={{ flex: 1 }}>
+              <Header />
+              <HomeScreen {...props} />
+              <Footer currentTab={currentTab} onTabPress={handleTabPress} />
+            </View>
+          )}
+        </Stack.Screen>
+        <Stack.Screen name="Register" component={RegisterScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
-
-

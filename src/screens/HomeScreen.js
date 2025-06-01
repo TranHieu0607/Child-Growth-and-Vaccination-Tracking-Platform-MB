@@ -31,13 +31,20 @@ const facilities = [
 ];
 
 // Component cho phần Header của FlatList (chứa các thành phần tĩnh)
-const HomeListHeader = ({ newsTabs, newsTab, setNewsTab }) => (
+const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
   <View>
     <Image source={require('../../assets/suckhoe.jpg')} style={styles.banner} />
     <View style={styles.grid}>
       {features.map((item, idx) => (
         <View style={styles.gridItem} key={item.key}>
-          <TouchableOpacity style={styles.iconCircle}>
+          <TouchableOpacity 
+            style={styles.iconCircle}
+            onPress={() => {
+              if (item.key === 'add_baby') {
+                navigation.navigate('Register');
+              }
+            }}
+          >
             {item.icon}
           </TouchableOpacity>
           <Text style={styles.gridLabel}>{item.label}</Text>
@@ -55,7 +62,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab }) => (
   </View>
 );
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
   const [newsTab, setNewsTab] = useState('facility');
 
   // HomeScreen chỉ render FlatList
@@ -78,6 +85,7 @@ export default function HomeScreen() {
           newsTabs={newsTabs}
           newsTab={newsTab}
           setNewsTab={setNewsTab}
+          navigation={navigation}
         />
       }
       style={styles.list} // Style cho FlatList
