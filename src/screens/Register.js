@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect } from 'react';
+import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native'; // Adjusted imports assuming React Native based on UI style
 import { CheckBox } from 'react-native-elements';
 import { useForm, Controller } from 'react-hook-form';

@@ -42,6 +42,8 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
             onPress={() => {
               if (item.key === 'add_baby') {
                 navigation.navigate('Register');
+              } else if (item.key === 'news') {
+                navigation.navigate('News');
               }
             }}
           >
@@ -58,7 +60,9 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
         </TouchableOpacity>
       ))}
     </View>
-    <Text style={styles.sectionTitle}>Tin tức</Text>
+    <TouchableOpacity >
+      <Text style={styles.sectionTitle}>Tin tức</Text>
+    </TouchableOpacity>
   </View>
 );
 
