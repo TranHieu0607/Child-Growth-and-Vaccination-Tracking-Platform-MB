@@ -44,7 +44,10 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
                 navigation.navigate('Register');
               } else if (item.key === 'news') {
                 navigation.navigate('News');
+              } else if (item.key === 'vaccination_schedule') {
+                navigation.navigate('Booking');
               }
+
             }}
           >
             {item.icon}

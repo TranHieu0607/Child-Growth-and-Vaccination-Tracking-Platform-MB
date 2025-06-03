@@ -5,9 +5,9 @@ import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 
 const NewsScreen = ({ navigation }) => {
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
@@ -127,9 +127,21 @@ const NewsScreen = ({ navigation }) => {
           </View>
           <Text style={styles.latestArticleArrow}>{'>'}</Text>
         </View>
+        <View style={styles.latestArticle}>
+          <Image
+            source={require('../../assets/suckhoe.jpg')}
+            style={styles.latestArticleImage}
+          />
+          <View style={styles.latestArticleContent}>
+            <Text style={styles.latestArticleTitle}>Những mốc phát triển quan trọng của trẻ 1-3 tuổi</Text>
+            <Text style={styles.latestArticleSnippet}>Theo dõi sự phát triển của con qua các cột mốc quan trọng...</Text>
+            <Text style={styles.latestArticleDate}>11/02/2024</Text>
+          </View>
+          <Text style={styles.latestArticleArrow}>{'>'}</Text>
+        </View>
         {/* Add more latest articles */}
       </ScrollView>
-    </View>
+    </ScrollView>
   );
 };
 
