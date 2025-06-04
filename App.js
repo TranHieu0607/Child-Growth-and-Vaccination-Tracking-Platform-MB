@@ -10,6 +10,7 @@ import Header from './src/component/Header';
 import Footer from './src/component/Footer';
 import NewsScreen from './src/screens/NewsScreen';
 import Booking from './src/screens/Booking';
+import ChartScreen from './src/screens/ChartScreen';
 
 const Stack = createStackNavigator();
 
@@ -44,6 +45,7 @@ export default function App() {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="News" component={NewsScreen} />
         <Stack.Screen name="Booking" component={Booking} />
+        <Stack.Screen name="Chart" component={ChartScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -46,6 +46,8 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
                 navigation.navigate('News');
               } else if (item.key === 'vaccination_schedule') {
                 navigation.navigate('Booking');
+              } else if (item.key === 'growth_chart') {
+                navigation.navigate('Chart');
               }
 
             }}
