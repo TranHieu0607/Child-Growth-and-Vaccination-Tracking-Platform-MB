@@ -11,6 +11,8 @@ import Footer from './src/component/Footer';
 import NewsScreen from './src/screens/NewsScreen';
 import Booking from './src/screens/Booking';
 import ChartScreen from './src/screens/ChartScreen';
+import UpdateGrowth from './src/screens/UpdateGrowth'; 
+import UpdateVaccHiss from './src/screens/UpdateVaccHiss';
 
 const Stack = createStackNavigator();
 
@@ -46,6 +48,8 @@ export default function App() {
         <Stack.Screen name="News" component={NewsScreen} />
         <Stack.Screen name="Booking" component={Booking} />
         <Stack.Screen name="Chart" component={ChartScreen} />
+        <Stack.Screen name="UpdateGrowth" component={UpdateGrowth} />   
+        <Stack.Screen name="UpdateVaccHiss" component={UpdateVaccHiss} />
       </Stack.Navigator>
     </NavigationContainer>
   );
