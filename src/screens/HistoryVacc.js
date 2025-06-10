@@ -60,6 +60,14 @@ const HistoryVacc = ({ navigation }) => {
           location: 'Trung tâm VNVC Tân Bình',
           notes: 'Hoàn thành liệu trình',
         },
+        {
+          id: 'vaccine4',
+          name: 'Mũi Rotavirus - Mũi 3',
+          description: 'Tiêu chảy do Rotavirus',
+          date: '20/01/2024',
+          location: 'Trung tâm VNVC Tân Bình',
+          notes: 'Hoàn thành liệu trình',
+        },
       ],
     },
     {
@@ -141,15 +149,13 @@ const HistoryVacc = ({ navigation }) => {
   const selectedChild = children.find(child => child.id === selectedChildren[0]);
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        {/* Back button - Adjust navigation target if needed */}
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
+        <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
-        {/* Corrected header title */}
-        <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Lịch sử tiêm chủng</Text>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Đăng ký lịch tiêm</Text>
       </View>
 
       {/* User Info and Dropdown */}
@@ -306,7 +312,7 @@ const HistoryVacc = ({ navigation }) => {
                   <Text style={styles.suggestionText}>Gợi ý tiêm tiếp: {pkg.suggestedNextShot}</Text>
                 </View>
               )}
-              <TouchableOpacity style={styles.scheduleButton}>
+              <TouchableOpacity style={styles.scheduleButton} onPress={() => navigation.navigate('ContinueInject', { vaccinePackage: pkg })}>
                 <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIẾP THEO</Text>
                 <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" />
               </TouchableOpacity>
@@ -314,7 +320,7 @@ const HistoryVacc = ({ navigation }) => {
           ))}
         </ScrollView>
       )}
-    </View>
+    </ ScrollView>
   );
 };
 

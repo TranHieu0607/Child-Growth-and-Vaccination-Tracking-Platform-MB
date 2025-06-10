@@ -14,6 +14,7 @@ import ChartScreen from './src/screens/ChartScreen';
 import UpdateGrowth from './src/screens/UpdateGrowth'; 
 import UpdateVaccHiss from './src/screens/UpdateVaccHiss';
 import HistoryVacc from './src/screens/HistoryVacc';
+import ContinueInjectScreen from './src/screens/ContinueInjectScreen';
 
 const Stack = createStackNavigator();
 
@@ -52,6 +53,7 @@ export default function App() {
         <Stack.Screen name="UpdateGrowth" component={UpdateGrowth} />   
         <Stack.Screen name="UpdateVaccHiss" component={UpdateVaccHiss} />
         <Stack.Screen name="HistoryVacc" component={HistoryVacc} />
+        <Stack.Screen name="ContinueInject" component={ContinueInjectScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
