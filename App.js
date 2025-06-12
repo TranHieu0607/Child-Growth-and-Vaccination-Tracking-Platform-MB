@@ -15,6 +15,8 @@ import UpdateGrowth from './src/screens/UpdateGrowth';
 import UpdateVaccHiss from './src/screens/UpdateVaccHiss';
 import HistoryVacc from './src/screens/HistoryVacc';
 import ContinueInjectScreen from './src/screens/ContinueInjectScreen';
+import VaccBook from './src/screens/VaccBook';
+
 
 const Stack = createStackNavigator();
 
@@ -54,6 +56,7 @@ export default function App() {
         <Stack.Screen name="UpdateVaccHiss" component={UpdateVaccHiss} />
         <Stack.Screen name="HistoryVacc" component={HistoryVacc} />
         <Stack.Screen name="ContinueInject" component={ContinueInjectScreen} />
+        <Stack.Screen name="VaccBook" component={VaccBook} />
       </Stack.Navigator>
     </NavigationContainer>
   );

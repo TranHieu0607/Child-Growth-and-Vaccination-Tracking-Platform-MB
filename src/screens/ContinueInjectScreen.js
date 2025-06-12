@@ -52,7 +52,15 @@ const ContinueInjectScreen = ({ navigation, route }) => {
                     ))}
                 </View>
             </View>
-
+            <View style={styles.section}>
+                <View style={styles.locationContainer}>
+                    <FontAwesomeIcon icon={faMapMarkerAlt} size={20} color="#007bff" style={{ marginRight: 10 }} />
+                    <View>
+                        <Text style={styles.locationTitle}>Văn phòng VNVC Gò Vấp</Text>
+                        <Text style={styles.locationAddress}>Tầng 1, số 123 Quang Trung, Q. Gò Vấp, TP.HCM</Text>
+                    </View>
+                </View>
+            </View>
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Chọn ngày và giờ</Text>
                 <View style={styles.calendarContainer}>
@@ -108,17 +116,6 @@ const ContinueInjectScreen = ({ navigation, route }) => {
                     <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>16:00</Text></TouchableOpacity>
                 </View>
             </View>
-
-            <View style={styles.section}>
-                <View style={styles.locationContainer}>
-                    <FontAwesomeIcon icon={faMapMarkerAlt} size={20} color="#007bff" style={{ marginRight: 10 }} />
-                    <View>
-                        <Text style={styles.locationTitle}>Văn phòng VNVC Gò Vấp</Text>
-                        <Text style={styles.locationAddress}>Tầng 1, số 123 Quang Trung, Q. Gò Vấp, TP.HCM</Text>
-                    </View>
-                </View>
-            </View>
-
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Ghi chú</Text>
                 <View style={styles.noteInputContainer}>

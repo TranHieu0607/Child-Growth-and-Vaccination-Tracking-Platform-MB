@@ -55,6 +55,9 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               } else if (item.key === 'payment_history') {
                 navigation.navigate('HistoryVacc');
               }  
+              else if (item.key === 'rating') {
+                navigation.navigate('VaccBook');
+              } 
             }}
           >
             {item.icon}
