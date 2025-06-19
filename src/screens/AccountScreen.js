@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { logout } from '../store/authSlice';
 
 // Dữ liệu mẫu cho user và các bé
 const user = {
@@ -17,6 +19,11 @@ const children = [
 ];
 
 export default function AccountScreen({ navigation, onLogout }) {
+  const dispatch = useDispatch();
+  const handleLogout = async () => {
+    await dispatch(logout());
+    if (onLogout) onLogout();
+  };
   return (
     <View style={styles.container}>
       <View style={styles.profileSection}>
@@ -45,7 +52,7 @@ export default function AccountScreen({ navigation, onLogout }) {
           )}
         />
       </View>
-      <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Đăng xuất</Text>
       </TouchableOpacity>
     </View>

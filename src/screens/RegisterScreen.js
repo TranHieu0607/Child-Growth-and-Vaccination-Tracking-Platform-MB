@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { register } from '../store/authSlice';
 
 export default function RegisterScreen({ onRegister, navigation }) {
   const [form, setForm] = useState({
@@ -10,13 +12,19 @@ export default function RegisterScreen({ onRegister, navigation }) {
     phone: '',
     address: '',
   });
+  const dispatch = useDispatch();
+  const { loading, error, user } = useSelector((state) => state.auth);
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
   };
 
-  const handleRegister = () => {
-    if (onRegister) onRegister(form);
+  const handleRegister = async () => {
+    const resultAction = await dispatch(register(form));
+    if (register.fulfilled.match(resultAction)) {
+      // Đăng ký thành công, chuyển sang Login để đăng nhập
+      navigation.navigate('Login');
+    }
   };
 
   return (
@@ -86,8 +94,17 @@ export default function RegisterScreen({ onRegister, navigation }) {
           />
         </View>
       </View>
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Đăng ký</Text>
+      {error && (
+        <Text style={{ color: 'red', marginBottom: 8 }}>
+          {typeof error === 'string'
+            ? error
+            : error.title
+              ? error.title
+              : JSON.stringify(error)}
+        </Text>
+      )}
+      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Đang đăng ký...' : 'Đăng ký'}</Text>
       </TouchableOpacity>
       <Text style={styles.loginText}>
         Đã có tài khoản?{' '}

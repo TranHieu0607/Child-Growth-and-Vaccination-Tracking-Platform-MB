@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { useDispatch, useSelector } from 'react-redux';
+import { login } from '../store/authSlice';
 
 export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');
+  const [password, setPassword] = useState('');
+  const dispatch = useDispatch();
+  const { loading, error, user } = useSelector((state) => state.auth);
 
-  const handleContinue = () => {
-    onLoginSuccess();
+  const handleContinue = async () => {
+    if (!input || !password) return;
+    const resultAction = await dispatch(login({ accountName: input, password }));
+    if (login.fulfilled.match(resultAction)) {
+      onLoginSuccess();
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -31,9 +40,21 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
             autoCapitalize="none"
           />
         </View>
+        <Text style={styles.inputLabel}>Mật khẩu</Text>
+        <View style={styles.inputBox}>
+          <Text style={styles.inputIcon}>🔒</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Nhập mật khẩu"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+        </View>
       </View>
-      <TouchableOpacity style={styles.button} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Tiếp tục</Text>
+      {error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
+      <TouchableOpacity style={styles.button} onPress={handleContinue} disabled={loading}>
+        <Text style={styles.buttonText}>{loading ? 'Đang đăng nhập...' : 'Tiếp tục'}</Text>
       </TouchableOpacity>
       <View style={styles.orContainer}>
         <View style={styles.line} />
