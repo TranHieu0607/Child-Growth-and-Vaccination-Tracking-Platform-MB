@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 
-export default function LoginScreen({ onLoginSuccess }) {
+export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');
 
   const handleContinue = () => {
@@ -45,7 +45,10 @@ export default function LoginScreen({ onLoginSuccess }) {
         <Text style={styles.googleText}>Đăng nhập với Google</Text>
       </TouchableOpacity>
       <Text style={styles.registerText}>
-        Chưa có tài khoản? <Text style={styles.registerLink}>Đăng ký ngay</Text>
+        Chưa có tài khoản?{' '}
+        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.registerLink}>Đăng ký ngay</Text>
+        </TouchableOpacity>
       </Text>
     </View>
   );

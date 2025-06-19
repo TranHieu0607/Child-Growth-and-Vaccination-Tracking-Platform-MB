@@ -10,11 +10,19 @@ const tabs = [
   { key: 'account', label: 'Tài khoản', icon: <Ionicons name="person-outline" size={24} color="#1565C0" /> },
 ];
 
-export default function Footer({ currentTab, onTabPress }) {
+export default function Footer({ currentTab, onTabPress, navigation }) {
+  const handleTabPress = (tabKey) => {
+    if (onTabPress) onTabPress(tabKey);
+    if (navigation) {
+      if (tabKey === 'home') navigation.navigate('Home');
+      else if (tabKey === 'account') navigation.navigate('Account');
+      // Thêm các tab khác nếu muốn điều hướng
+    }
+  };
   return (
     <View style={styles.footer}>
       {tabs.map(tab => (
-        <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => onTabPress(tab.key)}>
+        <TouchableOpacity key={tab.key} style={styles.tab} onPress={() => handleTabPress(tab.key)}>
           {tab.icon}
           <Text style={[styles.label, currentTab === tab.key && styles.activeLabel]}>{tab.label}</Text>
         </TouchableOpacity>
