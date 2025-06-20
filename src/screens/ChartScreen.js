@@ -67,30 +67,21 @@ const DataTable = ({ data, selectedTab }) => {
 };
 
 const ChartScreen = ({ navigation }) => {
-  // Placeholder state and data
-  const [selectedTab, setSelectedTab] = React.useState('Chiều cao');
-  // Introduce state for child selection visibility
-  // Removed isChildSelectionVisible state as we are using a dropdown now
-  // const [isChildSelectionVisible, setIsChildSelectionVisible] = React.useState(false);
-  // Add state for dropdown visibility
-  const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
-  const childName = "Nguyễn Minh Khôi"; // This will likely change to an array or object for selected children
-  const childAge = "3 tuổi"; // This will likely change
-  const profileImage = require('../../assets/vnvc.jpg'); // This will likely change
 
-  // Placeholder state for children data and selected children
+  const [selectedTab, setSelectedTab] = React.useState('Chiều cao');
+
+  const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
+  const childName = "Nguyễn Minh Khôi"; 
+  const childAge = "3 tuổi"; 
+  const profileImage = require('../../assets/vnvc.jpg'); 
+
   const [children, setChildren] = React.useState([
     { id: 'child1', name: 'Nguyễn Minh Khôi', age: '3 tuổi', image: require('../../assets/vnvc.jpg') },
     { id: 'child2', name: 'Lê Thu Anh', age: '2 tuổi', image: require('../../assets/vnvc.jpg') },
     { id: 'child3', name: 'Trần Văn Bình', age: '4 tuổi', image: require('../../assets/vnvc.jpg') },
   ]);
-  const [selectedChildren, setSelectedChildren] = React.useState(['child1']); // Start with one child selected
+  const [selectedChildren, setSelectedChildren] = React.useState(['child1']); 
 
-  // State to manage selected children while the modal is open
-  // Removed tempSelectedChildren as we are going back to single select immediate update
-  // const [tempSelectedChildren, setTempSelectedChildren] = React.useState([]);
-
-  // Placeholder growth data for multiple children and metrics
   const [allChildrenGrowthData, setAllChildrenGrowthData] = React.useState([
     {
       childId: 'child1',
@@ -193,31 +184,21 @@ const ChartScreen = ({ navigation }) => {
     },
   ]);
 
-  // Placeholder function for selecting children - will be implemented later
+
   const handleSelectChildPress = () => {
-    // setTempSelectedChildren([...selectedChildren]); // No longer needed for single select
-    // setIsChildSelectionVisible(true); // Show the modal
-    // Toggle dropdown visibility
+
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!'); // Placeholder log
+    console.log('Select child pressed!'); 
   };
 
-  // Function to close the child selection modal without saving
-  // Removed handleCloseChildSelection as the modal is removed
-  // const handleCloseChildSelection = () => {
-  //   setIsChildSelectionVisible(false);
-  // };
 
-  // Function to handle toggling selection in the modal (updates temp state)
-  // Modified to handle single selection and immediate update and close dropdown
   const handleSelectChild = (childId) => {
-    setSelectedChildren([childId]); // Set the selected child
-    // setIsChildSelectionVisible(false); // Close the modal
-    setIsDropdownVisible(false); // Close the dropdown after selecting
+    setSelectedChildren([childId]); 
+    setIsDropdownVisible(false); 
     console.log('Selected child ID:', childId);
   };
 
-  // Prepare data for the chart and table based on selected children and tab
+
   const getChartAndTableData = (childrenIds, tab) => {
     if (!childrenIds || childrenIds.length === 0) {
       return { chartKitData: { labels: [], datasets: [] }, tableData: [] };

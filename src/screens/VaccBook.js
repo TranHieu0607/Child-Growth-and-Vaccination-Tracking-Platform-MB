@@ -3,49 +3,14 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView,
 import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming MaterialIcons for icons
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import childrenApi from '../api/childrenApi';
 
 const VaccBook = ({ navigation }) => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [children, setChildren] = useState([
-    {
-      id: 'child1',
-      name: 'Nguyễn Minh Khôi',
-      age: '3 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      vaccinationHistory: [
-        { id: 'vgB1', vaccineName: 'Viêm gan B', dose: 'Mũi 1', status: 'completed', date: '12/03/2023', note: '' },
-        { id: 'vgB2', vaccineName: 'Viêm gan B', dose: 'Mũi 2', status: 'completed', date: '12/06/2023', note: '' },
-        { id: 'vgB3', vaccineName: 'Viêm gan B', dose: 'Mũi 3', status: 'completed', date: '12/09/2023', note: '' },
-        { id: '5in1_1', vaccineName: '5 trong 1', dose: 'Mũi 1', status: 'completed', date: '15/03/2023', note: '' },
-        { id: '5in1_2', vaccineName: '5 trong 1', dose: 'Mũi 2', status: 'completed', date: '15/06/2023', note: '' },
-        { id: '5in1_3', vaccineName: '5 trong 1', dose: 'Mũi 3', status: 'pending', date: '-', note: 'Chưa tiêm' },
-        { id: 'sởi_quai_bị_rubella1', vaccineName: 'Sởi - Quai bị - Rubella', dose: 'Mũi 1', status: 'pending', date: '-', note: 'Chưa tiêm' },
-        { id: 'sởi_quai_bị_rubella2', vaccineName: 'Sởi - Quai bị - Rubella', dose: 'Mũi 2', status: 'pending', date: '-', note: 'Chưa tiêm' },
-      ],
-    },
-    {
-      id: 'child2',
-      name: 'Lê Thu Anh',
-      age: '2 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      vaccinationHistory: [
-        { id: 'vgB1', vaccineName: 'Viêm gan B', dose: 'Mũi 1', status: 'completed', date: '12/03/2023', note: '' },
-        { id: '5in1_1', vaccineName: '5 trong 1', dose: 'Mũi 1', status: 'completed', date: '15/03/2023', note: '' },
-      ],
-    },
-    {
-      id: 'child3',
-      name: 'Trần Văn Bình',
-      age: '4 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      vaccinationHistory: [
-        { id: 'vgB1', vaccineName: 'Viêm gan B', dose: 'Mũi 1', status: 'completed', date: '12/03/2023', note: '' },
-        { id: 'vgB2', vaccineName: 'Viêm gan B', dose: 'Mũi 2', status: 'completed', date: '12/06/2023', note: '' },
-      ],
-    },
-  ]);
+  const [children, setChildren] = useState([]);
   const [selectedChildren, setSelectedChildren] = useState(['child1']);
+  const [selectedChildDetail, setSelectedChildDetail] = useState(null);
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
@@ -146,6 +111,49 @@ const VaccBook = ({ navigation }) => {
 
   const vaccineList = getVaccineList();
 
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        // Sắp xếp theo ngày sinh giảm dần (bé nhỏ tuổi nhất đầu tiên)
+        const sorted = [...res.data].sort((a, b) => new Date(b.birthDate) - new Date(a.birthDate));
+        const apiChildren = sorted.map(child => ({
+          id: child.childId.toString(),
+          name: child.fullName,
+          age: child.birthDate ? `${new Date().getFullYear() - new Date(child.birthDate).getFullYear()} tuổi` : '',
+          image: require('../../assets/vnvc.jpg'),
+          vaccinationHistory: [],
+        }));
+        setChildren(apiChildren);
+        if (apiChildren.length > 0) {
+          setSelectedChildren([apiChildren[0].id]);
+        }
+      } catch (e) {
+        // Có thể hiển thị thông báo lỗi nếu muốn
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  useEffect(() => {
+    const fetchChildDetail = async () => {
+      if (selectedChildren.length > 0) {
+        try {
+          // Nếu id là số (API thật), còn nếu là dữ liệu mẫu thì bỏ qua
+          if (!isNaN(Number(selectedChildren[0]))) {
+            const res = await childrenApi.getChildById(selectedChildren[0]);
+            setSelectedChildDetail(res.data);
+          } else {
+            setSelectedChildDetail(null);
+          }
+        } catch (e) {
+          setSelectedChildDetail(null);
+        }
+      }
+    };
+    fetchChildDetail();
+  }, [selectedChildren]);
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -171,6 +179,25 @@ const VaccBook = ({ navigation }) => {
             )}
             {selectedChildren.length > 0 && (
               <Text style={styles.childAge}>{selectedChild?.age}</Text>
+            )}
+            {selectedChildDetail && (
+              <View style={{ marginTop: 8 }}>
+                <Text style={{ fontSize: 14, color: '#333' }}>
+                  Ngày sinh: {selectedChildDetail.birthDate ? selectedChildDetail.birthDate.split('T')[0] : ''}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#333' }}>
+                  Giới tính: {selectedChildDetail.gender?.trim() || ''}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#333' }}>
+                  Nhóm máu: {selectedChildDetail.bloodType || ''}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#333' }}>
+                  Dị ứng: {selectedChildDetail.allergiesNotes || ''}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#333' }}>
+                  Tiền sử bệnh: {selectedChildDetail.medicalHistory || ''}
+                </Text>
+              </View>
             )}
           </View>
           <TouchableOpacity style={styles.dropdownToggle} onPress={handleSelectChildPress}>

@@ -1,7 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useDispatch } from 'react-redux';
 import { logout } from '../store/authSlice';
+import childrenApi from '../api/childrenApi';
+import { useFocusEffect } from '@react-navigation/native';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
 // Dữ liệu mẫu cho user và các bé
 const user = {
@@ -13,17 +17,59 @@ const user = {
   avatar: require('../../assets/icon.png'),
 };
 
-const children = [
-  { id: '1', name: 'Bé Bông', age: '2 tuổi', avatar: require('../../assets/icon.png') },
-  { id: '2', name: 'Bé Bi', age: '5 tuổi', avatar: require('../../assets/icon.png') },
-];
-
 export default function AccountScreen({ navigation, onLogout }) {
   const dispatch = useDispatch();
+  const [children, setChildren] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const handleLogout = async () => {
     await dispatch(logout());
     if (onLogout) onLogout();
   };
+
+  const fetchChildren = async () => {
+    try {
+      setLoading(true);
+      const response = await childrenApi.getMyChildren();
+      setChildren(response.data);
+    } catch (err) {
+      setError('Không thể tải danh sách các bé');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteChild = (childId) => {
+    Alert.alert(
+      'Xác nhận xoá',
+      'Bạn có chắc chắn muốn xoá bé này không?',
+      [
+        { text: 'Huỷ', style: 'cancel' },
+        {
+          text: 'Xoá',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await childrenApi.deleteChild(childId);
+              await fetchChildren();
+            } catch (err) {
+              Alert.alert('Lỗi', 'Không thể xoá bé.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchChildren();
+    }, [])
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.profileSection}>
@@ -38,19 +84,30 @@ export default function AccountScreen({ navigation, onLogout }) {
       </View>
       <View style={styles.childrenSection}>
         <Text style={styles.sectionTitle}>Các bé đang theo dõi</Text>
-        <FlatList
-          data={children}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.childItem}>
-              <Image source={item.avatar} style={styles.childAvatar} />
-              <View>
-                <Text style={styles.childName}>{item.name}</Text>
-                <Text style={styles.childAge}>{item.age}</Text>
+        {loading ? (
+          <Text>Đang tải...</Text>
+        ) : error ? (
+          <Text style={{ color: 'red' }}>{error}</Text>
+        ) : (
+          <FlatList
+            data={children}
+            keyExtractor={item => item.childId.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.childItem}>
+                <Image source={require('../../assets/icon.png')} style={styles.childAvatar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.childName}>{item.fullName}</Text>
+                  <Text style={styles.childAge}>
+                    Ngày sinh: {item.birthDate ? item.birthDate.split('T')[0] : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => handleDeleteChild(item.childId)} style={{ marginLeft: 10, padding: 8 }}>
+                  <FontAwesomeIcon icon={faTrash} size={20} color="#EA4335" />
+                </TouchableOpacity>
               </View>
-            </View>
-          )}
-        />
+            )}
+          />
+        )}
       </View>
       <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
         <Text style={styles.logoutText}>Đăng xuất</Text>
