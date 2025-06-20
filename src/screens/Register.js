@@ -4,29 +4,45 @@ import { CheckBox } from 'react-native-elements';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { useDispatch } from 'react-redux';
+import { register as registerChild } from '../store/authSlice';
+import childrenApi from '../api/childrenApi';
 
 const Register = ({ navigation }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const dispatch = useDispatch();
+  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     defaultValues: {
-      babyName: '',
-      dateOfBirth: '',
-      weight: '',
+      fullName: '',
+      birthDate: '',
+      gender: 'Nam',
+      bloodType: '',
+      allergiesNotes: '',
+      medicalHistory: '',
       height: '',
+      weight: '',
       headCircumference: '',
-      lastVaccinationDate: '',
-      selectedVaccine: '',
-      healthNotes: '',
-      fever: false,
-      anorexia: false,
-      allergy: false,
-      commitAccurateInfo: false,
-      agreeShareInfo: false,
+      growthNote: '',
     }
   });
 
-  const onSubmit = data => console.log(data);
-
-
+  const onSubmit = async (data) => {
+    try {
+      const genderApi = data.gender === 'Nam' ? 'male' : 'female';
+      const payload = {
+        ...data,
+        gender: genderApi,
+        height: Number(data.height),
+        weight: Number(data.weight),
+        headCircumference: Number(data.headCircumference),
+        growthNote: data.growthNote,
+      };
+      const response = await childrenApi.createChildWithGrowthRecord(payload);
+      alert(response.data.message || 'Tạo trẻ thành công!');
+      navigation.navigate('Home');
+    } catch (error) {
+      alert(error.response?.data?.message || 'Tạo trẻ thất bại!');
+    }
+  };
 
   return (
     <ScrollView style={{ flex: 1, padding: 20 }}>
@@ -39,11 +55,11 @@ const Register = ({ navigation }) => {
 
       {/* Thông Tin Bé */}
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>Thông Tin Bé</Text>
-      {/* Placeholder for camera icon */}
       <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#ccc', alignSelf: 'center', marginVertical: 20 }} />
       <Controller
         control={control}
-        name="babyName"
+        name="fullName"
+        rules={{ required: 'Vui lòng nhập họ tên bé' }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
@@ -51,177 +67,227 @@ const Register = ({ navigation }) => {
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
           />
         )}
       />
+      {errors.fullName && <Text style={{ color: 'red' }}>{errors.fullName.message}</Text>}
       <Controller
         control={control}
-        name="dateOfBirth"
+        name="birthDate"
+        rules={{ required: 'Vui lòng nhập ngày sinh (YYYY-MM-DD)' }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Ngày sinh"
+            placeholder="Ngày sinh (YYYY-MM-DD)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
           />
         )}
       />
-      <Text style={{ marginBottom: 20, color: 'gray' }}>12 tháng tuổi</Text>
-
-      {/* Chỉ Số Tăng Trưởng */}
+      {errors.birthDate && <Text style={{ color: 'red' }}>{errors.birthDate.message}</Text>}
+      {/* Giới tính */}
+      <Text style={{ marginBottom: 10 }}>Giới tính</Text>
+      <Controller
+        control={control}
+        name="gender"
+        render={({ field: { onChange, value } }) => (
+          <View style={{ flexDirection: 'row', marginBottom: 10 }}>
+            {/* Radio Nam */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20 }}
+              onPress={() => onChange('Nam')}
+            >
+              <View
+                style={{
+                  height: 24,
+                  width: 24,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: value === 'Nam' ? '#007bff' : '#ccc',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 8,
+                }}
+              >
+                {value === 'Nam' && (
+                  <View
+                    style={{
+                      height: 12,
+                      width: 12,
+                      borderRadius: 6,
+                      backgroundColor: '#007bff',
+                    }}
+                  />
+                )}
+              </View>
+              <Text style={{ fontSize: 16, color: '#222' }}>Nam</Text>
+            </TouchableOpacity>
+            {/* Radio Nữ */}
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => onChange('Nữ')}
+            >
+              <View
+                style={{
+                  height: 24,
+                  width: 24,
+                  borderRadius: 12,
+                  borderWidth: 2,
+                  borderColor: value === 'Nữ' ? '#007bff' : '#ccc',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 8,
+                }}
+              >
+                {value === 'Nữ' && (
+                  <View
+                    style={{
+                      height: 12,
+                      width: 12,
+                      borderRadius: 6,
+                      backgroundColor: '#007bff',
+                    }}
+                  />
+                )}
+              </View>
+              <Text style={{ fontSize: 16, color: '#222' }}>Nữ</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+      {/* Nhóm máu */}
+      <Controller
+        control={control}
+        name="bloodType"
+        rules={{ required: 'Vui lòng nhập nhóm máu (ví dụ: O-, A+,...)' }}
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
+            placeholder="Nhóm máu (ví dụ: O-, A+,...)"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
+          />
+        )}
+      />
+      {errors.bloodType && <Text style={{ color: 'red' }}>{errors.bloodType.message}</Text>}
+      {/* Dị ứng */}
+      <Controller
+        control={control}
+        name="allergiesNotes"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
+            placeholder="Ghi chú dị ứng (nếu có)"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
+          />
+        )}
+      />
+      {/* Tiền sử bệnh */}
+      <Controller
+        control={control}
+        name="medicalHistory"
+        render={({ field: { onChange, onBlur, value } }) => (
+          <TextInput
+            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
+            placeholder="Tiền sử bệnh (nếu có)"
+            onBlur={onBlur}
+            onChangeText={onChange}
+            value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
+          />
+        )}
+      />
+      {/* Chỉ số tăng trưởng */}
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 10, marginBottom: 10 }}>Chỉ Số Tăng Trưởng</Text>
       <Controller
         control={control}
         name="weight"
+        rules={{ required: 'Vui lòng nhập cân nặng' }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Cân nặng"
+            placeholder="Cân nặng (kg)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
             keyboardType="numeric"
+            importantForAutofill="no"
           />
         )}
       />
-       <Controller
+      {errors.weight && <Text style={{ color: 'red' }}>{errors.weight.message}</Text>}
+      <Controller
         control={control}
         name="height"
+        rules={{ required: 'Vui lòng nhập chiều cao' }}
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Chiều cao"
+            placeholder="Chiều cao (cm)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
             keyboardType="numeric"
+            importantForAutofill="no"
           />
         )}
       />
-      {/* Assuming the middle input is also for growth metrics */}
-       <Controller
+      {errors.height && <Text style={{ color: 'red' }}>{errors.height.message}</Text>}
+      <Controller
         control={control}
         name="headCircumference"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Vòng đầu (tùy chọn)" // Placeholder based on common growth metrics
+            placeholder="Vòng đầu (cm, tuỳ chọn)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
             keyboardType="numeric"
+            importantForAutofill="no"
           />
         )}
       />
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-          <Text style={{fontSize: 16}}>BMI</Text>
-          <Text style={{fontSize: 16, fontWeight: 'bold', color: 'blue'}}>16.5</Text>
-      </View>
-      <Text style={{marginBottom: 20, color: 'gray'}}>BMI được tính tự động khi nhập cân nặng và chiều cao</Text>
-
-      {/* Lịch Sử Tiêm Chủng */}
-       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20,  marginBottom: 10  }}>Lịch Sử Tiêm Chủng</Text>
-        <Controller
+      {/* Ghi chú tăng trưởng */}
+      <Controller
         control={control}
-        name="lastVaccinationDate"
+        name="growthNote"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Ngày tiêm gần nhất"
+            style={{ height: 80, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5 }}
+            placeholder="Ghi chú tăng trưởng (nếu có)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
-          />
-        )}
-      />
-        <Controller // Using TextInput for dropdown placeholder
-        control={control}
-        name="selectedVaccine"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Chọn vaccine đã tiêm"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-          />
-        )}
-      />
-      <TouchableOpacity style={{ backgroundColor: 'blue', padding: 15, borderRadius: 5, alignItems: 'center' }}>
-        <Text style={{ color: 'white', fontSize: 18 }}>+ Thêm lịch sử tiêm</Text>
-      </TouchableOpacity>
-
-      {/* Theo Dõi Sức Khỏe */}
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20,  marginBottom: 10  }}>Theo Dõi Sức Khỏe</Text>
-       <Controller
-        control={control}
-        name="healthNotes"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={{ height: 100, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, paddingTop: 10, borderRadius: 5 }}
-            placeholder="Ghi chú về tình trạng sức khỏe của bé (VD: ho, sốt, phát ban,...)"
             multiline
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
+            autoCapitalize="none"
+            importantForAutofill="no"
           />
         )}
       />
-       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            {/* Using CheckBox for placeholder, might need a different component in a real app */}
-           <Controller
-              control={control}
-              name="fever"
-              render={({ field: { onChange, value } }) => (
-                <CheckBox checked={value} onPress={() => onChange(!value)} />
-              )}
-           />
-           <Text style={{marginLeft: 5}}>Sốt kéo dài</Text>
-       </View>
-       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <Controller
-              control={control}
-              name="anorexia"
-              render={({ field: { onChange, value } }) => (
-                <CheckBox checked={value} onPress={() => onChange(!value)} />
-              )}
-           />
-           <Text style={{marginLeft: 5}}>Biếng ăn</Text>
-       </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-            <Controller
-              control={control}
-              name="allergy"
-              render={({ field: { onChange, value } }) => (
-                <CheckBox checked={value} onPress={() => onChange(!value)} />
-              )}
-           />
-           <Text style={{marginLeft: 5}}>Dị ứng</Text>
-       </View>
-
-       {/* Cam kết và Đồng ý */}
-       <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-            <Controller
-              control={control}
-              name="commitAccurateInfo"
-              render={({ field: { onChange, value } }) => (
-                <CheckBox checked={value} onPress={() => onChange(!value)} />
-              )}
-           />
-           <Text style={{marginLeft: 5}}>Tôi cam kết thông tin cung cấp là chính xác và sẽ cập nhật khi có thay đổi.</Text>
-       </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-            <Controller
-              control={control}
-              name="agreeShareInfo"
-              render={({ field: { onChange, value } }) => (
-                <CheckBox checked={value} onPress={() => onChange(!value)} />
-              )}
-           />
-           <Text style={{marginLeft: 5}}>Tôi đồng ý chia sẻ thông tin này với bác sĩ của bé qua hệ thống.</Text>
-       </View>
-
+      {/* Lịch sử tiêm chủng - ĐÃ COMMENT */}
+      {/*
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20,  marginBottom: 10  }}>Lịch Sử Tiêm Chủng</Text>
+      ...
+      */}
+      {/* Theo dõi sức khỏe - ĐÃ COMMENT */}
+      {/*
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20,  marginBottom: 10  }}>Theo Dõi Sức Khỏe</Text>
+      ...
+      */}
       <TouchableOpacity style={{ backgroundColor: 'blue', padding: 15, borderRadius: 5, alignItems: 'center', marginBottom: 40 }} onPress={handleSubmit(onSubmit)}>
         <Text style={{ color: 'white', fontSize: 18 }}>Lưu thông tin</Text>
       </TouchableOpacity>

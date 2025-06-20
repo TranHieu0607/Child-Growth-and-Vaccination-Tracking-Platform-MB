@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import childrenApi from '../api/childrenApi';
 
 const UpdateGrowth = ({ navigation }) => {
   const { control, handleSubmit, formState: { errors } } = useForm({
@@ -15,20 +16,48 @@ const UpdateGrowth = ({ navigation }) => {
     }
   });
 
-  const onSubmit = data => {
-    console.log(data);
-    // Add logic to update growth data
+  const [children, setChildren] = useState([]);
+  const [selectedChildren, setSelectedChildren] = useState([]);
+
+  // Lấy danh sách trẻ từ API khi vào màn hình
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        setChildren(res.data);
+        if (res.data.length > 0) {
+          setSelectedChildren([res.data[0].childId]);
+        }
+      } catch (e) {
+        setChildren([]);
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  const onSubmit = async (data) => {
+    try {
+      const childId = selectedChildren[0];
+      const createdAt = data.measurementDate
+        ? new Date(data.measurementDate).toISOString()
+        : new Date().toISOString();
+      const payload = {
+        height: Number(data.height),
+        weight: Number(data.weight),
+        headCircumference: Number(data.headCircumference),
+        createdAt,
+        note: data.notes || "",
+      };
+      await childrenApi.updateGrowthRecord(childId, payload);
+      alert('Cập nhật chỉ số thành công!');
+      navigation.goBack();
+    } catch (error) {
+      alert('Cập nhật chỉ số thất bại!');
+    }
   };
 
   // Add state for dropdown visibility
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  // Placeholder state for children data and selected children
-  const [children, setChildren] = useState([
-    { id: 'child1', name: 'Nguyễn Minh Khôi', age: '3 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child2', name: 'Lê Thu Anh', age: '2 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child3', name: 'Trần Văn Bình', age: '4 tuổi', image: require('../../assets/vnvc.jpg') },
-  ]);
-  const [selectedChildren, setSelectedChildren] = useState(['child1']); // Start with one child selected
 
   // Function to handle the dropdown press
   const handleSelectChildPress = () => {
@@ -42,6 +71,8 @@ const UpdateGrowth = ({ navigation }) => {
     setIsDropdownVisible(false); // Close the dropdown after selecting
     console.log('Selected child ID:', childId);
   };
+
+  const selectedChild = children.find(child => child.childId === selectedChildren[0]);
 
   return (
     <ScrollView style={styles.container}>
@@ -58,22 +89,14 @@ const UpdateGrowth = ({ navigation }) => {
           {/* Display profile image of the first selected child */}
           {selectedChildren.length > 0 && (
             <Image
-              source={children.find(child => child.id === selectedChildren[0])?.image || require('../../assets/vnvc.jpg')}
+              source={require('../../assets/vnvc.jpg')}
               style={styles.profileImage}
             />
           )}
           <View>
             {/* Display name of the first selected child */}
             {selectedChildren.length > 0 && (
-              <Text style={styles.childName}>
-                {children.find(child => child.id === selectedChildren[0])?.name}
-              </Text>
-            )}
-            {/* Display age of the first selected child */}
-            {selectedChildren.length > 0 && (
-              <Text style={styles.childAge}>
-                {children.find(child => child.id === selectedChildren[0])?.age}
-              </Text>
+              <Text style={styles.childName}>{selectedChild?.fullName}</Text>
             )}
           </View>
         </View>
@@ -90,21 +113,18 @@ const UpdateGrowth = ({ navigation }) => {
           <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
             {children.map(child => (
               <TouchableOpacity
-                key={child.id}
+                key={child.childId}
                 style={styles.dropdownItem}
-                onPress={() => handleSelectChild(child.id)}
+                onPress={() => handleSelectChild(child.childId)}
               >
-                {/* Add child image */}
                 <Image
-                  source={child.image || require('../../assets/vnvc.jpg')}
+                  source={require('../../assets/vnvc.jpg')}
                   style={styles.dropdownItemImage}
                 />
                 <View style={styles.dropdownItemTextContainer}>
-                  <Text style={styles.dropdownItemName}>{child.name}</Text>
-                  <Text style={styles.dropdownItemAge}>{child.age}</Text>
+                  <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 </View>
-                {/* Indicate selected child */}
-                {selectedChildren[0] === child.id && <Text style={styles.selectedIcon}> ✅</Text>}
+                {selectedChildren[0] === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -112,20 +132,20 @@ const UpdateGrowth = ({ navigation }) => {
       )}
 
       {/* Ngày đo */}
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ngày đo</Text>
+      {/* <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ngày đo</Text>
       <Controller
         control={control}
         name="measurementDate"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}
-            placeholder="DD/MM/YYYY"
+            placeholder="YYYY-MM-DD"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}
           />
         )}
-      />
+      /> */}
 
       {/* Chiều cao */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Chiều cao</Text>
