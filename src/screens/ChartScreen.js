@@ -1,28 +1,32 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView,  StyleSheet, Image, Dimensions, Modal } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions, Modal } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { LineChart } from 'react-native-chart-kit';
+import childrenApi from '../api/childrenApi';
 
 // Placeholder components
 const TabBar = ({ selectedTab, onSelectTab }) => (
-  <View style={styles.tabBar}>
-    {['Chiều cao', 'Cân nặng', 'Vòng đầu', 'BMI'].map((tab, index) => (
+  <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 }}>
+    {['Chiều cao', 'Cân nặng', 'Vòng đầu', 'BMI'].map((tab) => (
       <TouchableOpacity
         key={tab}
-        style={[styles.tabButton, selectedTab === tab && styles.selectedTabButton]}
         onPress={() => onSelectTab(tab)}
+        style={{ padding: 8, borderBottomWidth: selectedTab === tab ? 2 : 0, borderBottomColor: 'blue' }}
       >
-        <Text style={[styles.tabText, selectedTab === tab && styles.selectedTabText]}>{tab}</Text>
+        <Text style={{ color: selectedTab === tab ? 'blue' : 'black', fontWeight: selectedTab === tab ? 'bold' : 'normal' }}>
+          {tab}
+        </Text>
       </TouchableOpacity>
     ))}
   </View>
 );
 
+
 // Updated DataTable component
-const DataTable = ({ data, selectedTab }) => {
+const DataTable = ({ data, selectedTab, assessment }) => {
   // Determine the unit based on the selected tab
-  const unit = selectedTab === 'Chiều cao' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : selectedTab === 'Vòng đầu' ? ' cm' : '';
+  const unit = selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : '';
 
   // Function to get status text style based on status value
   const getStatusStyle = (status) => {
@@ -41,223 +45,309 @@ const DataTable = ({ data, selectedTab }) => {
 
   return (
     <View style={styles.dataTableContainer}>
-      <Text style={styles.tableTitle}>Bảng dữ liệu chi tiết</Text>
+      {/* <Text style={styles.tableTitle}>Bảng dữ liệu chi tiết</Text> */}
       {/* Table Header */}
-      <View style={styles.tableHeader}>
+      {/* <View style={styles.tableHeader}>
         <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Tháng tuổi</Text>
         <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Giá trị</Text>
         <Text style={[styles.tableHeaderCell, { flex: 2, textAlign: 'right' }]}>Trạng thái</Text>
-      </View>
+      </View> */}
       {/* Table Rows */}
-      <ScrollView nestedScrollEnabled={true} style={styles.tableBodyScroll}>
-        {data.length > 0 ? data.map((item, index) => (
-          <View key={index} style={styles.tableRow}>
-            <Text style={[styles.tableCell, { flex: 1 }]}>{item.month}</Text>
-            {/* Display value with unit */}
-            <Text style={[styles.tableCell, { flex: 1.5 }]}>{item.value}{unit}</Text>
-            {/* Display status with color */}
-            <Text style={[styles.tableCell, styles.statusText, getStatusStyle(item.status), { flex: 2, textAlign: 'right' }]}>{item.status}</Text>
+      
+
+      {assessment && (
+        <View style={styles.assessmentContainer}>
+          <Text style={styles.assessmentTitle}>
+            Đánh giá mới nhất ({new Date(assessment.measurementDate).toLocaleDateString('vi-VN')})
+          </Text>
+          <View style={styles.assessmentRow}>
+            <Text style={styles.assessmentLabel}>Chiều cao:</Text>
+            <Text style={styles.assessmentValue}>{`${assessment.height} cm - ${assessment.assessments.heightStatus}`}</Text>
           </View>
-        )) : (
-          <Text style={styles.noDataText}>Không có dữ liệu để hiển thị.</Text>
-        )}
-      </ScrollView>
+          <View style={styles.assessmentRow}>
+            <Text style={styles.assessmentLabel}>Cân nặng:</Text>
+            <Text style={styles.assessmentValue}>{`${assessment.weight} kg - ${assessment.assessments.weightStatus}`}</Text>
+          </View>
+          <View style={styles.assessmentRow}>
+            <Text style={styles.assessmentLabel}>BMI:</Text>
+            <Text style={styles.assessmentValue}>{`${assessment.bmi} - ${assessment.assessments.bmiStatus}`}</Text>
+          </View>
+          <View style={styles.assessmentRow}>
+            <Text style={styles.assessmentLabel}>Vòng đầu:</Text>
+            <Text style={styles.assessmentValue}>{`${assessment.headCircumference} cm - ${assessment.assessments.headCircumferenceStatus}`}</Text>
+          </View>
+          <Text style={[styles.assessmentTitle, { marginTop: 10 }]}>Khuyến nghị</Text>
+          <Text style={styles.recommendationsText}>{assessment.recommendations}</Text>
+        </View>
+      )}
     </View>
   );
 };
 
 const ChartScreen = ({ navigation }) => {
 
-  const [selectedTab, setSelectedTab] = React.useState('Chiều cao');
+  const [selectedTab, setSelectedTab] = useState('Chiều cao');
 
-  const [isDropdownVisible, setIsDropdownVisible] = React.useState(false);
-  const childName = "Nguyễn Minh Khôi"; 
-  const childAge = "3 tuổi"; 
-  const profileImage = require('../../assets/vnvc.jpg'); 
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
-  const [children, setChildren] = React.useState([
-    { id: 'child1', name: 'Nguyễn Minh Khôi', age: '3 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child2', name: 'Lê Thu Anh', age: '2 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child3', name: 'Trần Văn Bình', age: '4 tuổi', image: require('../../assets/vnvc.jpg') },
-  ]);
-  const [selectedChildren, setSelectedChildren] = React.useState(['child1']); 
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [childGrowthData, setChildGrowthData] = useState(null);
+  const [assessment, setAssessment] = useState(null);
+  const [heightStandardData, setHeightStandardData] = useState([]);
+  const [weightStandardData, setWeightStandardData] = useState([]);
+  const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
+  const [bmiStandardData, setBMIStandardData] = useState([]);
 
-  const [allChildrenGrowthData, setAllChildrenGrowthData] = React.useState([
-    {
-      childId: 'child1',
-      data: {
-        'Chiều cao': [
-          { month: 24, value: 95, status: 'Bình thường' },
-          { month: 27, value: 97, status: 'Bình thường' },
-          { month: 30, value: 99, status: 'Bình thường' },
-          { month: 33, value: 101, status: 'Bình thường' },
-          { month: 36, value: 103, status: 'Bình thường' },
-        ],
-        'Cân nặng': [
-          { month: 24, value: 13, status: 'Bình thường' },
-          { month: 27, value: 14, status: 'Bình thường' },
-          { month: 30, value: 15, status: 'Bình thường' },
-          { month: 33, value: 16, status: 'Bình thường' },
-          { month: 36, value: 17, status: 'Bình thường' },
-        ],
-        'Vòng đầu': [
-          { month: 24, value: 48, status: 'Bình thường' },
-          { month: 27, value: 48.5, status: 'Bình thường' },
-          { month: 30, value: 49, status: 'Bình thường' },
-          { month: 33, value: 49.5, status: 'Bình thường' },
-          { month: 36, value: 50, status: 'Bình thường' },
-        ],
-        'BMI': [
-          { month: 24, value: 15.5, status: 'Bình thường' },
-          { month: 27, value: 15.8, status: 'Bình thường' },
-          { month: 30, value: 16, status: 'Bình thường' },
-          { month: 33, value: 16.2, status: 'Bình thường' },
-          { month: 36, value: 16.5, status: 'Bình thường' },
-        ],
-      },
-    },
-    {
-      childId: 'child2',
-      data: {
-        'Chiều cao': [
-          { month: 24, value: 93, status: 'Bình thường' },
-          { month: 27, value: 95, status: 'Bình thường' },
-          { month: 30, value: 97, status: 'Bình thường' },
-          { month: 33, value: 99, status: 'Bình thường' },
-          { month: 36, value: 101, status: 'Bình thường' },
-        ],
-        'Cân nặng': [
-          { month: 24, value: 12.5, status: 'Bình thường' },
-          { month: 27, value: 13.5, status: 'Bình thường' },
-          { month: 30, value: 14.5, status: 'Bình thường' },
-          { month: 33, value: 15.5, status: 'Bình thường' },
-          { month: 36, value: 16.5, status: 'Bình thường' },
-        ],
-        'Vòng đầu': [
-          { month: 24, value: 47.5, status: 'Bình thường' },
-          { month: 27, value: 48, status: 'Bình thường' },
-          { month: 30, value: 48.5, status: 'Bình thường' },
-          { month: 33, value: 49, status: 'Bình thường' },
-          { month: 36, value: 49.5, status: 'Bình thường' },
-        ],
-        'BMI': [
-          { month: 24, value: 15.2, status: 'Bình thường' },
-          { month: 27, value: 15.6, status: 'Bình thường' },
-          { month: 30, value: 15.9, status: 'Bình thường' },
-          { month: 33, value: 16.1, status: 'Bình thường' },
-          { month: 36, value: 16.4, status: 'Bình thường' },
-        ],
-      },
-    },
-    {
-      childId: 'child3',
-      data: {
-        'Chiều cao': [
-          { month: 24, value: 93, status: 'Bình thường' },
-          { month: 27, value: 95, status: 'Bình thường' },
-          { month: 30, value: 97, status: 'Bình thường' },
-          { month: 33, value: 99, status: 'Bình thường' },
-          { month: 36, value: 101, status: 'Bình thường' },
-        ],
-        'Cân nặng': [
-          { month: 24, value: 12.5, status: 'Bình thường' },
-          { month: 27, value: 13.5, status: 'Bình thường' },
-          { month: 30, value: 14.5, status: 'Bình thường' },
-          { month: 33, value: 15.5, status: 'Bình thường' },
-          { month: 36, value: 16.5, status: 'Bình thường' },
-        ],
-        'Vòng đầu': [
-          { month: 24, value: 47.5, status: 'Bình thường' },
-          { month: 27, value: 48, status: 'Bình thường' },
-          { month: 30, value: 48.5, status: 'Bình thường' },
-          { month: 33, value: 49, status: 'Bình thường' },
-          { month: 36, value: 49.5, status: 'Bình thường' },
-        ],
-        'BMI': [
-          { month: 24, value: 15.2, status: 'Bình thường' },
-          { month: 27, value: 15.6, status: 'Bình thường' },
-          { month: 30, value: 15.9, status: 'Bình thường' },
-          { month: 33, value: 16.1, status: 'Bình thường' },
-          { month: 36, value: 16.4, status: 'Bình thường' },
-        ],
-      },
-    },
-  ]);
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        const data = res.data || [];
+        setChildren(data);
+        if (data.length > 0) setSelectedChildId(data[0].childId);
+      } catch (e) {
+        console.error("Failed to fetch children:", e);
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  useEffect(() => {
+    const fetchAllDataForChild = async () => {
+      if (!selectedChildId) {
+        setChildGrowthData(null);
+        setAssessment(null);
+        setHeightStandardData([]);
+        setWeightStandardData([]);
+        setHeadCircumferenceStandardData([]);
+        setBMIStandardData([]);
+        return;
+      }
+
+      // Fetch growth records
+      try {
+        const res = await childrenApi.getGrowthRecordsByChildId(selectedChildId);
+        let records = res.data || [];
+      
+        // ✅ Lấy 4 bản ghi mới nhất (theo createdAt) và sắp xếp tăng dần theo ageInDays
+        records = records.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
+        records = records.sort((a, b) => a.ageInDays - b.ageInDays);
+      
+        const processRecords = (key) =>
+          records.map(item => ({
+            month: Math.round(item.ageInDays / 30.44),
+            ageInDays: item.ageInDays,
+            value: item[key],
+            status: 'Bình thường'
+          })).filter(item => typeof item.value === 'number' && isFinite(item.value));
+      
+        setChildGrowthData({
+          childId: selectedChildId,
+          data: {
+            'Chiều cao': processRecords('height'),
+            'Cân nặng': processRecords('weight'),
+            'Vòng đầu': processRecords('headCircumference'),
+            'BMI': processRecords('bmi')
+          }
+        });
+
+        // Nếu tab là 'Chiều cao', lấy dữ liệu chuẩn cho từng tháng tuổi thực tế và 4 tháng tiếp theo
+        const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
+        const monthsHeight = processRecords('height').map(item => item.month);
+        let allMonthsHeight = [...monthsHeight];
+        if (monthsHeight.length > 0) {
+          const maxMonth = Math.max(...monthsHeight);
+          for (let i = 1; i <= 4; i++) {
+            allMonthsHeight.push(maxMonth + i);
+          }
+          allMonthsHeight = Array.from(new Set(allMonthsHeight)).sort((a, b) => a - b);
+        }
+        const promisesHeight = allMonthsHeight.map(month => childrenApi.getHeightStandard(gender, month));
+        const resultsHeight = await Promise.all(promisesHeight);
+        const standardDataHeight = resultsHeight.map((res, idx) => {
+          const arr = Array.isArray(res.data) ? res.data : [];
+          return arr.length > 0 ? { month: allMonthsHeight[idx], median: arr[0].median } : { month: allMonthsHeight[idx], median: null };
+        });
+        setHeightStandardData(standardDataHeight);
+        // Cân nặng
+        const monthsWeight = processRecords('weight').map(item => item.month);
+        let allMonthsWeight = [...monthsWeight];
+        if (monthsWeight.length > 0) {
+          const maxMonth = Math.max(...monthsWeight);
+          for (let i = 1; i <= 4; i++) {
+            allMonthsWeight.push(maxMonth + i);
+          }
+          allMonthsWeight = Array.from(new Set(allMonthsWeight)).sort((a, b) => a - b);
+        }
+        const promisesWeight = allMonthsWeight.map(month => childrenApi.getWeightStandard(gender, month));
+        const resultsWeight = await Promise.all(promisesWeight);
+        const standardDataWeight = resultsWeight.map((res, idx) => {
+          const arr = Array.isArray(res.data) ? res.data : [];
+          return arr.length > 0 ? { month: allMonthsWeight[idx], median: arr[0].median } : { month: allMonthsWeight[idx], median: null };
+        });
+        setWeightStandardData(standardDataWeight);
+        // Vòng đầu
+        const monthsHead = processRecords('headCircumference').map(item => item.month);
+        let allMonthsHead = [...monthsHead];
+        if (monthsHead.length > 0) {
+          const maxMonth = Math.max(...monthsHead);
+          for (let i = 1; i <= 4; i++) {
+            allMonthsHead.push(maxMonth + i);
+          }
+          allMonthsHead = Array.from(new Set(allMonthsHead)).sort((a, b) => a - b);
+        }
+        const promisesHead = allMonthsHead.map(month => childrenApi.getHeadCircumferenceStandard(gender, month));
+        const resultsHead = await Promise.all(promisesHead);
+        const standardDataHead = resultsHead.map((res, idx) => {
+          const arr = Array.isArray(res.data) ? res.data : [];
+          return arr.length > 0 ? { month: allMonthsHead[idx], median: arr[0].median } : { month: allMonthsHead[idx], median: null };
+        });
+        setHeadCircumferenceStandardData(standardDataHead);
+        // BMI
+        const monthsBMI = processRecords('bmi').map(item => item.month);
+        let allMonthsBMI = [...monthsBMI];
+        if (monthsBMI.length > 0) {
+          const maxMonth = Math.max(...monthsBMI);
+          for (let i = 1; i <= 4; i++) {
+            allMonthsBMI.push(maxMonth + i);
+          }
+          allMonthsBMI = Array.from(new Set(allMonthsBMI)).sort((a, b) => a - b);
+        }
+        const promisesBMI = allMonthsBMI.map(month => childrenApi.getBMIStandard(gender, month));
+        const resultsBMI = await Promise.all(promisesBMI);
+        const standardDataBMI = resultsBMI.map((res, idx) => {
+          const arr = Array.isArray(res.data) ? res.data : [];
+          return arr.length > 0 ? { month: allMonthsBMI[idx], median: arr[0].median } : { month: allMonthsBMI[idx], median: null };
+        });
+        setBMIStandardData(standardDataBMI);
+      } catch (err) {
+        console.error("Error fetching growth data:", err);
+        setChildGrowthData(null);
+        setHeightStandardData([]);
+        setWeightStandardData([]);
+        setHeadCircumferenceStandardData([]);
+        setBMIStandardData([]);
+      }
+
+      // Fetch assessment
+      try {
+        const res = await childrenApi.getLatestGrowthAssessment(selectedChildId);
+        setAssessment(res.data);
+      } catch (err) {
+        console.error("Error fetching assessment data:", err);
+        setAssessment(null);
+      }
+    };
+    fetchAllDataForChild();
+  }, [selectedChildId, children]);
 
 
   const handleSelectChildPress = () => {
 
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!'); 
+    console.log('Select child pressed!');
   };
 
 
   const handleSelectChild = (childId) => {
-    setSelectedChildren([childId]); 
-    setIsDropdownVisible(false); 
+    setSelectedChildId(childId);
+    setIsDropdownVisible(false);
     console.log('Selected child ID:', childId);
   };
 
-
-  const getChartAndTableData = (childrenIds, tab) => {
-    if (!childrenIds || childrenIds.length === 0) {
-      return { chartKitData: { labels: [], datasets: [] }, tableData: [] };
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let years = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      years--;
     }
-
-    // Get data for the selected children and tab
-    const dataForSelectedChildren = allChildrenGrowthData
-      .filter(data => childrenIds.includes(data.childId))
-      .map(data => ({
-        childId: data.childId,
-        metricData: data.data[tab] || [],
-      }));
-
-    // Collect all unique months from selected children's data for the current metric
-    const allMonths = Array.from(
-      new Set(dataForSelectedChildren.flatMap(child => child.metricData.map(item => item.month)))
-    ).sort((a, b) => a - b);
-
-    // Generate datasets for each selected child
-    const datasets = dataForSelectedChildren.map((childInfo, index) => {
-      // Map existing data points to the collected months, using null for missing months
-      const dataPoints = allMonths.map(month => {
-        const dataPoint = childInfo.metricData.find(item => item.month === month);
-        return dataPoint ? dataPoint.value : null; // Use null for missing data points
-      });
-
-      // Assign a color based on index (can be improved for more distinct colors if needed)
-      const colors = [
-        (opacity = 1) => `rgba(0, 123, 255, ${opacity})`, // Blue
-        (opacity = 1) => `rgba(255, 99, 132, ${opacity})`, // Red
-        (opacity = 1) => `rgba(255, 159, 64, ${opacity})`, // Orange
-        (opacity = 1) => `rgba(75, 192, 192, ${opacity})`, // Green
-        (opacity = 1) => `rgba(153, 102, 255, ${opacity})`, // Purple
-      ];
-
-      return {
-        data: dataPoints,
-        color: colors[index % colors.length], // Cycle through colors
-        // Add a label for the legend (optional but good practice)
-        name: children.find(c => c.id === childInfo.childId)?.name || `Child ${index + 1}`,
-      };
-    });
-
-    const chartKitData = {
-      // Add " Tháng" to each label on the X-axis
-      labels: allMonths.map(month => `${month} Tháng`),
-      datasets: datasets,
-      legend: selectedChildren.length > 1 ? datasets.map(d => d.name) : undefined, // Show legend if multiple children selected
-    };
-
-    // For the table, we can show the combined data or data for the first selected child.
-    // Let's show data for the first selected child for simplicity in the table.
-    const tableData = dataForSelectedChildren.length > 0 ? dataForSelectedChildren[0].metricData : [];
-
-    return { chartKitData, tableData };
+    if (years > 0) {
+      const remainingMonths = m < 0 ? 12 + m : m;
+      return `${years} tuổi ${remainingMonths > 0 ? `${remainingMonths} tháng` : ''}`;
+    }
+    
+    let months = today.getMonth() - birthDate.getMonth() + (12 * (today.getFullYear() - birthDate.getFullYear()));
+    if(today.getDate() < birthDate.getDate()) {
+        months--;
+    }
+    return `${months} tháng`;
   };
 
+
+  const getChartAndTableData = (tab) => {
+    const data = childGrowthData?.data?.[tab] || [];
+    const validData = data.filter(item => typeof item.value === 'number' && isFinite(item.value));
+    // Dữ liệu thực tế: chỉ lấy các tháng trẻ có dữ liệu
+    let labels = validData.map(item => `${item.ageInDays} ngày`);
+    let values = validData.map(item => item.value);
+    if (labels.length === 1) {
+      labels = [labels[0], `${parseInt(labels[0]) + 1}T`];
+      values = [values[0], null];
+    }
+    // Nếu là tab Chiều cao, thêm dữ liệu median chuẩn vào datasets (labels riêng)
+    let datasets = [{ data: values, color: (opacity = 1) => `rgba(0,123,255,${opacity})` }];
+    let legend = [tab];
+    if (tab === 'Chiều cao' && heightStandardData.length > 0) {
+      const stdLabels = heightStandardData.map(item => `${item.month}T`);
+      const medianValues = heightStandardData.map(item => item.median);
+      datasets.push({
+        data: medianValues,
+        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
+        withDots: true,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
+      });
+      legend.push('Chuẩn (median)');
+      // Gán thêm labels chuẩn vào chartKitData nếu muốn hiển thị đủ trục x (tuỳ chọn, có thể bỏ nếu muốn trục x chỉ theo dữ liệu trẻ)
+      // labels = Array.from(new Set([...labels, ...stdLabels])).sort((a, b) => parseInt(a) - parseInt(b));
+    }
+    if (tab === 'Cân nặng' && weightStandardData.length > 0) {
+      const stdLabels = weightStandardData.map(item => `${item.month}T`);
+      const medianValues = weightStandardData.map(item => item.median);
+      datasets.push({
+        data: medianValues,
+        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
+        withDots: true,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
+      });
+      legend.push('Chuẩn (median)');
+    }
+    if (tab === 'Vòng đầu' && headCircumferenceStandardData.length > 0) {
+      const stdLabels = headCircumferenceStandardData.map(item => `${item.month}T`);
+      const medianValues = headCircumferenceStandardData.map(item => item.median);
+      datasets.push({
+        data: medianValues,
+        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
+        withDots: true,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
+      });
+      legend.push('Chuẩn (median)');
+    }
+    if (tab === 'BMI' && bmiStandardData.length > 0) {
+      const stdLabels = bmiStandardData.map(item => `${item.month}T`);
+      const medianValues = bmiStandardData.map(item => item.median);
+      datasets.push({
+        data: medianValues,
+        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
+        withDots: true,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
+      });
+      legend.push('Chuẩn (median)');
+    }
+    const chartKitData = {
+      labels,
+      datasets,
+      legend
+    };
+    return { chartKitData, tableData: validData };
+  };
+  
+
   // Get the chart and table data based on the current selection
-  const { chartKitData, tableData } = getChartAndTableData(selectedChildren, selectedTab);
+  const { chartKitData, tableData } = getChartAndTableData(selectedTab);
 
   // Get screen width to make chart responsive (subtracting container padding)
   const screenWidth = Dimensions.get('window').width;
@@ -277,26 +367,26 @@ const ChartScreen = ({ navigation }) => {
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
   <View style={styles.childInfo}>
     {/* Display profile image of the first selected child */}
-    {/* Use selectedChildren[0] as we are back to single select in display */}
-    {selectedChildren.length > 0 && (
+    {/* Use selectedChildId as we are back to single select in display */}
+    {selectedChildId && (
       <Image
-        source={children.find(child => child.id === selectedChildren[0])?.image || require('../../assets/vnvc.jpg')}
+        source={children.find(child => child.childId === selectedChildId)?.image || require('../../assets/vnvc.jpg')}
         style={styles.profileImage}
       />
     )}
     <View>
       {/* Display name of the first selected child */}
-      {/* Use selectedChildren[0] as we are back to single select in display */}
-      {selectedChildren.length > 0 && (
+      {/* Use selectedChildId as we are back to single select in display */}
+      {selectedChildId && (
         <Text style={styles.childName}>
-          {children.find(child => child.id === selectedChildren[0])?.name}
+          {children.find(child => child.childId === selectedChildId)?.fullName}
         </Text>
       )}
       {/* Display age of the first selected child */}
-      {/* Use selectedChildren[0] as we are back to single select in display */}
-      {selectedChildren.length > 0 && (
+      {/* Use selectedChildId as we are back to single select in display */}
+      {selectedChildId && (
         <Text style={styles.childAge}>
-          {children.find(child => child.id === selectedChildren[0])?.age}
+          {calculateAge(children.find(child => child.childId === selectedChildId)?.dateOfBirth)}
         </Text>
       )}
     </View>
@@ -315,9 +405,9 @@ const ChartScreen = ({ navigation }) => {
     <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
       {children.map(child => (
         <TouchableOpacity
-          key={child.id}
+          key={child.childId}
           style={styles.dropdownItem}
-          onPress={() => handleSelectChild(child.id)}
+          onPress={() => handleSelectChild(child.childId)}
         >
           {/* Add child image */}
           <Image
@@ -325,11 +415,11 @@ const ChartScreen = ({ navigation }) => {
             style={styles.dropdownItemImage}
           />
           <View style={styles.dropdownItemTextContainer}>
-            <Text style={styles.dropdownItemName}>{child.name}</Text>
-            <Text style={styles.dropdownItemAge}>{child.age}</Text>
+            <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+            <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>
           </View>
           {/* Indicate selected child */}
-          {selectedChildren[0] === child.id && <Text style={styles.selectedIcon}> ✅</Text>}
+          {selectedChildId === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -340,45 +430,38 @@ const ChartScreen = ({ navigation }) => {
       {/* 2. Tab phân loại biểu đồ */}
       <TabBar selectedTab={selectedTab} onSelectTab={setSelectedTab} />
 
-      {/* 3. Vùng biểu đồ phát triển */}
-      <ScrollView style={styles.chartArea} contentContainerStyle={styles.chartAreaContent}>
-        <Text style={styles.chartTitle}>Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : selectedTab === 'Vòng đầu' ? 'cm' : 'BMI'})</Text>
-        <LineChart
-          data={chartKitData}
-          width={chartWidth}
-          height={220} // Fixed height for the chart area
-          chartConfig={{
-            backgroundColor: '#ffffff',
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#ffffff',
-            decimalPlaces: 0, // Optional: defaults to 2dp
-            color: (opacity = 1) => `rgba(0, 123, 255, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
-            style: {
-              borderRadius: 16,
-            },
-            propsForDots: {
-              r: "6",
-              strokeWidth: "2",
-              stroke: "#007bff"
-            },
-            // Add yAxisSuffix for units
-            yAxisSuffix: selectedTab === 'Chiều cao' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : selectedTab === 'Vòng đầu' ? ' cm' : '',
-          }}
-          bezier={false} // Set to true for curved lines
-          style={{
-            marginVertical: 8,
-            borderRadius: 16,
-          }}
-        />
-         {/* Info icon placeholder */}
-         <TouchableOpacity style={styles.infoIcon}>
-             <Text style={{ fontSize: 16, color: '#007bff' }}>ⓘ</Text>
-         </TouchableOpacity>
-      </ScrollView>
+<ScrollView style={{ paddingHorizontal: 16 }}>
+  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
+    Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
+  </Text>
+
+  {chartKitData.datasets[0].data.length > 0 && (
+    <LineChart
+      data={chartKitData}
+      width={chartWidth}
+      height={220}
+      chartConfig={{
+        backgroundColor: '#fff',
+        backgroundGradientFrom: '#fff',
+        backgroundGradientTo: '#fff',
+        decimalPlaces: 1,
+        color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
+        labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
+        yAxisSuffix: selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : ''
+      }}
+      bezier
+      style={{ borderRadius: 16 }}
+    />
+  )}
+
+  {/* Bảng dữ liệu chi tiết nếu muốn hiển thị */}
+  <DataTable data={tableData} selectedTab={selectedTab} assessment={assessment} />
+</ScrollView>
+
 
       {/* 4. Bảng dữ liệu chi tiết */}
-      <DataTable data={tableData} selectedTab={selectedTab} />
+      {/* <DataTable data={tableData} selectedTab={selectedTab} /> */}
 
     </ScrollView>
   );
@@ -491,9 +574,7 @@ const combinedStyles = StyleSheet.create({
     borderBottomColor: '#eee',
   },
   tableCell: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 14,
   },
   statusText: {
     // Base style for status text
@@ -564,6 +645,35 @@ const combinedStyles = StyleSheet.create({
   selectedIcon: {
     color: 'green',
     fontSize: 16,
+  },
+  assessmentContainer: {
+    marginTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    paddingTop: 10,
+  },
+  assessmentTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  assessmentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  assessmentLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
+  assessmentValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  recommendationsText: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });
 

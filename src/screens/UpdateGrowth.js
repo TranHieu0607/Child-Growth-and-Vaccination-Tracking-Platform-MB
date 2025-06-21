@@ -132,7 +132,7 @@ const UpdateGrowth = ({ navigation }) => {
       )}
 
       {/* Ngày đo */}
-      {/* <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ngày đo</Text>
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ngày đo</Text>
       <Controller
         control={control}
         name="measurementDate"
@@ -145,7 +145,7 @@ const UpdateGrowth = ({ navigation }) => {
             value={value}
           />
         )}
-      /> */}
+      />
 
       {/* Chiều cao */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Chiều cao</Text>
