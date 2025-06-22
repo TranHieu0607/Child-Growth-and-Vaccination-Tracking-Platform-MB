@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faClipboardList } from '@fortawesome/free-solid-svg-icons';
 
 const tabs = [
   { key: 'home', label: 'Trang chủ', icon: <Ionicons name="home-outline" size={24} color="#1565C0" /> },
   { key: 'input', label: 'Nhập chỉ số', icon: <MaterialIcons name="edit" size={24} color="#1565C0" /> },
   { key: 'schedule', label: 'Đặt lịch', icon: <Ionicons name="calendar-outline" size={24} color="#1565C0" /> },
-  { key: 'contact', label: 'Liên hệ', icon: <Ionicons name="call-outline" size={24} color="#1565C0" /> },
+  { key: 'contact', label: 'Hàng ngày', icon: <FontAwesomeIcon icon={faClipboardList} size={24} color="#1565C0" /> },
   { key: 'account', label: 'Tài khoản', icon: <Ionicons name="person-outline" size={24} color="#1565C0" /> },
 ];
 
