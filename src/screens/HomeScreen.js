@@ -6,10 +6,10 @@ import { faBaby, faPencil, faChartBar, faSuitcaseMedical, faCalendarDays, faWall
 
 const features = [
   { key: 'add_baby', label: 'Thêm bé', icon: <FontAwesomeIcon icon={faBaby} size={32} color="#1565C0" /> },
-  { key: 'add_vaccine', label: 'Thêm vắc xin', icon: <FontAwesomeIcon icon={faPencil} size={32} color="#1565C0" /> },
+  { key: 'add_vaccine', label: 'Thêm chỉ số', icon: <FontAwesomeIcon icon={faPencil} size={32} color="#1565C0" /> },
   { key: 'growth_chart', label: 'Biểu đồ tăng trưởng', icon: <FontAwesomeIcon icon={faChartBar} size={32} color="#1565C0" /> },
   { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
-  { key: 'vaccine_spot', label: 'Điểm tiêm', icon: <FontAwesomeIcon icon={faLocationDot} size={32} color="#1565C0" /> },
+  { key: 'vaccine_spot', label: 'Theo dõi hàng ngày', icon: <FontAwesomeIcon icon={faLocationDot} size={32} color="#1565C0" /> },
   { key: 'health_record', label: 'Sổ khám bệnh', icon: <FontAwesomeIcon icon={faSuitcaseMedical} size={32} color="#1565C0" /> },
   { key: 'payment_history', label: 'Lịch sử thanh toán', icon: <FontAwesomeIcon icon={faWallet} size={32} color="#1565C0" /> },
   { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
@@ -58,6 +58,9 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               else if (item.key === 'rating') {
                 navigation.navigate('VaccBook');
               } 
+              else if (item.key === 'vaccine_spot') {
+                navigation.navigate('CreateDaily');
+              }
             }}
           >
             {item.icon}

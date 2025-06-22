@@ -19,7 +19,8 @@ import HistoryVacc from './src/screens/HistoryVacc';
 import ContinueInjectScreen from './src/screens/ContinueInjectScreen';
 import VaccBook from './src/screens/VaccBook';  
 import Register from './src/screens/RegisterScreen';
-import AccountScreen from './src/screens/AccountScreen';
+import AccountScreen from './src/screens/AccountScreen'; 
+import DailyRecordScreen from './src/screens/DailyRecordScreen';
 
 
 const Stack = createStackNavigator();
@@ -78,6 +79,8 @@ export default function App() {
                   </View>
                 )}
               </Stack.Screen>
+              <Stack.Screen name="DailyRecord" component={DailyRecordScreen} />
+              <Stack.Screen name="CreateDaily" component={require('./src/screens/CreateDailyScreen').default} />
             </>
           )}
         </Stack.Navigator>

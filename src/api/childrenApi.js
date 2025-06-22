@@ -12,6 +12,8 @@ const childrenApi = {
   getWeightStandard: (gender, ageInMonths) => axiosClient.get(`/GrowthStandard/weight?gender=${gender}&ageInMonths=${ageInMonths}`),
   getHeadCircumferenceStandard: (gender, ageInMonths) => axiosClient.get(`/GrowthStandard/head-circumference?gender=${gender}&ageInMonths=${ageInMonths}`),
   getBMIStandard: (gender, ageInMonths) => axiosClient.get(`/GrowthStandard/bmi?gender=${gender}&ageInMonths=${ageInMonths}`),
+  getDailyRecordsByChildId: (childId) => axiosClient.get(`/DailyRecords/child/${childId}`),
+  createDailyRecord: (data) => axiosClient.post('/DailyRecords', data),
 };
 
 export default childrenApi; 

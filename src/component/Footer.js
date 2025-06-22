@@ -16,6 +16,7 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
     if (navigation) {
       if (tabKey === 'home') navigation.navigate('Home');
       else if (tabKey === 'account') navigation.navigate('Account');
+      else if (tabKey === 'contact') navigation.navigate('DailyRecord');
       // Thêm các tab khác nếu muốn điều hướng
     }
   };
