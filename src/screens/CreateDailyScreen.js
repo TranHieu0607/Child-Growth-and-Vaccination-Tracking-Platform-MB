@@ -4,6 +4,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../api/childrenApi';
+import { createDailyRecord } from '../api/dailyApi';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const CreateDailyScreen = ({ navigation }) => {
   const { control, handleSubmit, reset, formState: { errors } } = useForm({
@@ -46,7 +48,7 @@ const CreateDailyScreen = ({ navigation }) => {
         sleepHours: Number(data.sleepHours),
         note: data.note || '',
       };
-      await childrenApi.createDailyRecord(payload);
+      await createDailyRecord(payload);
       Alert.alert('Thành công', 'Tạo nhật ký thành công!', [
         { text: 'OK', onPress: () => navigation.goBack() }
       ]);
@@ -112,15 +114,32 @@ const CreateDailyScreen = ({ navigation }) => {
         control={control}
         name="recordDate"
         rules={{ required: 'Vui lòng nhập ngày ghi nhận' }}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={styles.input}
-            placeholder="YYYY-MM-DD"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-          />
-        )}
+        render={({ field: { onChange, value } }) => {
+          const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+          return (
+            <>
+              <TouchableOpacity
+                onPress={() => setDatePickerVisibility(true)}
+                style={styles.input}
+              >
+                <Text style={{ color: value ? 'black' : '#aaa' }}>
+                  {value ? value : 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={(date) => {
+                  setDatePickerVisibility(false);
+                  const formatted = date.toISOString().split('T')[0];
+                  onChange(formatted);
+                }}
+                onCancel={() => setDatePickerVisibility(false)}
+                maximumDate={new Date()}
+              />
+            </>
+          );
+        }}
       />
       {errors.recordDate && <Text style={styles.error}>{errors.recordDate.message}</Text>}
 

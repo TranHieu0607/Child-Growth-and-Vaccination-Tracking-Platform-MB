@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../store/authSlice';
+import { registerUser } from '../api/authApi';
 
 export default function RegisterScreen({ onRegister, navigation }) {
   const [form, setForm] = useState({
@@ -20,10 +21,11 @@ export default function RegisterScreen({ onRegister, navigation }) {
   };
 
   const handleRegister = async () => {
-    const resultAction = await dispatch(register(form));
-    if (register.fulfilled.match(resultAction)) {
-      // Đăng ký thành công, chuyển sang Login để đăng nhập
+    try {
+      await registerUser(form);
       navigation.navigate('Login');
+    } catch (error) {
+      // Xử lý lỗi nếu cần
     }
   };
 

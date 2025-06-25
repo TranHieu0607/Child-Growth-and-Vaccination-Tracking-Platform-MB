@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIn
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../api/childrenApi';
+import { getDailyRecordsByChildId } from '../api/dailyApi';
 
 const PAGE_SIZE = 3;
 
@@ -32,8 +33,8 @@ const DailyRecordScreen = ({ navigation }) => {
     setLoading(true);
     const fetchRecords = async () => {
       try {
-        const res = await childrenApi.getDailyRecordsByChildId(selectedChildId);
-        const sorted = res.data.sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
+        const data = await getDailyRecordsByChildId(selectedChildId);
+        const sorted = data.sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
         setRecords(sorted);
       } catch {
         setRecords([]);

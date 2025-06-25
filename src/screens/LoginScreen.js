@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../store/authSlice';
+import { loginUser } from '../api/authApi';
 
 export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');
@@ -11,9 +12,11 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
 
   const handleContinue = async () => {
     if (!input || !password) return;
-    const resultAction = await dispatch(login({ accountName: input, password }));
-    if (login.fulfilled.match(resultAction)) {
+    try {
+      await loginUser({ accountName: input, password });
       onLoginSuccess();
+    } catch (error) {
+      // Xử lý lỗi nếu cần
     }
   };
 

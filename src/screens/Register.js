@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native'; // Adjusted imports assuming React Native based on UI style
 import { CheckBox } from 'react-native-elements';
 import { useForm, Controller } from 'react-hook-form';
@@ -7,6 +7,8 @@ import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
 import { register as registerChild } from '../store/authSlice';
 import childrenApi from '../api/childrenApi';
+import { registerChildWithGrowth } from '../api/childRegisterApi';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const Register = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -36,8 +38,8 @@ const Register = ({ navigation }) => {
         headCircumference: Number(data.headCircumference),
         growthNote: data.growthNote,
       };
-      const response = await childrenApi.createChildWithGrowthRecord(payload);
-      alert(response.data.message || 'Tạo trẻ thành công!');
+      const response = await registerChildWithGrowth(payload);
+      alert(response.message || 'Tạo trẻ thành công!');
       navigation.navigate('Home');
     } catch (error) {
       alert(error.response?.data?.message || 'Tạo trẻ thất bại!');
@@ -77,17 +79,32 @@ const Register = ({ navigation }) => {
         control={control}
         name="birthDate"
         rules={{ required: 'Vui lòng nhập ngày sinh (YYYY-MM-DD)' }}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Ngày sinh (YYYY-MM-DD)"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            autoCapitalize="none"
-            importantForAutofill="no"
-          />
-        )}
+        render={({ field: { onChange, value } }) => {
+          const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+          return (
+            <>
+              <TouchableOpacity
+                onPress={() => setDatePickerVisibility(true)}
+                style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5, justifyContent: 'center' }}
+              >
+                <Text style={{ color: value ? 'black' : '#aaa' }}>
+                  {value ? value : 'Ngày sinh (YYYY-MM-DD)'}
+                </Text>
+              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={(date) => {
+                  setDatePickerVisibility(false);
+                  const formatted = date.toISOString().split('T')[0];
+                  onChange(formatted);
+                }}
+                onCancel={() => setDatePickerVisibility(false)}
+                maximumDate={new Date()}
+              />
+            </>
+          );
+        }}
       />
       {errors.birthDate && <Text style={{ color: 'red' }}>{errors.birthDate.message}</Text>}
       {/* Giới tính */}

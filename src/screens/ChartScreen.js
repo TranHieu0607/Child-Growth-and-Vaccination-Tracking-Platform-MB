@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { LineChart } from 'react-native-chart-kit';
 import childrenApi from '../api/childrenApi';
+import { getFullGrowthData } from '../api/growthApi';
 
 // Placeholder components
 const TabBar = ({ selectedTab, onSelectTab }) => (
@@ -45,14 +46,6 @@ const DataTable = ({ data, selectedTab, assessment }) => {
 
   return (
     <View style={styles.dataTableContainer}>
-      {/* <Text style={styles.tableTitle}>Bảng dữ liệu chi tiết</Text> */}
-      {/* Table Header */}
-      {/* <View style={styles.tableHeader}>
-        <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Tháng tuổi</Text>
-        <Text style={[styles.tableHeaderCell, { flex: 1.5 }]}>Giá trị</Text>
-        <Text style={[styles.tableHeaderCell, { flex: 2, textAlign: 'right' }]}>Trạng thái</Text>
-      </View> */}
-      {/* Table Rows */}
       
 
       {assessment && (
@@ -124,119 +117,23 @@ const ChartScreen = ({ navigation }) => {
         setBMIStandardData([]);
         return;
       }
-
-      // Fetch growth records
+      // Lấy gender từ danh sách children
+      const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
       try {
-        const res = await childrenApi.getGrowthRecordsByChildId(selectedChildId);
-        let records = res.data || [];
-      
-        // ✅ Lấy 4 bản ghi mới nhất (theo createdAt) và sắp xếp tăng dần theo ageInDays
-        records = records.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
-        records = records.sort((a, b) => a.ageInDays - b.ageInDays);
-      
-        const processRecords = (key) =>
-          records.map(item => ({
-            month: Math.round(item.ageInDays / 30.44),
-            ageInDays: item.ageInDays,
-            value: item[key],
-            status: 'Bình thường'
-          })).filter(item => typeof item.value === 'number' && isFinite(item.value));
-      
-        setChildGrowthData({
-          childId: selectedChildId,
-          data: {
-            'Chiều cao': processRecords('height'),
-            'Cân nặng': processRecords('weight'),
-            'Vòng đầu': processRecords('headCircumference'),
-            'BMI': processRecords('bmi')
-          }
-        });
-
-        // Nếu tab là 'Chiều cao', lấy dữ liệu chuẩn cho từng tháng tuổi thực tế và 4 tháng tiếp theo
-        const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
-        const monthsHeight = processRecords('height').map(item => item.month);
-        let allMonthsHeight = [...monthsHeight];
-        if (monthsHeight.length > 0) {
-          const maxMonth = Math.max(...monthsHeight);
-          for (let i = 1; i <= 4; i++) {
-            allMonthsHeight.push(maxMonth + i);
-          }
-          allMonthsHeight = Array.from(new Set(allMonthsHeight)).sort((a, b) => a - b);
-        }
-        const promisesHeight = allMonthsHeight.map(month => childrenApi.getHeightStandard(gender, month));
-        const resultsHeight = await Promise.all(promisesHeight);
-        const standardDataHeight = resultsHeight.map((res, idx) => {
-          const arr = Array.isArray(res.data) ? res.data : [];
-          return arr.length > 0 ? { month: allMonthsHeight[idx], median: arr[0].median } : { month: allMonthsHeight[idx], median: null };
-        });
-        setHeightStandardData(standardDataHeight);
-        // Cân nặng
-        const monthsWeight = processRecords('weight').map(item => item.month);
-        let allMonthsWeight = [...monthsWeight];
-        if (monthsWeight.length > 0) {
-          const maxMonth = Math.max(...monthsWeight);
-          for (let i = 1; i <= 4; i++) {
-            allMonthsWeight.push(maxMonth + i);
-          }
-          allMonthsWeight = Array.from(new Set(allMonthsWeight)).sort((a, b) => a - b);
-        }
-        const promisesWeight = allMonthsWeight.map(month => childrenApi.getWeightStandard(gender, month));
-        const resultsWeight = await Promise.all(promisesWeight);
-        const standardDataWeight = resultsWeight.map((res, idx) => {
-          const arr = Array.isArray(res.data) ? res.data : [];
-          return arr.length > 0 ? { month: allMonthsWeight[idx], median: arr[0].median } : { month: allMonthsWeight[idx], median: null };
-        });
-        setWeightStandardData(standardDataWeight);
-        // Vòng đầu
-        const monthsHead = processRecords('headCircumference').map(item => item.month);
-        let allMonthsHead = [...monthsHead];
-        if (monthsHead.length > 0) {
-          const maxMonth = Math.max(...monthsHead);
-          for (let i = 1; i <= 4; i++) {
-            allMonthsHead.push(maxMonth + i);
-          }
-          allMonthsHead = Array.from(new Set(allMonthsHead)).sort((a, b) => a - b);
-        }
-        const promisesHead = allMonthsHead.map(month => childrenApi.getHeadCircumferenceStandard(gender, month));
-        const resultsHead = await Promise.all(promisesHead);
-        const standardDataHead = resultsHead.map((res, idx) => {
-          const arr = Array.isArray(res.data) ? res.data : [];
-          return arr.length > 0 ? { month: allMonthsHead[idx], median: arr[0].median } : { month: allMonthsHead[idx], median: null };
-        });
-        setHeadCircumferenceStandardData(standardDataHead);
-        // BMI
-        const monthsBMI = processRecords('bmi').map(item => item.month);
-        let allMonthsBMI = [...monthsBMI];
-        if (monthsBMI.length > 0) {
-          const maxMonth = Math.max(...monthsBMI);
-          for (let i = 1; i <= 4; i++) {
-            allMonthsBMI.push(maxMonth + i);
-          }
-          allMonthsBMI = Array.from(new Set(allMonthsBMI)).sort((a, b) => a - b);
-        }
-        const promisesBMI = allMonthsBMI.map(month => childrenApi.getBMIStandard(gender, month));
-        const resultsBMI = await Promise.all(promisesBMI);
-        const standardDataBMI = resultsBMI.map((res, idx) => {
-          const arr = Array.isArray(res.data) ? res.data : [];
-          return arr.length > 0 ? { month: allMonthsBMI[idx], median: arr[0].median } : { month: allMonthsBMI[idx], median: null };
-        });
-        setBMIStandardData(standardDataBMI);
+        const result = await getFullGrowthData(selectedChildId, gender);
+        setChildGrowthData(result.growthData);
+        setAssessment(result.assessment);
+        setHeightStandardData(result.heightStandardData);
+        setWeightStandardData(result.weightStandardData);
+        setHeadCircumferenceStandardData(result.headCircumferenceStandardData);
+        setBMIStandardData(result.bmiStandardData);
       } catch (err) {
-        console.error("Error fetching growth data:", err);
         setChildGrowthData(null);
+        setAssessment(null);
         setHeightStandardData([]);
         setWeightStandardData([]);
         setHeadCircumferenceStandardData([]);
         setBMIStandardData([]);
-      }
-
-      // Fetch assessment
-      try {
-        const res = await childrenApi.getLatestGrowthAssessment(selectedChildId);
-        setAssessment(res.data);
-      } catch (err) {
-        console.error("Error fetching assessment data:", err);
-        setAssessment(null);
       }
     };
     fetchAllDataForChild();

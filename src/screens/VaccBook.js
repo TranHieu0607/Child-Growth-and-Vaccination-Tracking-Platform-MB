@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming Material
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../api/childrenApi';
+import { getMyChildren, getChildById } from '../api/vaccinationApi';
 
 const VaccBook = ({ navigation }) => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
@@ -114,9 +115,9 @@ const VaccBook = ({ navigation }) => {
   useEffect(() => {
     const fetchChildren = async () => {
       try {
-        const res = await childrenApi.getMyChildren();
+        const res = await getMyChildren();
         // Sắp xếp theo ngày sinh giảm dần (bé nhỏ tuổi nhất đầu tiên)
-        const sorted = [...res.data].sort((a, b) => new Date(b.birthDate) - new Date(a.birthDate));
+        const sorted = [...res].sort((a, b) => new Date(b.birthDate) - new Date(a.birthDate));
         const apiChildren = sorted.map(child => ({
           id: child.childId.toString(),
           name: child.fullName,
@@ -141,8 +142,8 @@ const VaccBook = ({ navigation }) => {
         try {
           // Nếu id là số (API thật), còn nếu là dữ liệu mẫu thì bỏ qua
           if (!isNaN(Number(selectedChildren[0]))) {
-            const res = await childrenApi.getChildById(selectedChildren[0]);
-            setSelectedChildDetail(res.data);
+            const res = await getChildById(selectedChildren[0]);
+            setSelectedChildDetail(res);
           } else {
             setSelectedChildDetail(null);
           }

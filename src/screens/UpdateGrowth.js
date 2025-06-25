@@ -4,6 +4,8 @@ import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../api/childrenApi';
+import { getMyChildren, updateGrowthRecord } from '../api/growthRecordApi';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const UpdateGrowth = ({ navigation }) => {
   const { control, handleSubmit, formState: { errors } } = useForm({
@@ -23,10 +25,10 @@ const UpdateGrowth = ({ navigation }) => {
   useEffect(() => {
     const fetchChildren = async () => {
       try {
-        const res = await childrenApi.getMyChildren();
-        setChildren(res.data);
-        if (res.data.length > 0) {
-          setSelectedChildren([res.data[0].childId]);
+        const res = await getMyChildren();
+        setChildren(res);
+        if (res.length > 0) {
+          setSelectedChildren([res[0].childId]);
         }
       } catch (e) {
         setChildren([]);
@@ -48,7 +50,7 @@ const UpdateGrowth = ({ navigation }) => {
         createdAt,
         note: data.notes || "",
       };
-      await childrenApi.updateGrowthRecord(childId, payload);
+      await updateGrowthRecord(childId, payload);
       alert('Cập nhật chỉ số thành công!');
       navigation.goBack();
     } catch (error) {
@@ -136,15 +138,32 @@ const UpdateGrowth = ({ navigation }) => {
       <Controller
         control={control}
         name="measurementDate"
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}
-            placeholder="YYYY-MM-DD"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-          />
-        )}
+        render={({ field: { onChange, value } }) => {
+          const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
+          return (
+            <>
+              <TouchableOpacity
+                onPress={() => setDatePickerVisibility(true)}
+                style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9', justifyContent: 'center' }}
+              >
+                <Text style={{ color: value ? 'black' : '#aaa' }}>
+                  {value ? value : 'YYYY-MM-DD'}
+                </Text>
+              </TouchableOpacity>
+              <DateTimePickerModal
+                isVisible={isDatePickerVisible}
+                mode="date"
+                onConfirm={(date) => {
+                  setDatePickerVisibility(false);
+                  const formatted = date.toISOString().split('T')[0];
+                  onChange(formatted);
+                }}
+                onCancel={() => setDatePickerVisibility(false)}
+                maximumDate={new Date()}
+              />
+            </>
+          );
+        }}
       />
 
       {/* Chiều cao */}
