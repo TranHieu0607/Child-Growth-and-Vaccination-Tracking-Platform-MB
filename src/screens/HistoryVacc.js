@@ -1,181 +1,125 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import childrenApi from '../api/childrenApi';
+import childVaccineProfileApi from '../api/childVaccineProfileApi';
+import vaccinesApi from '../api/vaccinesApi';
+import diseasesApi from '../api/diseasesApi';
 
 const HistoryVacc = ({ navigation }) => {   
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'tracking'
-  const [children, setChildren] = useState([
-    {
-      id: 'child1',
-      name: 'Nguyễn Minh Khôi',
-      age: '3 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      trackingPackages: [
-        {
-          id: 'mmr-extended',
-          title: 'Gói Tiêm MMR mở rộng',
-          progress: 33,
-          vaccines: [
-            { name: 'MMR - Mũi 1', diseases: 'Sởi - Quai bị - Rubella', date: '12/03/2024', status: 'completed' },
-            { name: 'MMR - Mũi 2', diseases: 'Sởi - Quai bị - Rubella', date: null, status: 'pending' },
-          ],
-          suggestedNextShot: '10/06/2025',
-        },
-        {
-          id: '6-in-1',
-          title: 'Gói Tiêm 6 trong 1',
-          progress: 67,
-          vaccines: [
-            { name: '6 trong 1 - Mũi 1', diseases: 'Bạch hầu - Ho gà - Uốn ván', date: '15/02/2024', status: 'completed' },
-            { name: '6 trong 1 - Mũi 2', diseases: 'Bạch hầu - Ho gà - Uốn ván', date: null, status: 'pending' },
-          ],
-          suggestedNextShot: '15/05/2024',
-        },
-      ],
-      vaccinationHistory: [
-        {
-          id: 'vaccine1',
-          name: 'Mũi 5 trong 1 - Mũi 2',
-          description: 'Bạch hầu, Ho gà, Uốn ván, Bại liệt, Viêm gan B',
-          date: '12/03/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: 'Bé hơi sốt nhẹ sau tiêm',
-        },
-        {
-          id: 'vaccine2',
-          name: 'Mũi MMR - Mũi 1',
-          description: 'Sởi, Quai bị, Rubella',
-          date: '15/02/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: null,
-        },
-        {
-          id: 'vaccine3',
-          name: 'Mũi Rotavirus - Mũi 3',
-          description: 'Tiêu chảy do Rotavirus',
-          date: '20/01/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: 'Hoàn thành liệu trình',
-        },
-        {
-          id: 'vaccine4',
-          name: 'Mũi Rotavirus - Mũi 3',
-          description: 'Tiêu chảy do Rotavirus',
-          date: '20/01/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: 'Hoàn thành liệu trình',
-        },
-      ],
-    },
-    {
-      id: 'child2',
-      name: 'Lê Thu Anh',
-      age: '2 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      trackingPackages: [
-        {
-          id: 'chickenpox',
-          title: 'Gói Tiêm Thủy đậu',
-          progress: 50,
-          vaccines: [
-            { name: 'Thủy đậu - Mũi 1', diseases: 'Thủy đậu', date: '01/01/2024', status: 'completed' },
-            { name: 'Thủy đậu - Mũi 2', diseases: 'Thủy đậu', date: null, status: 'pending' },
-          ],
-          suggestedNextShot: '01/07/2024',
-        },
-      ],
-      vaccinationHistory: [
-        {
-          id: 'vaccine4',
-          name: 'Mũi 6 trong 1 - Mũi 1',
-          description: 'Bạch hầu, Ho gà, Uốn ván, Bại liệt, Viêm gan B, Hib',
-          date: '10/04/2024',
-          location: 'Trung tâm VNVC Hà Nội',
-          notes: null,
-        },
-      ],
-    },
-    {
-      id: 'child3',
-      name: 'Trần Văn Bình',
-      age: '4 tuổi',
-      image: require('../../assets/vnvc.jpg'),
-      trackingPackages: [
-        {
-          id: 'chickenpox',
-          title: 'Gói Tiêm Thủy đậu',
-          progress: 50,
-          vaccines: [
-            { name: 'Thủy đậu - Mũi 1', diseases: 'Thủy đậu', date: '01/01/2024', status: 'completed' },
-            { name: 'Thủy đậu - Mũi 2', diseases: 'Thủy đậu', date: null, status: 'pending' },
-          ],
-          suggestedNextShot: '01/07/2024',
-        },
-      ],
-      vaccinationHistory: [
-        {
-          id: 'vaccine1',
-          name: 'Mũi 5 trong 1 - Mũi 2',
-          description: 'Bạch hầu, Ho gà, Uốn ván, Bại liệt, Viêm gan B',
-          date: '12/03/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: 'Bé hơi sốt nhẹ sau tiêm',
-        },
-        {
-          id: 'vaccine2',
-          name: 'Mũi MMR - Mũi 1',
-          description: 'Sởi, Quai bị, Rubella',
-          date: '15/02/2024',
-          location: 'Trung tâm VNVC Tân Bình',
-          notes: null,
-        },
-      ], // No vaccination history for this child for now
-    },
-  ]);
-  const [selectedChildren, setSelectedChildren] = useState(['child1']);
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [vaccineHistory, setVaccineHistory] = useState([]);
+  const [vaccines, setVaccines] = useState([]);
+  const [diseases, setDiseases] = useState([]);
+
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        const data = res.data || [];
+        setChildren(data);
+        if (data.length > 0) setSelectedChildId(data[0].childId);
+      } catch (e) {
+        setChildren([]);
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedChildId) return;
+    const fetchVaccineHistory = async () => {
+      try {
+        const res = await childVaccineProfileApi.getByChildId(selectedChildId);
+        setVaccineHistory(res.data || []);
+      } catch (e) {
+        setVaccineHistory([]);
+      }
+    };
+    fetchVaccineHistory();
+  }, [selectedChildId]);
+
+  useEffect(() => {
+    const fetchVaccinesAndDiseases = async () => {
+      try {
+        const [vaccinesRes, diseasesRes] = await Promise.all([
+          vaccinesApi.getAllVaccines(),
+          diseasesApi.getAllDiseases()
+        ]);
+        setVaccines(vaccinesRes.data || []);
+        setDiseases(diseasesRes.data || []);
+      } catch (e) {
+        setVaccines([]);
+        setDiseases([]);
+      }
+    };
+    fetchVaccinesAndDiseases();
+  }, []);
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
 
   const handleSelectChild = (childId) => {
-    setSelectedChildren([childId]);
+    setSelectedChildId(childId);
     setIsDropdownVisible(false);
   };
 
-  const selectedChild = children.find(child => child.id === selectedChildren[0]);
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let years = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      years--;
+    }
+    if (years > 0) {
+      const remainingMonths = m < 0 ? 12 + m : m;
+      return `${years} tuổi${remainingMonths > 0 ? ` ${remainingMonths} tháng` : ''}`;
+    }
+    let months = today.getMonth() - birthDate.getMonth() + (12 * (today.getFullYear() - birthDate.getFullYear()));
+    if(today.getDate() < birthDate.getDate()) {
+        months--;
+    }
+    return `${months} tháng`;
+  };
+
+  const selectedChild = children.find(child => child.childId === selectedChildId);
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Đăng ký lịch tiêm</Text>
+        <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>lịch sử tiêm</Text>
       </View>
 
       {/* User Info and Dropdown */}
       <View style={styles.childInfoContainer}>
         <View style={styles.childInfo}>
-          {selectedChildren.length > 0 && (
+          {selectedChildId && (
             <Image
               source={selectedChild?.image || require('../../assets/vnvc.jpg')}
               style={styles.avatar}
             />
           )}
           <View>
-            {selectedChildren.length > 0 && (
+            {selectedChildId && (
               <Text style={styles.userName}>
-                {selectedChild?.name}
+                {selectedChild?.fullName}
               </Text>
             )}
-            {selectedChildren.length > 0 && (
+            {selectedChildId && (
               <Text style={styles.userAge}>
-                {selectedChild?.age}
+                {calculateAge(selectedChild?.dateOfBirth)}
               </Text>
             )}
           </View>
@@ -189,25 +133,23 @@ const HistoryVacc = ({ navigation }) => {
       {/* Child Selection Dropdown */}
       {isDropdownVisible && (
         <View style={styles.dropdownContainer}>
-          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
-            {children.map(child => (
-              <TouchableOpacity
-                key={child.id}
-                style={styles.dropdownItem}
-                onPress={() => handleSelectChild(child.id)}
-              >
-                <Image
-                  source={child.image || require('../../assets/vnvc.jpg')}
-                  style={styles.dropdownItemImage}
-                />
-                <View style={styles.dropdownItemTextContainer}>
-                  <Text style={styles.dropdownItemName}>{child.name}</Text>
-                  <Text style={styles.dropdownItemAge}>{child.age}</Text>
-                </View>
-                {selectedChildren[0] === child.id && <Text style={styles.selectedIcon}> ✅</Text>}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {(children || []).map(child => (
+            <TouchableOpacity
+              key={child.childId}
+              style={styles.dropdownItem}
+              onPress={() => handleSelectChild(child.childId)}
+            >
+              <Image
+                source={child.image || require('../../assets/vnvc.jpg')}
+                style={styles.dropdownItemImage}
+              />
+              <View style={styles.dropdownItemTextContainer}>
+                <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>
+              </View>
+              {selectedChildId === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
@@ -251,37 +193,48 @@ const HistoryVacc = ({ navigation }) => {
           </View>
 
           {/* Vaccination History List */}
-          <ScrollView style={styles.vaccineList}>
-            {selectedChild.vaccinationHistory.map(vaccine => (
-              <View key={vaccine.id} style={styles.vaccineItem}>
-                <MaterialIcons name="check-circle" size={24} color="#007bff" style={styles.checkIcon} />
-                <View style={styles.vaccineDetails}>
-                  <Text style={styles.vaccineName}>{vaccine.name}</Text>
-                  <Text style={styles.vaccineDescription}>{vaccine.description}</Text>
-                  <View style={styles.detailRow}>
-                    <MaterialIcons name="access-time" size={16} color="gray" />
-                    <Text style={styles.detailText}>{vaccine.date}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <MaterialIcons name="location-on" size={16} color="gray" />
-                    <Text style={styles.detailText}>{vaccine.location}</Text>
-                  </View>
-                  {vaccine.notes && (
+          <View style={styles.vaccineList}>
+            {vaccineHistory.map(vaccine => {
+              const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+              const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+
+              // Tổng số mũi
+              const totalDoses = vaccineObj?.numberOfDoses || 0;
+
+              // Số mũi đã tiêm (cùng vaccineId, đã có actualDate)
+              const dosesGiven = vaccineHistory.filter(
+                v => v.vaccineId === vaccine.vaccineId && v.actualDate
+              ).length;
+
+              return (
+                <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
+                  <MaterialIcons name="check-circle" size={24} color="#007bff" style={styles.checkIcon} />
+                  <View style={styles.vaccineDetails}>
+                    <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
+                    {/* Hiển thị số mũi đã tiêm / tổng số mũi */}
+                    <Text style={{ color: '#007bff', fontWeight: 'bold', marginBottom: 5 }}>
+                      Đã tiêm {dosesGiven}/{totalDoses} mũi
+                    </Text>
+                    <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
+                    <View style={styles.detailRow}>
+                      <MaterialIcons name="access-time" size={16} color="gray" />
+                      <Text style={styles.detailText}>{vaccine.actualDate}</Text>
+                    </View>
                     <View style={styles.detailRow}>
                       <MaterialIcons name="info-outline" size={16} color="gray" />
-                      <Text style={styles.detailText}>{vaccine.notes}</Text>
+                      <Text style={styles.detailText}>Ghi chú: {vaccine.note}</Text>
                     </View>
-                  )}
+                  </View>
                 </View>
-              </View>
-            ))}
-          </ScrollView>
+              );
+            })}
+          </View>
         </>
       )}
 
       {activeTab === 'tracking' && selectedChild && (
-        <ScrollView style={styles.trackingPackagesList}>
-          {selectedChild.trackingPackages.map(pkg => (
+        <View style={styles.trackingPackagesList}>
+          {(selectedChild.trackingPackages || []).map(pkg => (
             <View key={pkg.id} style={styles.packageCard}>
               <View style={styles.packageHeader}>
                 <MaterialIcons name="archive" size={24} color="#007bff" />
@@ -291,7 +244,7 @@ const HistoryVacc = ({ navigation }) => {
                 <View style={[styles.progressBarFill, { width: `${pkg.progress}%` }]} />
               </View>
               <Text style={styles.progressText}>{pkg.progress}% hoàn thành</Text>
-              {pkg.vaccines.map((vaccine, index) => (
+              {(pkg.vaccines || []).map((vaccine, index) => (
                 <View key={index} style={styles.vaccineDetailItem}>
                   <MaterialIcons name="healing" size={20} color="#007bff" />
                   <View style={styles.vaccineTextContainer}>
@@ -318,7 +271,7 @@ const HistoryVacc = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           ))}
-        </ScrollView>
+        </View>
       )}
     </ ScrollView>
   );
@@ -491,9 +444,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 15,
     marginBottom: 10,
     marginTop: -15, // To overlap with the section above
-  },
-  dropdownScroll: {
-    maxHeight: 150,
   },
   dropdownItem: {
     flexDirection: 'row',

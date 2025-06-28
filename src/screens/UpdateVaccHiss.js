@@ -1,50 +1,136 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, FlatList } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown, faSearch, faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+import childrenApi from '../api/childrenApi';
+import diseasesApi from '../api/diseasesApi';
+import vaccinesApi from '../api/vaccinesApi';
+import childVaccineProfileApi from '../api/childVaccineProfileApi';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const UpdateVaccHiss = ({ navigation }) => {
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const { control, handleSubmit, setValue, formState: { errors }, reset } = useForm({
     defaultValues: {
       diseaseName: '',
       vaccinationShot: '',
       vaccinationDate: '',
       vaccinationFacility: '',
       notes: '',
+      doseNum: '',
     }
   });
 
-  const onSubmit = data => {
-    console.log(data);
-    // Add logic to save vaccination history data
+  const onSubmit = async (data) => {
+    try {
+      const payload = {
+        childId: selectedChildId,
+        diseaseId: data.diseaseName,
+        vaccineId: data.vaccinationShot,
+        appointmentId: null,
+        doseNum: Number(data.doseNum),
+        expectedDate: data.vaccinationDate,
+        actualDate: data.vaccinationDate,
+        status: '', // hoặc bạn có thể cho người dùng nhập nếu muốn
+        isRequired: true, // hoặc cho người dùng chọn nếu muốn
+        priority: '', // hoặc cho người dùng nhập nếu muốn
+        note: data.notes,
+      };
+      await childVaccineProfileApi.createProfile(payload);
+      alert('Lưu lịch sử tiêm thành công!');
+      reset();
+    } catch (e) {
+      alert('Lưu lịch sử tiêm thất bại!');
+    }
   };
 
-  // Add state for dropdown visibility
+  // Dropdown and children state (like ChartScreen)
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  // Placeholder state for children data and selected children
-  const [children, setChildren] = useState([
-    { id: 'child1', name: 'Nguyễn Minh Khôi', age: '3 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child2', name: 'Lê Thu Anh', age: '2 tuổi', image: require('../../assets/vnvc.jpg') },
-    { id: 'child3', name: 'Trần Văn Bình', age: '4 tuổi', image: require('../../assets/vnvc.jpg') },
-  ]);
-  const [selectedChildren, setSelectedChildren] = useState(['child1']); // Start with one child selected
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
 
-  // Function to handle the dropdown press
+  // Disease dropdown state
+  const [diseases, setDiseases] = useState([]);
+  const [isDiseaseDropdownVisible, setIsDiseaseDropdownVisible] = useState(false);
+
+  // Vaccine dropdown state
+  const [vaccines, setVaccines] = useState([]);
+  const [isVaccineDropdownVisible, setIsVaccineDropdownVisible] = useState(false);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        const data = res.data || [];
+        setChildren(data);
+        if (data.length > 0) setSelectedChildId(data[0].childId);
+      } catch (e) {
+        setChildren([]);
+      }
+    };
+    fetchChildren();
+
+    // Fetch diseases
+    const fetchDiseases = async () => {
+      try {
+        const res = await diseasesApi.getAllDiseases();
+        setDiseases(res.data || []);
+      } catch (e) {
+        setDiseases([]);
+      }
+    };
+    fetchDiseases();
+
+    // Fetch vaccines
+    const fetchVaccines = async () => {
+      try {
+        const res = await vaccinesApi.getAllVaccines();
+        setVaccines(res.data || []);
+      } catch (e) {
+        setVaccines([]);
+      }
+    };
+    fetchVaccines();
+  }, []);
+
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!'); // Placeholder log
   };
 
-  // Function to handle selecting a child from the dropdown
   const handleSelectChild = (childId) => {
-    setSelectedChildren([childId]); // Set the selected child
-    setIsDropdownVisible(false); // Close the dropdown after selecting
-    console.log('Selected child ID:', childId);
+    setSelectedChildId(childId);
+    setIsDropdownVisible(false);
   };
+
+  // Calculate age from dateOfBirth (copied from ChartScreen)
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let years = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      years--;
+    }
+    if (years > 0) {
+      const remainingMonths = m < 0 ? 12 + m : m;
+      return `${years} tuổi${remainingMonths > 0 ? ` ${remainingMonths} tháng` : ''}`;
+    }
+    let months = today.getMonth() - birthDate.getMonth() + (12 * (today.getFullYear() - birthDate.getFullYear()));
+    if(today.getDate() < birthDate.getDate()) {
+        months--;
+    }
+    return `${months} tháng`;
+  };
+
+  // Lọc vaccine theo diseaseId đã chọn
+  const selectedDiseaseId = control._formValues.diseaseName;
+  const filteredVaccines = vaccines.filter(v => v.diseaseIds && v.diseaseIds.includes(selectedDiseaseId));
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} nestedScrollEnabled={true}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
@@ -52,125 +138,185 @@ const UpdateVaccHiss = ({ navigation }) => {
         <Text style={styles.headerTitle}>Nhập lịch sử tiêm</Text>
       </View>
 
-      {/* Child Info and Dropdown */}
-      <View style={styles.childInfoContainer}>
+      {/* Child Info and Dropdown (like ChartScreen) */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
         <View style={styles.childInfo}>
-          {/* Display profile image of the first selected child */}
-          {selectedChildren.length > 0 && (
+          {/* Display profile image of the selected child */}
+          {selectedChildId && (
             <Image
-              source={children.find(child => child.id === selectedChildren[0])?.image || require('../../assets/vnvc.jpg')}
+              source={children.find(child => child.childId === selectedChildId)?.image || require('../../assets/vnvc.jpg')}
               style={styles.profileImage}
             />
           )}
           <View>
-            {/* Display name of the first selected child */}
-            {selectedChildren.length > 0 && (
+            {/* Display name of the selected child */}
+            {selectedChildId && (
               <Text style={styles.childName}>
-                {children.find(child => child.id === selectedChildren[0])?.name}
+                {children.find(child => child.childId === selectedChildId)?.fullName}
               </Text>
             )}
-            {/* Display age of the first selected child */}
-            {selectedChildren.length > 0 && (
+            {/* Display age of the selected child */}
+            {selectedChildId && (
               <Text style={styles.childAge}>
-                {children.find(child => child.id === selectedChildren[0])?.age}
+                {calculateAge(children.find(child => child.childId === selectedChildId)?.dateOfBirth)}
               </Text>
             )}
           </View>
         </View>
-
         {/* Dropdown icon nằm bên phải */}
-        <TouchableOpacity style={styles.dropdownToggle} onPress={handleSelectChildPress}>
+        <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={handleSelectChildPress}>
           <FontAwesomeIcon icon={faChevronDown} size={20} color="black" />
         </TouchableOpacity>
       </View>
 
       {/* Child Selection Dropdown */}
       {isDropdownVisible && (
-        <View style={styles.dropdownContainer}>
-          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
-            {children.map(child => (
-              <TouchableOpacity
-                key={child.id}
-                style={styles.dropdownItem}
-                onPress={() => handleSelectChild(child.id)}
-              >
-                {/* Add child image */}
-                <Image
-                  source={child.image || require('../../assets/vnvc.jpg')}
-                  style={styles.dropdownItemImage}
-                />
-                <View style={styles.dropdownItemTextContainer}>
-                  <Text style={styles.dropdownItemName}>{child.name}</Text>
-                  <Text style={styles.dropdownItemAge}>{child.age}</Text>
-                </View>
-                {/* Indicate selected child */}
-                {selectedChildren[0] === child.id && <Text style={styles.selectedIcon}> ✅</Text>}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={[styles.dropdownContainer, { marginBottom: 24 }]}>
+          {(children || []).map(child => (
+            <TouchableOpacity
+              key={child.childId}
+              style={styles.dropdownItem}
+              onPress={() => handleSelectChild(child.childId)}
+            >
+              <Image
+                source={child.image || require('../../assets/vnvc.jpg')}
+                style={styles.dropdownItemImage}
+              />
+              <View style={styles.dropdownItemTextContainer}>
+                <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>
+              </View>
+              {selectedChildId === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
+            </TouchableOpacity>
+          ))}
         </View>
       )}
 
       {/* Tên bệnh / phòng bệnh */}
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Tên bệnh / phòng bệnh</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 20, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
-          <View style={{paddingHorizontal: 10}}><FontAwesomeIcon icon={faSearch} size={20} color="gray" /></View>
-          <Controller
-            control={control}
-            name="diseaseName"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={{ height: 50, flex: 1, paddingHorizontal: 10 }}
-                placeholder="Chọn loại bệnh cần tiêm phòng"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5, marginTop: 8 }}>Tên bệnh </Text>
+      <View style={{ position: 'relative', marginBottom: 24 }}>
+        <Controller
+          control={control}
+          name="diseaseName"
+          render={({ field: { onChange, value } }) => (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, borderRadius: 5, backgroundColor: '#f9f9f9', height: 50, paddingHorizontal: 10 }}
+              onPress={() => setIsDiseaseDropdownVisible(!isDiseaseDropdownVisible)}
+              activeOpacity={0.8}
+            >
+              <Text style={{ flex: 1, color: value ? '#000' : '#888' }}>
+                {value ? (diseases.find(d => d.diseaseId === value)?.name || value) : 'Chọn loại bệnh cần tiêm phòng'}
+              </Text>
+              <FontAwesomeIcon icon={faSearch} size={20} color="gray" style={{ marginRight: 8 }} />
+            </TouchableOpacity>
+          )}
+        />
+        {/* Dropdown list disease */}
+        {isDiseaseDropdownVisible && (
+          <View style={{ position: 'absolute', top: 55, left: 0, right: 0, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', borderRadius: 5, zIndex: 10, maxHeight: 200 }}>
+            <ScrollView nestedScrollEnabled={true}>
+              {diseases.map(disease => (
+                <TouchableOpacity
+                  key={disease.diseaseId}
+                  style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                  onPress={() => {
+                    setValue('diseaseName', disease.diseaseId);
+                    setIsDiseaseDropdownVisible(false);
+                  }}
+                >
+                  <Text>{disease.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
-      {/* Mũi tiêm thứ */}
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Mũi tiêm thứ</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 20, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
-          <View style={{paddingHorizontal: 10}}><FontAwesomeIcon icon={faChevronDown} size={20} color="gray" /></View>
-          <Controller
-            control={control}
-            name="vaccinationShot"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={{ height: 50, flex: 1, paddingHorizontal: 10 }}
-                placeholder="Chọn mũi tiêm"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
+      {/* Vaccine */}
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Vacine</Text>
+      <View style={{ position: 'relative', marginBottom: 24 }}>
+        <Controller
+          control={control}
+          name="vaccinationShot"
+          render={({ field: { onChange, value } }) => (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, borderRadius: 5, backgroundColor: '#f9f9f9', height: 50, paddingHorizontal: 10 }}
+              onPress={() => setIsVaccineDropdownVisible(!isVaccineDropdownVisible)}
+              activeOpacity={0.8}
+              disabled={!selectedDiseaseId}
+            >
+              <Text style={{ flex: 1, color: value ? '#000' : '#888' }}>
+                {value ? (vaccines.find(v => v.vaccineId === value)?.name || value) : (selectedDiseaseId ? 'Chọn vaccine' : 'Chọn bệnh trước')}
+              </Text>
+              <FontAwesomeIcon icon={faChevronDown} size={18} color="gray" />
+            </TouchableOpacity>
+          )}
+        />
+        {/* Dropdown list vaccine */}
+        {isVaccineDropdownVisible && selectedDiseaseId && (
+          <View style={{ position: 'absolute', top: 55, left: 0, right: 0, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ccc', borderRadius: 5, zIndex: 10, maxHeight: 200 }}>
+            <ScrollView nestedScrollEnabled={true}>
+              {filteredVaccines.length === 0 && (
+                <Text style={{ padding: 12, color: '#888' }}>Không có vaccine phù hợp</Text>
+              )}
+              {filteredVaccines.map(vaccine => (
+                <TouchableOpacity
+                  key={vaccine.vaccineId}
+                  style={{ padding: 12, borderBottomWidth: 1, borderBottomColor: '#eee' }}
+                  onPress={() => {
+                    setValue('vaccinationShot', vaccine.vaccineId);
+                    setIsVaccineDropdownVisible(false);
+                  }}
+                >
+                  <Text>{vaccine.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
+
 
       {/* Ngày tiêm */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ngày tiêm</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
-          <View style={{paddingHorizontal: 10}}><FontAwesomeIcon icon={faCalendarAlt} size={20} color="gray" /></View>
-          <Controller
-            control={control}
-            name="vaccinationDate"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={{ height: 50, flex: 1, paddingHorizontal: 10 }}
-                placeholder="2025-05-21" // Placeholder from image
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
+      <View style={{ position: 'relative', marginBottom: 24 }}>
+        <Controller
+          control={control}
+          name="vaccinationDate"
+          render={({ field: { value } }) => (
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, borderRadius: 5, backgroundColor: '#f9f9f9', height: 50, paddingHorizontal: 10 }}
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.8}
+            >
+              <FontAwesomeIcon icon={faCalendarAlt} size={20} color="gray" style={{ marginRight: 8 }} />
+              <Text style={{ flex: 1, color: value ? '#000' : '#888' }}>
+                {value ? value : 'Chọn ngày tiêm'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        />
+        {showDatePicker && (
+          <DateTimePicker
+            value={control._formValues.vaccinationDate ? new Date(control._formValues.vaccinationDate) : new Date()}
+            mode="date"
+            display="default"
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                // Format date to yyyy-MM-dd
+                const d = new Date(selectedDate);
+                const formatted = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                setValue('vaccinationDate', formatted);
+              }
+            }}
           />
+        )}
       </View>
 
       {/* Cơ sở tiêm */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Cơ sở tiêm</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 20, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 24, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
           <View style={{paddingHorizontal: 10}}><FontAwesomeIcon icon={faMapMarkerAlt} size={20} color="gray" /></View>
           <Controller
             control={control}
@@ -187,6 +333,25 @@ const UpdateVaccHiss = ({ navigation }) => {
           />
       </View>
 
+      {/* Số mũi tiêm */}
+      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Số mũi tiêm</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 24, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
+        <Controller
+          control={control}
+          name="doseNum"
+          render={({ field: { onChange, onBlur, value } }) => (
+            <TextInput
+              style={{ height: 50, flex: 1, paddingHorizontal: 10 }}
+              placeholder="Nhập số mũi tiêm"
+              keyboardType="numeric"
+              onBlur={onBlur}
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+      </View>
+
       {/* Ghi chú thêm (tùy chọn) */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Ghi chú thêm (tùy chọn)</Text>
       <Controller
@@ -194,7 +359,7 @@ const UpdateVaccHiss = ({ navigation }) => {
         name="notes"
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
-            style={{ height: 100, borderColor: 'gray', borderWidth: 1, marginBottom: 30, paddingHorizontal: 10, paddingTop: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}
+            style={{ height: 100, borderColor: 'gray', borderWidth: 1, marginBottom: 32, paddingHorizontal: 10, paddingTop: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}
             placeholder="Nhập ghi chú về mũi tiêm (nếu có)"
             multiline
             onBlur={onBlur}
@@ -205,7 +370,7 @@ const UpdateVaccHiss = ({ navigation }) => {
       />
 
       {/* LƯU LỊCH SỬ TIÊM button */}
-      <TouchableOpacity style={{ backgroundColor: '#007BFF', padding: 15, borderRadius: 5, alignItems: 'center', marginBottom: 40 }} onPress={handleSubmit(onSubmit)}>
+      <TouchableOpacity style={{ backgroundColor: '#007BFF', padding: 15, borderRadius: 5, alignItems: 'center', marginBottom: 40, marginTop: 8 }} onPress={handleSubmit(onSubmit)}>
         <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>LƯU LỊCH SỬ TIÊM</Text>
       </TouchableOpacity>
 
