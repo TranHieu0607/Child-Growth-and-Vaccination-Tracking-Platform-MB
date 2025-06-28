@@ -3,157 +3,58 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView,
 import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming MaterialIcons for icons
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import { getMyChildren, getChildById } from '../api/vaccinationApi';
+import useChildren from '../store/hook/useChildren';
+import useVaccinationBook from '../store/hook/useVaccinationBook';
 
 const VaccBook = ({ navigation }) => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [children, setChildren] = useState([]);
-  const [selectedChildren, setSelectedChildren] = useState(['child1']);
-  const [selectedChildDetail, setSelectedChildDetail] = useState(null);
+  const { children, loading: loadingChildren } = useChildren();
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const selectedChild = children.find(child => child.childId?.toString() === selectedChildId);
 
-  const handleSelectChildPress = () => {
-    setIsDropdownVisible(!isDropdownVisible);
-  };
+  // Lấy dữ liệu sổ tiêm chủng cho trẻ được chọn
+  const { vaccineBook, loading: loadingBook } = useVaccinationBook(selectedChildId);
 
-  const handleSelectChild = (childId) => {
-    setSelectedChildren([childId]);
-    setIsDropdownVisible(false);
-  };
-
-  const selectedChild = children.find(child => child.id === selectedChildren[0]);
-
-  const calculateProgress = () => {
-    if (!selectedChild || !selectedChild.vaccinationHistory) return { completedDoses: 0, totalDoses: 0, completedDiseases: 0, totalDiseases: 0, missingDosesDiseases: 0, unvacinatedDiseases: 0 };
-
-    const totalDoses = selectedChild.vaccinationHistory.length;
-    const completedDoses = selectedChild.vaccinationHistory.filter(vaccine => vaccine.status === 'completed').length;
-
-    const diseases = {};
-    selectedChild.vaccinationHistory.forEach(vaccine => {
-      if (!diseases[vaccine.vaccineName]) {
-        diseases[vaccine.vaccineName] = { total: 0, completed: 0 };
-      }
-      diseases[vaccine.vaccineName].total++;
-      if (vaccine.status === 'completed') {
-        diseases[vaccine.vaccineName].completed++;
-      }
-    });
-
-    let completedDiseases = 0;
-    let missingDosesDiseases = 0;
-    let unvacinatedDiseases = 0;
-    const totalDiseases = Object.keys(diseases).length;
-
-    for (const diseaseName in diseases) {
-      if (diseases[diseaseName].completed === diseases[diseaseName].total) {
-        completedDiseases++;
-      } else if (diseases[diseaseName].completed > 0 && diseases[diseaseName].completed < diseases[diseaseName].total) {
-        missingDosesDiseases++;
-      } else if (diseases[diseaseName].completed === 0) {
-        unvacinatedDiseases++;
-      }
+  // Tính toán progress và status
+  const progressData = React.useMemo(() => {
+    let completedDoses = 0, totalDoses = 0, completedDiseases = 0, totalDiseases = 0, missingDosesDiseases = 0, unvacinatedDiseases = 0;
+    if (vaccineBook && vaccineBook.length) {
+      totalDiseases = vaccineBook.length;
+      vaccineBook.forEach(group => {
+        totalDoses += group.numberOfDoses;
+        const completed = group.doses.filter(d => d.status === 'completed').length;
+        completedDoses += completed;
+        if (completed === group.numberOfDoses) completedDiseases++;
+        else if (completed > 0) missingDosesDiseases++;
+        else unvacinatedDiseases++;
+      });
     }
-
-    return { completedDoses, totalDoses, completedDiseases, totalDiseases: totalDiseases, missingDosesDiseases, unvacinatedDiseases };
-  };
-
-  const { completedDoses, totalDoses, completedDiseases, totalDiseases: totalDiseasesCount, missingDosesDiseases, unvacinatedDiseases } = calculateProgress();
+    return { completedDoses, totalDoses, completedDiseases, totalDiseases, missingDosesDiseases, unvacinatedDiseases };
+  }, [vaccineBook]);
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
-      toValue: totalDoses > 0 ? completedDoses / totalDoses : 0, // Current progress
+      toValue: progressData.totalDoses > 0 ? progressData.completedDoses / progressData.totalDoses : 0,
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [selectedChild]);
+  }, [progressData]);
 
   const progressWidth = progressAnimation.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
 
-  const getVaccineList = () => {
-    if (!selectedChild || !selectedChild.vaccinationHistory) return [];
-
-    const groupedVaccines = {};
-    selectedChild.vaccinationHistory.forEach(vaccine => {
-      if (!groupedVaccines[vaccine.vaccineName]) {
-        groupedVaccines[vaccine.vaccineName] = {
-          status: 'completed', // Default to completed, then check individual doses
-          doses: [],
-        };
-      }
-      groupedVaccines[vaccine.vaccineName].doses.push(vaccine);
-    });
-
-    // Determine the overall status for each vaccine group
-    for (const vaccineName in groupedVaccines) {
-      const allCompleted = groupedVaccines[vaccineName].doses.every(dose => dose.status === 'completed');
-      const anyPending = groupedVaccines[vaccineName].doses.some(dose => dose.status === 'pending');
-      const allPending = groupedVaccines[vaccineName].doses.every(dose => dose.status === 'pending');
-
-      if (allCompleted) {
-        groupedVaccines[vaccineName].status = 'completed';
-      } else if (anyPending && !allPending) {
-        groupedVaccines[vaccineName].status = 'missing';
-      } else if (allPending) {
-        groupedVaccines[vaccineName].status = 'unvaccinated';
-      }
+  // Xử lý chọn trẻ
+  useEffect(() => {
+    if (!selectedChildId && children.length > 0) {
+      setSelectedChildId(children[0].childId?.toString());
     }
+  }, [children, selectedChildId]);
 
-    return Object.keys(groupedVaccines).map(vaccineName => ({
-      name: vaccineName,
-      status: groupedVaccines[vaccineName].status,
-      doses: groupedVaccines[vaccineName].doses,
-    }));
-  };
-
-  const vaccineList = getVaccineList();
-
-  useEffect(() => {
-    const fetchChildren = async () => {
-      try {
-        const res = await getMyChildren();
-        // Sắp xếp theo ngày sinh giảm dần (bé nhỏ tuổi nhất đầu tiên)
-        const sorted = [...res].sort((a, b) => new Date(b.birthDate) - new Date(a.birthDate));
-        const apiChildren = sorted.map(child => ({
-          id: child.childId.toString(),
-          name: child.fullName,
-          age: child.birthDate ? `${new Date().getFullYear() - new Date(child.birthDate).getFullYear()} tuổi` : '',
-          image: require('../../assets/vnvc.jpg'),
-          vaccinationHistory: [],
-        }));
-        setChildren(apiChildren);
-        if (apiChildren.length > 0) {
-          setSelectedChildren([apiChildren[0].id]);
-        }
-      } catch (e) {
-        // Có thể hiển thị thông báo lỗi nếu muốn
-      }
-    };
-    fetchChildren();
-  }, []);
-
-  useEffect(() => {
-    const fetchChildDetail = async () => {
-      if (selectedChildren.length > 0) {
-        try {
-          // Nếu id là số (API thật), còn nếu là dữ liệu mẫu thì bỏ qua
-          if (!isNaN(Number(selectedChildren[0]))) {
-            const res = await getChildById(selectedChildren[0]);
-            setSelectedChildDetail(res);
-          } else {
-            setSelectedChildDetail(null);
-          }
-        } catch (e) {
-          setSelectedChildDetail(null);
-        }
-      }
-    };
-    fetchChildDetail();
-  }, [selectedChildren]);
+  // Lấy thông tin chi tiết trẻ
+  const childDetail = selectedChild;
 
   return (
     <View style={styles.container}>
@@ -168,40 +69,21 @@ const VaccBook = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
         {/* Child Profile */}
         <View style={styles.childProfileContainer}>
-          {selectedChildren.length > 0 && (
+          {childDetail && (
             <Image
-              source={selectedChild?.image || require('../../assets/vnvc.jpg')}
+              source={require('../../assets/vnvc.jpg')}
               style={styles.childImage}
             />
           )}
           <View style={styles.childInfo}>
-            {selectedChildren.length > 0 && (
-              <Text style={styles.childName}>{selectedChild?.name}</Text>
+            {childDetail && (
+              <Text style={styles.childName}>{childDetail.fullName}</Text>
             )}
-            {selectedChildren.length > 0 && (
-              <Text style={styles.childAge}>{selectedChild?.age}</Text>
-            )}
-            {selectedChildDetail && (
-              <View style={{ marginTop: 8 }}>
-                <Text style={{ fontSize: 14, color: '#333' }}>
-                  Ngày sinh: {selectedChildDetail.birthDate ? selectedChildDetail.birthDate.split('T')[0] : ''}
-                </Text>
-                <Text style={{ fontSize: 14, color: '#333' }}>
-                  Giới tính: {selectedChildDetail.gender?.trim() || ''}
-                </Text>
-                <Text style={{ fontSize: 14, color: '#333' }}>
-                  Nhóm máu: {selectedChildDetail.bloodType || ''}
-                </Text>
-                <Text style={{ fontSize: 14, color: '#333' }}>
-                  Dị ứng: {selectedChildDetail.allergiesNotes || ''}
-                </Text>
-                <Text style={{ fontSize: 14, color: '#333' }}>
-                  Tiền sử bệnh: {selectedChildDetail.medicalHistory || ''}
-                </Text>
-              </View>
+            {childDetail && (
+              <Text style={styles.childAge}>{childDetail.birthDate ? `${new Date().getFullYear() - new Date(childDetail.birthDate).getFullYear()} tuổi` : ''}</Text>
             )}
           </View>
-          <TouchableOpacity style={styles.dropdownToggle} onPress={handleSelectChildPress}>
+          <TouchableOpacity style={styles.dropdownToggle} onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
             <Icon name="keyboard-arrow-down" size={24} color="#000" />
           </TouchableOpacity>
         </View>
@@ -212,19 +94,19 @@ const VaccBook = ({ navigation }) => {
             <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
               {children.map(child => (
                 <TouchableOpacity
-                  key={child.id}
+                  key={child.childId}
                   style={styles.dropdownItem}
-                  onPress={() => handleSelectChild(child.id)}
+                  onPress={() => { setSelectedChildId(child.childId?.toString()); setIsDropdownVisible(false); }}
                 >
                   <Image
-                    source={child.image || require('../../assets/vnvc.jpg')}
+                    source={require('../../assets/vnvc.jpg')}
                     style={styles.dropdownItemImage}
                   />
                   <View style={styles.dropdownItemTextContainer}>
-                    <Text style={styles.dropdownItemName}>{child.name}</Text>
-                    <Text style={styles.dropdownItemAge}>{child.age}</Text>
+                    <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                    <Text style={styles.dropdownItemAge}>{child.birthDate ? `${new Date().getFullYear() - new Date(child.birthDate).getFullYear()} tuổi` : ''}</Text>
                   </View>
-                  {selectedChildren[0] === child.id && <Text style={styles.selectedIcon}> ✅</Text>}
+                  {selectedChildId === child.childId?.toString() && <Text style={styles.selectedIcon}> ✅</Text>}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -236,22 +118,22 @@ const VaccBook = ({ navigation }) => {
           <View style={styles.progressBarBackground}>
             <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
           </View>
-          <Text style={styles.progressText}>{completedDoses}/{totalDoses} mũi đã tiêm</Text>
+          <Text style={styles.progressText}>{progressData.completedDoses}/{progressData.totalDoses} mũi đã tiêm</Text>
         </View>
 
         {/* Status Summary */}
         <View style={styles.statusSummaryContainer}>
           <View style={styles.statusItem}>
             <Icon name="check-circle" size={20} color="green" />
-            <Text style={styles.statusText}>{completedDiseases}/{totalDiseasesCount} bệnh đã tiêm đủ</Text>
+            <Text style={styles.statusText}>{progressData.completedDiseases}/{progressData.totalDiseases} bệnh đã tiêm đủ</Text>
           </View>
           <View style={styles.statusItem}>
             <Icon name="access-time" size={20} color="orange" />
-            <Text style={styles.statusText}>{missingDosesDiseases} bệnh còn thiếu mũi</Text>
+            <Text style={styles.statusText}>{progressData.missingDosesDiseases} bệnh còn thiếu mũi</Text>
           </View>
           <View style={styles.statusItem}>
             <Icon name="cancel" size={20} color="red" />
-            <Text style={styles.statusText}>{unvacinatedDiseases} bệnh chưa tiêm mũi nào</Text>
+            <Text style={styles.statusText}>{progressData.unvacinatedDiseases} bệnh chưa tiêm mũi nào</Text>
           </View>
         </View>
 
@@ -266,34 +148,47 @@ const VaccBook = ({ navigation }) => {
         </View>
 
         {/* Vaccine List Items */}
-        {vaccineList.map((vaccineGroup, index) => (
-          <View key={index} style={styles.vaccineListItem}>
-            <View style={styles.vaccineHeader}>
-              <Text style={styles.vaccineTitle}>{vaccineGroup.name}</Text>
-              {vaccineGroup.status === 'completed' && <Icon name="check-circle" size={20} color="green" />}
-              {vaccineGroup.status === 'missing' && <Icon name="access-time" size={20} color="orange" />}
-              {vaccineGroup.status === 'unvaccinated' && <Icon name="cancel" size={20} color="red" />}
-            </View>
-            <View style={styles.vaccineTable}>
-              <View style={styles.tableRow}>
-                <Text style={styles.tableHeader}>Mũi</Text>
-                <Text style={styles.tableHeader}>Trạng thái</Text>
-                <Text style={styles.tableHeader}>Ngày tiêm</Text>
-                <Text style={styles.tableHeader}>Ghi chú</Text>
+        {loadingBook ? (
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>Đang tải dữ liệu...</Text>
+        ) : (
+          vaccineBook.map((group, index) => (
+            <View key={index} style={styles.vaccineListItem}>
+              <View style={styles.vaccineHeader}>
+                <Text style={styles.vaccineTitle}>{group.vaccine.name} ({group.disease.name})</Text>
+                {/* Status icon */}
+                {(() => {
+                  const completed = group.doses.filter(d => d.status === 'completed').length;
+                  if (completed === group.numberOfDoses) return <Icon name="check-circle" size={20} color="green" />;
+                  if (completed > 0) return <Icon name="access-time" size={20} color="orange" />;
+                  return <Icon name="cancel" size={20} color="red" />;
+                })()}
               </View>
-              {vaccineGroup.doses.map((dose, doseIndex) => (
-                <View key={doseIndex} style={styles.tableRow}>
-                  <Text style={styles.tableCell}>{dose.dose}</Text>
-                  {dose.status === 'completed' && <Icon name="check-circle" size={16} color="green" style={styles.tableCell} />}
-                  {dose.status === 'pending' && <Icon name="cancel" size={16} color="red" style={styles.tableCell} />}
-                  <Text style={styles.tableCell}>{dose.date}</Text>
-                  <Text style={styles.tableCell}>{dose.note}</Text>
+              <View style={styles.vaccineTable}>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableHeader}>Mũi</Text>
+                  <Text style={styles.tableHeader}>Trạng thái</Text>
+                  <Text style={styles.tableHeader}>Ngày tiêm</Text>
+                  <Text style={styles.tableHeader}>Ghi chú</Text>
                 </View>
-              ))}
+                {Array.from({ length: group.numberOfDoses }).map((_, doseIdx) => {
+                  const dose = group.doses.find(d => d.doseNum === doseIdx + 1);
+                  return (
+                    <View key={doseIdx} style={styles.tableRow}>
+                      <Text style={styles.tableCell}>Mũi {doseIdx + 1}</Text>
+                      {dose && dose.status === 'completed' ? (
+                        <Icon name="check-circle" size={16} color="green" style={styles.tableCell} />
+                      ) : (
+                        <Icon name="cancel" size={16} color="red" style={styles.tableCell} />
+                      )}
+                      <Text style={styles.tableCell}>{dose ? dose.actualDate : '-'}</Text>
+                      <Text style={styles.tableCell}>{dose ? dose.note : 'Chưa tiêm'}</Text>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
-
+          ))
+        )}
       </ScrollView>
     </View>
   );

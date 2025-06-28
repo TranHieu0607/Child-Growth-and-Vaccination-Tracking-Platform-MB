@@ -1,5 +1,5 @@
-import { register, login } from '../store/authSlice';
-import store from '../store/store';
+import { register, login } from '../authSlice';
+import store from '../store';
 
 /**
  * Đăng ký tài khoản người dùng

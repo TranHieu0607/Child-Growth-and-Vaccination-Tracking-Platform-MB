@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image,
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import childVaccineProfileApi from '../api/childVaccineProfileApi';
-import vaccinesApi from '../api/vaccinesApi';
-import diseasesApi from '../api/diseasesApi';
+import childrenApi from '../store/api/childrenApi';
+import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
+import vaccinesApi from '../store/api/vaccinesApi';
+import diseasesApi from '../store/api/diseasesApi';
 
 const HistoryVacc = ({ navigation }) => {   
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);

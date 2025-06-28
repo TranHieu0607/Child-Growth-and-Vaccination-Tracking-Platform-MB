@@ -3,8 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet 
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import { getMyChildren, updateGrowthRecord } from '../api/growthRecordApi';
+import childrenApi from '../store/api/childrenApi';
+import { getMyChildren, updateGrowthRecord } from '../store/api/growthRecordApi';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const UpdateGrowth = ({ navigation }) => {

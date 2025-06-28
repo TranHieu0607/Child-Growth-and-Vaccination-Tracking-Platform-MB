@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { LineChart } from 'react-native-chart-kit';
-import childrenApi from '../api/childrenApi';
-import { getFullGrowthData } from '../api/growthApi';
+import childrenApi from '../store/api/childrenApi';
+import { getFullGrowthData } from '../store/api/growthApi';
 
 // Placeholder components
 const TabBar = ({ selectedTab, onSelectTab }) => (

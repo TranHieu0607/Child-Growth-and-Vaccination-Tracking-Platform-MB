@@ -6,8 +6,8 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch } from 'react-redux';
 import { register as registerChild } from '../store/authSlice';
-import childrenApi from '../api/childrenApi';
-import { registerChildWithGrowth } from '../api/childRegisterApi';
+import childrenApi from '../store/api/childrenApi';
+import { registerChildWithGrowth } from '../store/api/childRegisterApi';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const Register = ({ navigation }) => {

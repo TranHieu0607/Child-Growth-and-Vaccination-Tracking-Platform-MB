@@ -3,8 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet,
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import { createDailyRecord } from '../api/dailyApi';
+import childrenApi from '../store/api/childrenApi';
+import { createDailyRecord } from '../store/api/dailyApi';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const CreateDailyScreen = ({ navigation }) => {

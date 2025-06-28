@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../store/authSlice';
-import { loginUser } from '../api/authApi';
+import { loginUser } from '../store/api/authApi';
 
 export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');

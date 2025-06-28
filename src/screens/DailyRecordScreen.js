@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import { getDailyRecordsByChildId } from '../api/dailyApi';
+import childrenApi from '../store/api/childrenApi';
+import { getDailyRecordsByChildId } from '../store/api/dailyApi';
 
 const PAGE_SIZE = 3;
 

@@ -3,10 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet,
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown, faSearch, faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../api/childrenApi';
-import diseasesApi from '../api/diseasesApi';
-import vaccinesApi from '../api/vaccinesApi';
-import childVaccineProfileApi from '../api/childVaccineProfileApi';
+import childrenApi from '../store/api/childrenApi';
+import diseasesApi from '../store/api/diseasesApi';
+import vaccinesApi from '../store/api/vaccinesApi';
+import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 const UpdateVaccHiss = ({ navigation }) => {
@@ -31,9 +31,9 @@ const UpdateVaccHiss = ({ navigation }) => {
         doseNum: Number(data.doseNum),
         expectedDate: data.vaccinationDate,
         actualDate: data.vaccinationDate,
-        status: '', // hoặc bạn có thể cho người dùng nhập nếu muốn
-        isRequired: true, // hoặc cho người dùng chọn nếu muốn
-        priority: '', // hoặc cho người dùng nhập nếu muốn
+        status: 'completed',
+        isRequired: true,
+        priority: '',
         note: data.notes,
       };
       await childVaccineProfileApi.createProfile(payload);

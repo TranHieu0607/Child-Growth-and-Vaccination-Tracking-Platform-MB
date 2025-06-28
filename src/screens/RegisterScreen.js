@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { register } from '../store/authSlice';
-import { registerUser } from '../api/authApi';
+import { registerUser } from '../store/api/authApi';
 
 export default function RegisterScreen({ onRegister, navigation }) {
   const [form, setForm] = useState({
