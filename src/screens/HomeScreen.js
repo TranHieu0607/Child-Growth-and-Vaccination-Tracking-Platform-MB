@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faBaby, faPencil, faChartBar, faSuitcaseMedical, faCalendarDays, faWallet, faNewspaper, faStar, faNotesMedical } from '@fortawesome/free-solid-svg-icons';
+import { faBaby, faPencil, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical } from '@fortawesome/free-solid-svg-icons';
 
 
 const features = [
@@ -10,10 +10,10 @@ const features = [
   { key: 'growth_chart', label: 'Biểu đồ tăng trưởng', icon: <FontAwesomeIcon icon={faChartBar} size={32} color="#1565C0" /> },
   { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
   { key: 'vaccine_spot', label: 'Theo dõi hàng ngày', icon: <FontAwesomeIcon icon={faNotesMedical} size={32} color="#1565C0" /> },
-  { key: 'health_record', label: 'Sổ khám bệnh', icon: <FontAwesomeIcon icon={faSuitcaseMedical} size={32} color="#1565C0" /> },
-  { key: 'payment_history', label: 'Lịch sử thanh toán', icon: <FontAwesomeIcon icon={faWallet} size={32} color="#1565C0" /> },
+  { key: 'health_record', label: 'Nhập lịch sử tiêm', icon: <FontAwesomeIcon icon={faFileMedical} size={32} color="#1565C0" /> },
+  { key: 'payment_history', label: 'Lịch sử tiêm', icon: <FontAwesomeIcon icon={faSyringe} size={32} color="#1565C0" /> },
   { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
-  { key: 'rating', label: 'Đánh giá', icon: <FontAwesomeIcon icon={faStar} size={32} color="#1565C0" /> },
+  { key: 'rating', label: 'Sổ tiêm chủng', icon: <FontAwesomeIcon icon={faBookMedical} size={32} color="#1565C0" /> },
 ];
 
 const newsTabs = [
