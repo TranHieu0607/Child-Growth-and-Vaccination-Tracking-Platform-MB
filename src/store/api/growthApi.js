@@ -41,40 +41,36 @@ export async function getFullGrowthData(childId, gender) {
 
   // Chuẩn bị các tháng cần lấy chuẩn
   const monthsHeight = processRecords('height').map(item => item.month);
-  let allMonthsHeight = [...monthsHeight];
+  let allMonthsHeight = [];
   if (monthsHeight.length > 0) {
     const maxMonth = Math.max(...monthsHeight);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 0; i < 4; i++) {
       allMonthsHeight.push(maxMonth + i);
     }
-    allMonthsHeight = Array.from(new Set(allMonthsHeight)).sort((a, b) => a - b);
   }
   const monthsWeight = processRecords('weight').map(item => item.month);
-  let allMonthsWeight = [...monthsWeight];
+  let allMonthsWeight = [];
   if (monthsWeight.length > 0) {
     const maxMonth = Math.max(...monthsWeight);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 0; i < 4; i++) {
       allMonthsWeight.push(maxMonth + i);
     }
-    allMonthsWeight = Array.from(new Set(allMonthsWeight)).sort((a, b) => a - b);
   }
   const monthsHead = processRecords('headCircumference').map(item => item.month);
-  let allMonthsHead = [...monthsHead];
+  let allMonthsHead = [];
   if (monthsHead.length > 0) {
     const maxMonth = Math.max(...monthsHead);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 0; i < 4; i++) {
       allMonthsHead.push(maxMonth + i);
     }
-    allMonthsHead = Array.from(new Set(allMonthsHead)).sort((a, b) => a - b);
   }
   const monthsBMI = processRecords('bmi').map(item => item.month);
-  let allMonthsBMI = [...monthsBMI];
+  let allMonthsBMI = [];
   if (monthsBMI.length > 0) {
     const maxMonth = Math.max(...monthsBMI);
-    for (let i = 1; i <= 4; i++) {
+    for (let i = 0; i < 4; i++) {
       allMonthsBMI.push(maxMonth + i);
     }
-    allMonthsBMI = Array.from(new Set(allMonthsBMI)).sort((a, b) => a - b);
   }
 
   // Fetch chuẩn song song

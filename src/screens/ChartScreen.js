@@ -347,7 +347,7 @@ const ChartScreen = ({ navigation }) => {
         propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
         yAxisSuffix: selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : ''
       }}
-      bezier
+      
       style={{ borderRadius: 16 }}
     />
   )}
