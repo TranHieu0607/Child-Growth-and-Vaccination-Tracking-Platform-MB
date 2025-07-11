@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions, Modal, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -92,6 +92,9 @@ const ChartScreen = ({ navigation }) => {
   const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
   const [bmiStandardData, setBMIStandardData] = useState([]);
 
+  // Tooltip state
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: '', label: '' });
+
   useEffect(() => {
     const fetchChildren = async () => {
       try {
@@ -178,18 +181,15 @@ const ChartScreen = ({ navigation }) => {
   const getChartAndTableData = (tab) => {
     const data = childGrowthData?.data?.[tab] || [];
     const validData = data.filter(item => typeof item.value === 'number' && isFinite(item.value));
-    // Dữ liệu thực tế: chỉ lấy các tháng trẻ có dữ liệu
-    let labels = validData.map(item => `${item.ageInDays} ngày`);
+    // Không hiện gì ở trục Ox
+    let labels = [];
     let values = validData.map(item => item.value);
-    if (labels.length === 1) {
-      labels = [labels[0], `${parseInt(labels[0]) + 1}T`];
+    if (values.length === 1) {
       values = [values[0], null];
     }
-    // Nếu là tab Chiều cao, thêm dữ liệu median chuẩn vào datasets (labels riêng)
     let datasets = [{ data: values, color: (opacity = 1) => `rgba(0,123,255,${opacity})` }];
     let legend = [tab];
     if (tab === 'Chiều cao' && heightStandardData.length > 0) {
-      const stdLabels = heightStandardData.map(item => `${item.month}T`);
       const medianValues = heightStandardData.map(item => item.median);
       datasets.push({
         data: medianValues,
@@ -198,11 +198,8 @@ const ChartScreen = ({ navigation }) => {
         propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
       });
       legend.push('Chuẩn (median)');
-      // Gán thêm labels chuẩn vào chartKitData nếu muốn hiển thị đủ trục x (tuỳ chọn, có thể bỏ nếu muốn trục x chỉ theo dữ liệu trẻ)
-      // labels = Array.from(new Set([...labels, ...stdLabels])).sort((a, b) => parseInt(a) - parseInt(b));
     }
     if (tab === 'Cân nặng' && weightStandardData.length > 0) {
-      const stdLabels = weightStandardData.map(item => `${item.month}T`);
       const medianValues = weightStandardData.map(item => item.median);
       datasets.push({
         data: medianValues,
@@ -213,7 +210,6 @@ const ChartScreen = ({ navigation }) => {
       legend.push('Chuẩn (median)');
     }
     if (tab === 'Vòng đầu' && headCircumferenceStandardData.length > 0) {
-      const stdLabels = headCircumferenceStandardData.map(item => `${item.month}T`);
       const medianValues = headCircumferenceStandardData.map(item => item.median);
       datasets.push({
         data: medianValues,
@@ -224,7 +220,6 @@ const ChartScreen = ({ navigation }) => {
       legend.push('Chuẩn (median)');
     }
     if (tab === 'BMI' && bmiStandardData.length > 0) {
-      const stdLabels = bmiStandardData.map(item => `${item.month}T`);
       const medianValues = bmiStandardData.map(item => item.median);
       datasets.push({
         data: medianValues,
@@ -249,6 +244,15 @@ const ChartScreen = ({ navigation }) => {
   // Get screen width to make chart responsive (subtracting container padding)
   const screenWidth = Dimensions.get('window').width;
   const chartWidth = screenWidth - 32; // 16 padding on each side
+
+  // Tooltip auto-hide effect
+  useEffect(() => {
+    let timer;
+    if (tooltip.visible) {
+      timer = setTimeout(() => setTooltip(t => ({ ...t, visible: false })), 2000);
+    }
+    return () => clearTimeout(timer);
+  }, [tooltip.visible]);
 
   return (
     <ScrollView style={styles.container}>
@@ -332,25 +336,70 @@ const ChartScreen = ({ navigation }) => {
     Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
-  {chartKitData.datasets[0].data.length > 0 && (
-    <LineChart
-      data={chartKitData}
-      width={chartWidth}
-      height={220}
-      chartConfig={{
-        backgroundColor: '#fff',
-        backgroundGradientFrom: '#fff',
-        backgroundGradientTo: '#fff',
-        decimalPlaces: 1,
-        color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
-        labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
-        yAxisSuffix: selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : ''
-      }}
-      
-      style={{ borderRadius: 16 }}
-    />
-  )}
+  <View style={{ minHeight: 220, justifyContent: 'center' }}>
+    {chartKitData.datasets[0].data.length > 0 && (
+      <>
+        <LineChart
+          data={chartKitData}
+          width={chartWidth}
+          height={220}
+          chartConfig={{
+            backgroundColor: '#fff',
+            backgroundGradientFrom: '#fff',
+            backgroundGradientTo: '#fff',
+            decimalPlaces: 1,
+            color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
+            labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+            propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
+            yAxisSuffix: '' // Không có đơn vị ở trục Oy
+          }}
+          withShadow={false}
+          onDataPointClick={({ value, index, x, y }) => {
+            let unit = '';
+            if (selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu') unit = 'cm';
+            else if (selectedTab === 'Cân nặng') unit = 'kg';
+            else if (selectedTab === 'BMI') unit = '';
+            // Lấy lại label gốc (số ngày/tháng)
+            const label = tableData[index]?.ageInDays;
+            let labelUnit = '';
+            if (selectedTab === 'Chiều cao' || selectedTab === 'Cân nặng' || selectedTab === 'Vòng đầu') labelUnit = 'ngày';
+            else if (selectedTab === 'BMI') labelUnit = '';
+            setTooltip({
+              visible: true,
+              x,
+              y,
+              value: `${value} ${unit}`,
+              label: `${label} ${labelUnit}`
+            });
+          }}
+          style={{ borderRadius: 16 }}
+        />
+        {/* Tooltip nhỏ ngay tại mốc */}
+        {tooltip.visible && (
+          <View style={{
+            position: 'absolute',
+            left: (tooltip.x || 0) + 8, // 8 để tránh che điểm
+            top: (tooltip.y || 0) + 8, // 8 để tránh che điểm
+            backgroundColor: 'white',
+            borderRadius: 6,
+            padding: 6,
+            borderWidth: 1,
+            borderColor: '#007bff',
+            zIndex: 10,
+            elevation: 10,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 2,
+            minWidth: 60
+          }}>
+            <Text style={{ fontWeight: 'bold', color: '#007bff', fontSize: 14 }}>{tooltip.value}</Text>
+            <Text style={{ fontSize: 12, color: '#333' }}>{tooltip.label}</Text>
+          </View>
+        )}
+      </>
+    )}
+  </View>
 
   {/* Bảng dữ liệu chi tiết nếu muốn hiển thị */}
   <DataTable data={tableData} selectedTab={selectedTab} assessment={assessment} />
