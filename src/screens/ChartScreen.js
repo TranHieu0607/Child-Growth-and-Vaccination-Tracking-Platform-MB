@@ -25,7 +25,7 @@ const TabBar = ({ selectedTab, onSelectTab }) => (
 
 
 // Updated DataTable component
-const DataTable = ({ data, selectedTab, assessment }) => {
+const DataTable = ({ data, selectedTab, assessment, prediction }) => {
   // Determine the unit based on the selected tab
   const unit = selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : '';
 
@@ -50,9 +50,11 @@ const DataTable = ({ data, selectedTab, assessment }) => {
 
       {assessment && (
         <View style={styles.assessmentContainer}>
-          <Text style={styles.assessmentTitle}>
-            Đánh giá mới nhất ({new Date(assessment.measurementDate).toLocaleDateString('vi-VN')})
-          </Text>
+          <View style={styles.assessmentHeader}>
+            <Text style={styles.assessmentTitle}>
+              📊 Đánh giá mới nhất ({new Date(assessment.measurementDate).toLocaleDateString('vi-VN')})
+            </Text>
+          </View>
           <View style={styles.assessmentRow}>
             <Text style={styles.assessmentLabel}>Chiều cao:</Text>
             <Text style={styles.assessmentValue}>{`${assessment.height} cm - ${assessment.assessments.heightStatus}`}</Text>
@@ -73,6 +75,32 @@ const DataTable = ({ data, selectedTab, assessment }) => {
           <Text style={styles.recommendationsText}>{assessment.recommendations}</Text>
         </View>
       )}
+
+      {/* Prediction Information */}
+      {prediction && (
+        <View style={styles.predictionContainer}>
+          <View style={styles.predictionHeader}>
+            <Text style={styles.predictionTitle}>
+              🔮 Dự đoán tương lai ({new Date(prediction.lastMeasurementDate).toLocaleDateString('vi-VN')})
+            </Text>
+          </View>
+          {prediction.predictionPoints && prediction.predictionPoints.length > 0 && (
+            prediction.predictionPoints.map((point, index) => (
+              <View key={index} style={styles.predictionRow}>
+                <Text style={styles.predictionLabel}>{point.timeLabel}:</Text>
+                <Text style={styles.predictionValue}>
+                  {selectedTab === 'Chiều cao' && `${point.predictedHeight} cm`}
+                  {selectedTab === 'Cân nặng' && `${point.predictedWeight} kg`}
+                  {selectedTab === 'BMI' && `${point.predictedBMI}`}
+                  {selectedTab === 'Vòng đầu' && `${point.predictedHeadCircumference} cm`}
+                </Text>
+              </View>
+            ))
+          )}
+          <Text style={[styles.predictionTitle, { marginTop: 10 }]}>💡 Khuyến nghị dự đoán</Text>
+          <Text style={styles.predictionRecommendationsText}>{prediction.recommendations}</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -87,13 +115,14 @@ const ChartScreen = ({ navigation }) => {
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [childGrowthData, setChildGrowthData] = useState(null);
   const [assessment, setAssessment] = useState(null);
+  const [prediction, setPrediction] = useState(null);
   const [heightStandardData, setHeightStandardData] = useState([]);
   const [weightStandardData, setWeightStandardData] = useState([]);
   const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
   const [bmiStandardData, setBMIStandardData] = useState([]);
 
   // Tooltip state
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: '', label: '' });
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: '', label: '', isPrediction: false });
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -126,6 +155,7 @@ const ChartScreen = ({ navigation }) => {
         const result = await getFullGrowthData(selectedChildId, gender);
         setChildGrowthData(result.growthData);
         setAssessment(result.assessment);
+        setPrediction(result.prediction);
         setHeightStandardData(result.heightStandardData);
         setWeightStandardData(result.weightStandardData);
         setHeadCircumferenceStandardData(result.headCircumferenceStandardData);
@@ -133,6 +163,7 @@ const ChartScreen = ({ navigation }) => {
       } catch (err) {
         setChildGrowthData(null);
         setAssessment(null);
+        setPrediction(null);
         setHeightStandardData([]);
         setWeightStandardData([]);
         setHeadCircumferenceStandardData([]);
@@ -181,14 +212,46 @@ const ChartScreen = ({ navigation }) => {
   const getChartAndTableData = (tab) => {
     const data = childGrowthData?.data?.[tab] || [];
     const validData = data.filter(item => typeof item.value === 'number' && isFinite(item.value));
-    // Không hiện gì ở trục Ox
-    let labels = [];
-    let values = validData.map(item => item.value);
-    if (values.length === 1) {
-      values = [values[0], null];
+    
+    // Separate actual and prediction data
+    const actualData = validData.filter(item => item.status !== 'Dự đoán');
+    const predictionData = validData.filter(item => item.status === 'Dự đoán');
+
+    // Tạo mảng allData để giữ thứ tự thời gian
+    const allData = [...actualData, ...predictionData];
+    // Dataset thực tế: các điểm thực tế, các điểm dự đoán là null
+    let actualValues = allData.map((item, idx) => idx < actualData.length ? item.value : null);
+    // Loại bỏ các phần tử null cuối cùng khỏi actualValues
+    while (actualValues.length > 0 && actualValues[actualValues.length - 1] === null) {
+      actualValues.pop();
     }
-    let datasets = [{ data: values, color: (opacity = 1) => `rgba(0,123,255,${opacity})` }];
-    let legend = [tab];
+    // Dataset dự đoán: các điểm trước là "cầu nối", từ điểm cuối thực tế trở đi là dự đoán
+    const offset = actualData.length - 1;
+    const bridgeValue = actualData.length > 0 ? actualData[actualData.length - 1].value : null;
+    let predictionValues = [
+      ...Array(Math.max(0, actualData.length - 1)).fill(null),
+      ...(bridgeValue !== null ? [bridgeValue] : []),
+      ...predictionData.map(i => i.value)
+    ];
+
+    let datasets = [
+      {
+        data: actualValues,
+        color: (opacity = 1) => `rgba(0,123,255,${opacity})`, 
+        strokeWidth: 2,
+        withDots: true,
+      },
+      {
+        data: predictionValues,
+        color: (opacity = 1) => `rgba(204,85,0,${opacity})`,
+        strokeWidth: 2,
+        withDots: false,
+        propsForDots: { r: '5', strokeWidth: '2', stroke: '#cc5500', fill: '#ff9900' },
+      },
+    ];
+    let legend = [`${tab} (Thực tế)`, `${tab} (Dự đoán)`];
+
+
     if (tab === 'Chiều cao' && heightStandardData.length > 0) {
       const medianValues = heightStandardData.map(item => item.median);
       datasets.push({
@@ -229,8 +292,9 @@ const ChartScreen = ({ navigation }) => {
       });
       legend.push('Chuẩn (median)');
     }
+    
     const chartKitData = {
-      labels,
+      labels: [],
       datasets,
       legend
     };
@@ -240,6 +304,8 @@ const ChartScreen = ({ navigation }) => {
 
   // Get the chart and table data based on the current selection
   const { chartKitData, tableData } = getChartAndTableData(selectedTab);
+  // Ẩn legend mặc định
+  chartKitData.legend = [];
 
   // Get screen width to make chart responsive (subtracting container padding)
   const screenWidth = Dimensions.get('window').width;
@@ -336,6 +402,22 @@ const ChartScreen = ({ navigation }) => {
     Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
+  {/* Custom Legend */}
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+      <View style={{ width: 16, height: 4, backgroundColor: '#007bff', borderRadius: 2, marginRight: 4 }} />
+      <Text style={{ color: '#007bff', fontWeight: 'bold', marginRight: 8 }}>Thực tế</Text>
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+      <View style={{ width: 16, height: 4, backgroundColor: '#ffa500', borderRadius: 2, marginRight: 4 }} />
+      <Text style={{ color: '#ffa500', fontWeight: 'bold', marginRight: 8 }}>Dự đoán</Text>
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={{ width: 16, height: 4, backgroundColor: '#ff6384', borderRadius: 2, marginRight: 4 }} />
+      <Text style={{ color: '#ff6384', fontWeight: 'bold' }}>Chuẩn</Text>
+    </View>
+  </View>
+
   <View style={{ minHeight: 220, justifyContent: 'center' }}>
     {chartKitData.datasets[0].data.length > 0 && (
       <>
@@ -359,17 +441,24 @@ const ChartScreen = ({ navigation }) => {
             if (selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu') unit = 'cm';
             else if (selectedTab === 'Cân nặng') unit = 'kg';
             else if (selectedTab === 'BMI') unit = '';
+            
+            // Get the data point to check if it's prediction or actual
+            const dataPoint = tableData[index];
+            const isPrediction = dataPoint?.status === 'Dự đoán';
+            
             // Lấy lại label gốc (số ngày/tháng)
-            const label = tableData[index]?.ageInDays;
+            const label = dataPoint?.ageInDays;
             let labelUnit = '';
             if (selectedTab === 'Chiều cao' || selectedTab === 'Cân nặng' || selectedTab === 'Vòng đầu') labelUnit = 'ngày';
             else if (selectedTab === 'BMI') labelUnit = '';
+            
             setTooltip({
               visible: true,
               x,
               y,
               value: `${value} ${unit}`,
-              label: `${label} ${labelUnit}`
+              label: `${label} ${labelUnit}`,
+              isPrediction: isPrediction
             });
           }}
           style={{ borderRadius: 16 }}
@@ -384,7 +473,7 @@ const ChartScreen = ({ navigation }) => {
             borderRadius: 6,
             padding: 6,
             borderWidth: 1,
-            borderColor: '#007bff',
+            borderColor: tooltip.isPrediction ? '#ffa500' : '#007bff',
             zIndex: 10,
             elevation: 10,
             shadowColor: '#000',
@@ -393,7 +482,13 @@ const ChartScreen = ({ navigation }) => {
             shadowRadius: 2,
             minWidth: 60
           }}>
-            <Text style={{ fontWeight: 'bold', color: '#007bff', fontSize: 14 }}>{tooltip.value}</Text>
+            <Text style={{ 
+              fontWeight: 'bold', 
+              color: tooltip.isPrediction ? '#ffa500' : '#007bff', 
+              fontSize: 14 
+            }}>
+              {tooltip.value} {tooltip.isPrediction ? '(Dự đoán)' : ''}
+            </Text>
             <Text style={{ fontSize: 12, color: '#333' }}>{tooltip.label}</Text>
           </View>
         )}
@@ -402,7 +497,7 @@ const ChartScreen = ({ navigation }) => {
   </View>
 
   {/* Bảng dữ liệu chi tiết nếu muốn hiển thị */}
-  <DataTable data={tableData} selectedTab={selectedTab} assessment={assessment} />
+  <DataTable data={tableData} selectedTab={selectedTab} assessment={assessment} prediction={prediction} />
 </ScrollView>
 
 
@@ -594,9 +689,18 @@ const combinedStyles = StyleSheet.create({
   },
   assessmentContainer: {
     marginTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    paddingTop: 10,
+    borderTopWidth: 2,
+    borderTopColor: '#007bff', // Blue border to distinguish from prediction
+    paddingTop: 15,
+    backgroundColor: '#f0f8ff', // Light blue background
+    borderRadius: 8,
+    padding: 12,
+  },
+  assessmentHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#007bff',
+    paddingBottom: 8,
+    marginBottom: 10,
   },
   assessmentTitle: {
     fontSize: 16,
@@ -606,11 +710,16 @@ const combinedStyles = StyleSheet.create({
   assessmentRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 4,
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    marginVertical: 2,
   },
   assessmentLabel: {
     fontSize: 14,
-    color: '#333',
+    color: '#007bff',
+    fontWeight: '600',
   },
   assessmentValue: {
     fontSize: 14,
@@ -620,6 +729,64 @@ const combinedStyles = StyleSheet.create({
   recommendationsText: {
     fontSize: 14,
     lineHeight: 20,
+    color: '#0056b3', // Darker blue for recommendations
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007bff',
+  },
+  // Prediction styles - khác biệt với assessment
+  predictionContainer: {
+    marginTop: 20,
+    borderTopWidth: 2,
+    borderTopColor: '#ffa500', // Orange border to distinguish from assessment
+    paddingTop: 15,
+    backgroundColor: '#fff8f0', // Light orange background
+    borderRadius: 8,
+    padding: 12,
+  },
+  predictionHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#ffa500',
+    paddingBottom: 8,
+    marginBottom: 10,
+  },
+  predictionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ff6b00', // Orange text
+    marginBottom: 10,
+  },
+  predictionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    marginVertical: 2,
+  },
+  predictionLabel: {
+    fontSize: 14,
+    color: '#ff6b00',
+    fontWeight: '600',
+  },
+  predictionValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#ff6b00',
+    fontStyle: 'italic', // Make prediction values italic
+  },
+  predictionRecommendationsText: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#d2691e', // Darker orange for recommendations
+    backgroundColor: '#fff',
+    padding: 8,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#ffa500',
   },
 });
 

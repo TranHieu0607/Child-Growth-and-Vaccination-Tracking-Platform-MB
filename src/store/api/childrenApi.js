@@ -14,6 +14,7 @@ const childrenApi = {
   getBMIStandard: (gender, ageInMonths) => axiosClient.get(`/GrowthStandard/bmi?gender=${gender}&ageInMonths=${ageInMonths}`),
   getDailyRecordsByChildId: (childId) => axiosClient.get(`/DailyRecords/child/${childId}`),
   createDailyRecord: (data) => axiosClient.post('/DailyRecords', data),
+  getGrowthPrediction: (childId, period = '1week') => axiosClient.get(`/GrowthAssessment/child/${childId}/prediction?period=${period}`),
 };
 
 export default childrenApi; 

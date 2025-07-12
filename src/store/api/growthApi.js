@@ -98,26 +98,68 @@ export async function getFullGrowthData(childId, gender) {
     return arr.length > 0 ? { month: allMonthsBMI[idx], median: arr[0].median } : { month: allMonthsBMI[idx], median: null };
   });
 
-  // Fetch assessment
+  // Fetch assessment and prediction
   let assessment = null;
+  let prediction = null;
   try {
-    const res = await childrenApi.getLatestGrowthAssessment(childId);
-    assessment = res.data;
+    const [assessmentRes, predictionRes] = await Promise.all([
+      childrenApi.getLatestGrowthAssessment(childId),
+      childrenApi.getGrowthPrediction(childId, '1week')
+    ]);
+    assessment = assessmentRes.data;
+    prediction = predictionRes.data;
   } catch (err) {
     assessment = null;
+    prediction = null;
   }
+
+  // Process prediction data
+  const processPredictionData = (key) => {
+    if (!prediction || !prediction.predictionPoints || prediction.predictionPoints.length === 0) {
+      return [];
+    }
+    
+    return prediction.predictionPoints.map(point => ({
+      month: Math.round(point.ageInDays / 30.44),
+      ageInDays: point.ageInDays,
+      value: point[key],
+      status: 'Dự đoán',
+    })).filter(item => typeof item.value === 'number' && isFinite(item.value));
+  };
+
+  // Merge actual data with prediction data
+  const mergeDataWithPrediction = (actualData, predictionData) => {
+    if (!predictionData || predictionData.length === 0) {
+      return actualData;
+    }
+    
+    // Combine actual and prediction data, sort by ageInDays
+    const combinedData = [...actualData, ...predictionData];
+    return combinedData.sort((a, b) => a.ageInDays - b.ageInDays);
+  };
+
+  const actualHeightData = processRecords('height');
+  const actualWeightData = processRecords('weight');
+  const actualHeadData = processRecords('headCircumference');
+  const actualBMIData = processRecords('bmi');
+
+  const predictionHeightData = processPredictionData('predictedHeight');
+  const predictionWeightData = processPredictionData('predictedWeight');
+  const predictionHeadData = processPredictionData('predictedHeadCircumference');
+  const predictionBMIData = processPredictionData('predictedBMI');
 
   return {
     growthData: {
       childId,
       data: {
-        'Chiều cao': processRecords('height'),
-        'Cân nặng': processRecords('weight'),
-        'Vòng đầu': processRecords('headCircumference'),
-        'BMI': processRecords('bmi'),
+        'Chiều cao': mergeDataWithPrediction(actualHeightData, predictionHeightData),
+        'Cân nặng': mergeDataWithPrediction(actualWeightData, predictionWeightData),
+        'Vòng đầu': mergeDataWithPrediction(actualHeadData, predictionHeadData),
+        'BMI': mergeDataWithPrediction(actualBMIData, predictionBMIData),
       },
     },
     assessment,
+    prediction,
     heightStandardData: standardDataHeight,
     weightStandardData: standardDataWeight,
     headCircumferenceStandardData: standardDataHead,
