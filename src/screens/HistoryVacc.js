@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Alert } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../store/api/childrenApi';
 import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
 import vaccinesApi from '../store/api/vaccinesApi';
@@ -260,6 +260,28 @@ const HistoryVacc = ({ navigation }) => {
                 <View style={styles.packageHeader}>
                   <MaterialIcons name="archive" size={24} color="#007bff" />
                   <Text style={styles.packageTitle}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm lẻ'}</Text>
+                  {app.canCancel && (
+                    <TouchableOpacity
+                      style={{ marginLeft: 40 }}
+                      onPress={async () => {
+                        if (window.confirm) {
+                          const ok = window.confirm('Bạn có chắc muốn hủy lịch hẹn này?');
+                          if (!ok) return;
+                        }
+                        try {
+                          await appointmentApi.cancelAppointment(app.appointmentId, '', token);
+                          Alert.alert('Hủy thành công', 'Lịch hẹn đã được hủy!');
+                          // Reload lại danh sách
+                          const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+                          setAppointmentHistory(res.data?.appointments || []);
+                        } catch (e) {
+                          Alert.alert('Hủy thất bại', 'Không thể hủy lịch hẹn.');
+                        }
+                      }}
+                    >
+                      <FontAwesomeIcon icon={faTrash} size={20} color="#ff4444" />
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={styles.vaccineDiseases}>Cơ sở: {app.facilityName} - {app.facilityAddress}</Text>
                 <Text style={styles.vaccineDiseases}>Ngày: {app.appointmentDate} - Giờ: {app.appointmentTime}</Text>

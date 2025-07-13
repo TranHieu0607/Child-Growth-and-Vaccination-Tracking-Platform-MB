@@ -12,6 +12,19 @@ const appointmentApi = {
       }
     );
   },
+  cancelAppointment: (appointmentId, note, token) => {
+    return axiosClient.delete(
+      `/AppointmentBooking/${appointmentId}/cancel`,
+      {
+        headers: {
+          'accept': 'text/plain',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        data: note,
+      }
+    );
+  },
 };
 
 export default appointmentApi; 

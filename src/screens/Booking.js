@@ -8,7 +8,7 @@ import diseasesApi from '../store/api/diseasesApi';
 import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
 import vaccinePackagesApi from '../store/api/vaccinePackagesApi';
 import vaccinesApi from '../store/api/vaccinesApi';
-import { addToCart, selectCartItems, selectCartItemCount } from '../store/cartSlice';
+import { addToCart, selectCartItems, selectCartItemCount, clearCart } from '../store/cartSlice';
 import scheduleApi from '../store/api/scheduleApi';
 import dayjs from 'dayjs';
 import bookingApi from '../store/api/bookingApi';
@@ -330,6 +330,7 @@ const Booking = ({ navigation }) => {
     };
     try {
       const res = await bookingApi.bookAppointment(data, token);
+      dispatch(clearCart());
       Alert.alert('Đặt lịch thành công', 'Lịch tiêm đã được xác nhận!', [
         { text: 'OK', onPress: () => navigation.navigate('Home') }
       ]);
