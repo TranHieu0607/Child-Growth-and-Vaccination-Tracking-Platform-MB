@@ -7,6 +7,8 @@ import childrenApi from '../store/api/childrenApi';
 import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
 import vaccinesApi from '../store/api/vaccinesApi';
 import diseasesApi from '../store/api/diseasesApi';
+import appointmentApi from '../store/api/appointmentApi';
+import { useSelector } from 'react-redux';
 
 const HistoryVacc = ({ navigation }) => {   
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -16,6 +18,8 @@ const HistoryVacc = ({ navigation }) => {
   const [vaccineHistory, setVaccineHistory] = useState([]);
   const [vaccines, setVaccines] = useState([]);
   const [diseases, setDiseases] = useState([]);
+  const [appointmentHistory, setAppointmentHistory] = useState([]);
+  const token = useSelector(state => state.auth.token);
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -60,6 +64,20 @@ const HistoryVacc = ({ navigation }) => {
     };
     fetchVaccinesAndDiseases();
   }, []);
+
+  // Lấy lịch sử đặt lịch tiêm chủng khi sang tab tracking
+  useEffect(() => {
+    if (activeTab !== 'tracking' || !selectedChildId || !token) return;
+    const fetchAppointmentHistory = async () => {
+      try {
+        const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+        setAppointmentHistory(res.data?.appointments || []);
+      } catch (e) {
+        setAppointmentHistory([]);
+      }
+    };
+    fetchAppointmentHistory();
+  }, [activeTab, selectedChildId, token]);
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
@@ -234,43 +252,24 @@ const HistoryVacc = ({ navigation }) => {
 
       {activeTab === 'tracking' && selectedChild && (
         <View style={styles.trackingPackagesList}>
-          {(selectedChild.trackingPackages || []).map(pkg => (
-            <View key={pkg.id} style={styles.packageCard}>
-              <View style={styles.packageHeader}>
-                <MaterialIcons name="archive" size={24} color="#007bff" />
-                <Text style={styles.packageTitle}>{pkg.title}</Text>
-              </View>
-              <View style={styles.progressBarBackground}>
-                <View style={[styles.progressBarFill, { width: `${pkg.progress}%` }]} />
-              </View>
-              <Text style={styles.progressText}>{pkg.progress}% hoàn thành</Text>
-              {(pkg.vaccines || []).map((vaccine, index) => (
-                <View key={index} style={styles.vaccineDetailItem}>
-                  <MaterialIcons name="healing" size={20} color="#007bff" />
-                  <View style={styles.vaccineTextContainer}>
-                    <Text style={styles.vaccineShotName}>{vaccine.name}</Text>
-                    <Text style={styles.vaccineDiseases}>{vaccine.diseases}</Text>
-                  </View>
-                  {vaccine.date && <Text style={styles.vaccineDate}>{vaccine.date}</Text>}
-                  {vaccine.status === 'completed' ? (
-                    <MaterialIcons name="check-circle" size={20} color="#4CAF50" />
-                  ) : (
-                    <MaterialIcons name="access-time" size={20} color="gray" />
-                  )}
+          {appointmentHistory.length === 0 ? (
+            <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>Không có lịch hẹn nào</Text>
+          ) : (
+            appointmentHistory.map(app => (
+              <View key={app.appointmentId} style={styles.packageCard}>
+                <View style={styles.packageHeader}>
+                  <MaterialIcons name="archive" size={24} color="#007bff" />
+                  <Text style={styles.packageTitle}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm lẻ'}</Text>
                 </View>
-              ))}
-              {pkg.suggestedNextShot && (
-                <View style={styles.suggestionRow}>
-                  <MaterialIcons name="calendar-today" size={16} color="gray" />
-                  <Text style={styles.suggestionText}>Gợi ý tiêm tiếp: {pkg.suggestedNextShot}</Text>
-                </View>
-              )}
-              <TouchableOpacity style={styles.scheduleButton} onPress={() => navigation.navigate('ContinueInject', { vaccinePackage: pkg })}>
-                <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIẾP THEO</Text>
-                <MaterialIcons name="arrow-forward-ios" size={16} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ))}
+                <Text style={styles.vaccineDiseases}>Cơ sở: {app.facilityName} - {app.facilityAddress}</Text>
+                <Text style={styles.vaccineDiseases}>Ngày: {app.appointmentDate} - Giờ: {app.appointmentTime}</Text>
+                <Text style={styles.vaccineDiseases}>Trạng thái: {app.status}</Text>
+                <Text style={styles.vaccineDiseases}>Chi phí dự kiến: {app.estimatedCost?.toLocaleString('vi-VN')}đ</Text>
+                {app.note && <Text style={styles.vaccineDiseases}>Ghi chú: {app.note}</Text>}
+                <Text style={styles.vaccineDiseases}>{app.timeUntilAppointment}</Text>
+              </View>
+            ))
+          )}
         </View>
       )}
     </ ScrollView>

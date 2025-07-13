@@ -1,11 +1,343 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-
+import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
+import { useDispatch, useSelector } from 'react-redux';
+import { getMyChildren } from '../store/api/growthRecordApi';
+import diseasesApi from '../store/api/diseasesApi';
+import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
+import vaccinePackagesApi from '../store/api/vaccinePackagesApi';
+import vaccinesApi from '../store/api/vaccinesApi';
+import { addToCart, selectCartItems, selectCartItemCount } from '../store/cartSlice';
+import scheduleApi from '../store/api/scheduleApi';
+import dayjs from 'dayjs';
+import bookingApi from '../store/api/bookingApi';
 
 const Booking = ({ navigation }) => {
+  const [children, setChildren] = useState([]);
+  const [selectedChildren, setSelectedChildren] = useState([]);
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
+  // Disease state
+  const [diseases, setDiseases] = useState([]);
+  const [filteredDiseases, setFilteredDiseases] = useState([]);
+  const [isDiseaseDropdownVisible, setIsDiseaseDropdownVisible] = useState(false);
+  const [selectedDisease, setSelectedDisease] = useState(null);
+  const [diseaseSearchText, setDiseaseSearchText] = useState('');
+
+  // Facility state
+  const [facilities, setFacilities] = useState([]);
+  const [filteredFacilities, setFilteredFacilities] = useState([]);
+  const [isFacilityDropdownVisible, setIsFacilityDropdownVisible] = useState(false);
+  const [selectedFacility, setSelectedFacility] = useState(null);
+  const [facilitySearchText, setFacilitySearchText] = useState('');
+
+  // Vaccine lẻ state
+  const [facilityVaccines, setFacilityVaccines] = useState([]);
+  const [filteredFacilityVaccines, setFilteredFacilityVaccines] = useState([]);
+
+  // Vaccine Package state
+  const [vaccinePackages, setVaccinePackages] = useState([]);
+  const [filteredPackages, setFilteredPackages] = useState([]);
+  const [vaccines, setVaccines] = useState([]);
+  const [selectedPackageId, setSelectedPackageId] = useState(null);
+  const [expandedPackageId, setExpandedPackageId] = useState(null);
+
+  // Thêm state cho ngày, slot và token
+  const [selectedDate, setSelectedDate] = useState(null); // Ngày người dùng chọn
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const token = useSelector(state => state.auth.token);
+  const [note, setNote] = useState('');
+
+  // State cho calendar động
+  const [calendarMonth, setCalendarMonth] = useState(dayjs().month() + 1); // 1-12
+  const [calendarYear, setCalendarYear] = useState(dayjs().year());
+
+  // Redux hooks
+  const dispatch = useDispatch();
+  const cartItems = useSelector(selectCartItems);
+  const cartItemCount = useSelector(selectCartItemCount);
+
+  // Lấy danh sách trẻ từ API khi vào màn hình
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await getMyChildren();
+        setChildren(res);
+        if (res.length > 0) {
+          setSelectedChildren([res[0].childId]);
+        }
+      } catch (e) {
+        setChildren([]);
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  // Lấy danh sách bệnh từ API
+  useEffect(() => {
+    const fetchDiseases = async () => {
+      try {
+        const res = await diseasesApi.getAllDiseases();
+        const data = res.data || [];
+        setDiseases(data);
+        setFilteredDiseases(data);
+      } catch (e) {
+        setDiseases([]);
+        setFilteredDiseases([]);
+      }
+    };
+    fetchDiseases();
+  }, []);
+
+  // Lấy danh sách cơ sở tiêm chủng từ API
+  useEffect(() => {
+    const fetchFacilities = async () => {
+      try {
+        const res = await vaccinationFacilitiesApi.getVaccinationFacilities(1, 50); // Lấy 50 facilities
+        const data = res.data || [];
+        setFacilities(data);
+        setFilteredFacilities(data);
+      } catch (e) {
+        setFacilities([]);
+        setFilteredFacilities([]);
+      }
+    };
+    fetchFacilities();
+  }, []);
+
+  // Lấy danh sách vaccine (để mapping vaccineId -> diseaseId)
+  useEffect(() => {
+    const fetchVaccines = async () => {
+      try {
+        const res = await vaccinesApi.getAllVaccines();
+        setVaccines(res.data || []);
+      } catch (e) {
+        setVaccines([]);
+      }
+    };
+    fetchVaccines();
+  }, []);
+
+  // Lấy danh sách package khi đã chọn cơ sở và bệnh
+  useEffect(() => {
+    const fetchPackages = async () => {
+      if (!selectedFacility || !selectedDisease) {
+        setFilteredPackages([]);
+        return;
+      }
+      try {
+        const res = await vaccinePackagesApi.getAllVaccinePackages();
+        const allPackages = res.data || [];
+        // Lọc theo facilityId
+        const facilityPackages = allPackages.filter(pkg => pkg.facilityId === selectedFacility.facilityId);
+        // Lọc package có ít nhất 1 vaccine liên quan đến disease đã chọn
+        const matchedPackages = facilityPackages.filter(pkg =>
+          pkg.packageVaccines && pkg.packageVaccines.some(pv => pv.diseaseId === selectedDisease.diseaseId)
+        );
+        setFilteredPackages(matchedPackages);
+      } catch (e) {
+        setFilteredPackages([]);
+      }
+    };
+    fetchPackages();
+  }, [selectedFacility, selectedDisease]);
+
+  // Lấy slot lịch tiêm khi chọn cơ sở, ngày, token
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (selectedFacility && selectedDate && token) {
+        try {
+          const res = await scheduleApi.getFacilitySchedules(
+            selectedFacility.facilityId,
+            selectedDate,
+            selectedDate,
+            token
+          );
+          const slots = res.data?.dailySchedules?.[0]?.availableSlots || [];
+          setAvailableSlots(slots);
+        } catch (e) {
+          setAvailableSlots([]);
+        }
+      } else {
+        setAvailableSlots([]);
+      }
+    };
+    fetchSlots();
+  }, [selectedFacility, selectedDate, token]);
+
+  // Lấy vaccine lẻ theo cơ sở và bệnh
+  useEffect(() => {
+    const fetchFacilityVaccines = async () => {
+      if (!selectedFacility || !selectedDisease || !token) {
+        setFacilityVaccines([]);
+        setFilteredFacilityVaccines([]);
+        return;
+      }
+      try {
+        const res = await vaccinesApi.getFacilityVaccines(selectedFacility.facilityId, token);
+        const allVaccines = res.data?.data || [];
+        setFacilityVaccines(allVaccines);
+        // Lọc vaccine liên quan đến disease đã chọn
+        const filtered = allVaccines.filter(fv =>
+          fv.vaccine?.diseases?.some(d => d.diseaseId === selectedDisease.diseaseId)
+        );
+        setFilteredFacilityVaccines(filtered);
+      } catch (e) {
+        setFacilityVaccines([]);
+        setFilteredFacilityVaccines([]);
+      }
+    };
+    fetchFacilityVaccines();
+  }, [selectedFacility, selectedDisease, token]);
+
+  // Function to normalize Vietnamese text for search
+  const normalizeVietnameseText = (text) => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[đ]/g, 'd')
+      .replace(/[Đ]/g, 'D');
+  };
+
+  // Function to handle disease search
+  const handleDiseaseSearch = (searchText) => {
+    setDiseaseSearchText(searchText);
+    if (!searchText.trim()) {
+      setFilteredDiseases(diseases);
+      return;
+    }
+
+    const normalizedSearch = normalizeVietnameseText(searchText);
+    const filtered = diseases.filter(disease => {
+      const normalizedName = normalizeVietnameseText(disease.name);
+      return normalizedName.includes(normalizedSearch);
+    });
+    setFilteredDiseases(filtered);
+  };
+
+  // Function to handle facility search
+  const handleFacilitySearch = (searchText) => {
+    setFacilitySearchText(searchText);
+    if (!searchText.trim()) {
+      setFilteredFacilities(facilities);
+      return;
+    }
+
+    const normalizedSearch = normalizeVietnameseText(searchText);
+    const filtered = facilities.filter(facility => {
+      const normalizedName = normalizeVietnameseText(facility.facilityName);
+      const normalizedAddress = normalizeVietnameseText(facility.address);
+      return normalizedName.includes(normalizedSearch) || normalizedAddress.includes(normalizedSearch);
+    });
+    setFilteredFacilities(filtered);
+  };
+
+  // Function to handle disease selection
+  const handleSelectDisease = (disease) => {
+    setSelectedDisease(disease);
+    setIsDiseaseDropdownVisible(false);
+    setDiseaseSearchText('');
+    setFilteredDiseases(diseases);
+  };
+
+  // Function to handle facility selection
+  const handleSelectFacility = (facility) => {
+    setSelectedFacility(facility);
+    setIsFacilityDropdownVisible(false);
+    setFacilitySearchText('');
+    setFilteredFacilities(facilities);
+  };
+
+  // Function to handle the dropdown press
+  const handleSelectChildPress = () => {
+    setIsDropdownVisible(!isDropdownVisible);
+    console.log('Select child pressed!');
+  };
+
+  // Function to handle selecting a child from the dropdown
+  const handleSelectChild = (childId) => {
+    setSelectedChildren([childId]);
+    setIsDropdownVisible(false);
+    console.log('Selected child ID:', childId);
+  };
+
+  const selectedChild = children.find(child => child.childId === selectedChildren[0]);
+
+  // Cart functions
+  const handleAddToCart = (packageItem) => {
+    dispatch(addToCart(packageItem));
+    Alert.alert('Thành công', 'Đã thêm gói tiêm vào giỏ hàng!');
+  };
+
+  const handleDecreaseCart = (packageItem) => {
+    const cartItem = cartItems.find(item => item.packageId === packageItem.packageId);
+    if (cartItem && cartItem.quantity > 1) {
+      dispatch(addToCart({ ...packageItem, quantity: cartItem.quantity - 1 }));
+      Alert.alert('Thành công', 'Đã giảm số lượng gói tiêm trong giỏ!');
+    } else if (cartItem) {
+      dispatch(addToCart({ ...packageItem, quantity: 1 })); // Remove from cart if quantity is 1
+      Alert.alert('Thành công', 'Đã xóa gói tiêm khỏi giỏ!');
+    }
+  };
+
+  // Helper: Số ngày trong tháng
+  const getDaysInMonth = (month, year) => {
+    return dayjs(`${year}-${month}-01`).daysInMonth();
+  };
+  // Helper: Hôm nay
+  const today = dayjs();
+  // Helper: Đầu tuần của tháng (0=CN, 1=T2...)
+  const getFirstDayOfWeek = (month, year) => {
+    return dayjs(`${year}-${month}-01`).day();
+  };
+  // Helper: So sánh ngày có phải quá khứ không
+  const isPastDate = (year, month, day) => {
+    const date = dayjs(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`);
+    return date.isBefore(today, 'day');
+  };
+
+  const [expandedFacilityVaccineId, setExpandedFacilityVaccineId] = useState(null);
+
+  // Hàm đặt lịch
+  const handleBookAppointment = async () => {
+    if (!selectedChildren[0] || !selectedDisease || !selectedFacility || !selectedSlot) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn đầy đủ bé, bệnh, cơ sở, ngày, giờ!');
+      return;
+    }
+    let packageId = null;
+    let facilityVaccineIds = [];
+    // Nếu có package trong cart, chỉ cho đặt 1 gói
+    const packageItem = cartItems.find(item => item.packageId);
+    if (packageItem) {
+      packageId = packageItem.packageId;
+      facilityVaccineIds = [];
+    } else {
+      // Nếu không có package, lấy tất cả vaccine lẻ trong cart
+      facilityVaccineIds = cartItems.filter(item => item.facilityVaccineId).map(item => item.facilityVaccineId);
+      packageId = null;
+    }
+    const data = {
+      childId: selectedChildren[0],
+      diseaseId: selectedDisease.diseaseId,
+      facilityId: selectedFacility.facilityId,
+      packageId: packageId,
+      facilityVaccineIds: facilityVaccineIds,
+      scheduleId: selectedSlot.scheduleId,
+      note: note,
+    };
+    try {
+      const res = await bookingApi.bookAppointment(data, token);
+      Alert.alert('Đặt lịch thành công', 'Lịch tiêm đã được xác nhận!', [
+        { text: 'OK', onPress: () => navigation.navigate('Home') }
+      ]);
+      // TODO: Xử lý sau khi đặt lịch thành công (reset form, chuyển trang...)
+    } catch (e) {
+      Alert.alert('Đặt lịch thất bại', 'Vui lòng thử lại!');
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -15,109 +347,384 @@ const Booking = ({ navigation }) => {
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
         <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Đặt lịch tiêm chủng</Text>
+        <TouchableOpacity 
+          style={styles.cartButton} 
+          onPress={() => navigation.navigate('Cart')}
+        >
+          <FontAwesomeIcon icon={faShoppingCart} size={20} color="white" />
+          {cartItemCount > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Chọn Bé */}
       <Text style={styles.sectionTitle}>Chọn bé</Text>
-      <View style={styles.babySelectContainer}>
-         <Text style={styles.babySelectText}>Chọn hồ sơ bé</Text>
-         <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />{/* Placeholder for dropdown icon */}
+      
+      {/* Child Info and Dropdown */}
+      <View style={styles.childInfoContainer}>
+        <View style={styles.childInfo}>
+          {/* Display profile image of the first selected child */}
+          {selectedChildren.length > 0 && (
+            <Image
+              source={require('../../assets/vnvc.jpg')}
+              style={styles.profileImage}
+            />
+          )}
+          <View>
+            {/* Display name of the first selected child */}
+            {selectedChildren.length > 0 && (
+              <Text style={styles.childName}>{selectedChild?.fullName}</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Dropdown icon nằm bên phải */}
+        <TouchableOpacity style={styles.dropdownToggle} onPress={handleSelectChildPress}>
+          <FontAwesomeIcon icon={faChevronDown} size={20} color="black" />
+        </TouchableOpacity>
       </View>
 
+      {/* Child Selection Dropdown */}
+      {isDropdownVisible && (
+        <View style={styles.dropdownContainer}>
+          <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
+            {children.map(child => (
+              <TouchableOpacity
+                key={child.childId}
+                style={styles.dropdownItem}
+                onPress={() => handleSelectChild(child.childId)}
+              >
+                <Image
+                  source={require('../../assets/vnvc.jpg')}
+                  style={styles.dropdownItemImage}
+                />
+                <View style={styles.dropdownItemTextContainer}>
+                  <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                </View>
+                {selectedChildren[0] === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Gợi ý tiêm chủng */}
-      <View style={styles.suggestionBox}>
+      {/* <View style={styles.suggestionBox}>
         <Text style={styles.suggestionTitle}>Gợi ý tiêm chủng</Text>
         <Text style={styles.suggestionText}>• Mũi 2 vắc-xin Viêm gan B</Text>
         <Text style={styles.suggestionText}>• Mũi nhắc Sởi - Rubella</Text>
-      </View>
+      </View> */}
 
       {/* Chọn Bệnh Cần Tiêm */}
       <Text style={[styles.sectionTitle, styles.diseaseSectionTitle]}>Chọn Bệnh Cần Tiêm</Text>
-      <View style={styles.chipContainer}>
-        {/* Placeholder chips for diseases */}
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Viêm gan B</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Sởi</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Thủy đậu</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Bạch hầu</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Ho gà</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.chipButton}><Text style={styles.chipButtonText}>Uốn ván</Text></TouchableOpacity>
+      
+      {/* Disease Selection */}
+      <View style={styles.diseaseSelectionContainer}>
+        <TouchableOpacity
+          style={styles.diseaseSelectButton}
+          onPress={() => setIsDiseaseDropdownVisible(!isDiseaseDropdownVisible)}
+        >
+          <Text style={styles.diseaseSelectText}>
+            {selectedDisease ? selectedDisease.name : 'Chọn bệnh cần tiêm phòng'}
+          </Text>
+          <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
+        </TouchableOpacity>
+
+        {/* Disease Dropdown */}
+        {isDiseaseDropdownVisible && (
+          <View style={styles.diseaseDropdownContainer}>
+            {/* Search Input */}
+            <View style={styles.diseaseSearchContainer}>
+              <FontAwesomeIcon icon={faSearch} size={16} color="#888" style={styles.diseaseSearchIcon} />
+              <TextInput
+                style={styles.diseaseSearchInput}
+                placeholder="Tìm kiếm bệnh..."
+                value={diseaseSearchText}
+                onChangeText={handleDiseaseSearch}
+                placeholderTextColor="#888"
+              />
+            </View>
+            
+            {/* Disease List */}
+            <ScrollView nestedScrollEnabled={true} style={styles.diseaseListContainer}>
+              {filteredDiseases.length === 0 ? (
+                <Text style={styles.noDiseaseText}>Không tìm thấy bệnh</Text>
+              ) : (
+                filteredDiseases.map(disease => (
+                  <TouchableOpacity
+                    key={disease.diseaseId}
+                    style={styles.diseaseItem}
+                    onPress={() => handleSelectDisease(disease)}
+                  >
+                    <Text style={styles.diseaseItemText}>{disease.name}</Text>
+                    {selectedDisease?.diseaseId === disease.diseaseId && (
+                      <Text style={styles.selectedDiseaseIcon}> ✅</Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       {/* Chọn cơ sở tiêm chủng */}
       <Text style={styles.sectionTitle}>Chọn cơ sở tiêm chủng</Text>
-      <View style={styles.searchBarContainer}>
-        {/* Placeholder for search icon */}
-         <FontAwesomeIcon icon={faSearch} size={20} color="#888" style={styles.searchIcon} />
-        <TextInput style={styles.searchBarInput} placeholder="Tìm kiếm cơ sở" />
+      <View style={styles.searchMoreContainer}>
+        <TouchableOpacity
+          style={styles.searchMoreButton}
+          onPress={() => setIsFacilityDropdownVisible(!isFacilityDropdownVisible)}
+        >
+          <FontAwesomeIcon icon={faSearch} size={16} color="#007bff" style={styles.searchMoreIcon} />
+          <Text style={styles.searchMoreText}>Tìm kiếm thêm cơ sở khác</Text>
+          <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
+        </TouchableOpacity>
+
+        {/* Facility Dropdown */}
+        {isFacilityDropdownVisible && (
+          <View style={styles.facilityDropdownContainer}>
+            {/* Search Input */}
+            <View style={styles.facilitySearchContainer}>
+              <FontAwesomeIcon icon={faSearch} size={16} color="#888" style={styles.facilitySearchIcon} />
+              <TextInput
+                style={styles.facilitySearchInput}
+                placeholder="Tìm kiếm cơ sở..."
+                value={facilitySearchText}
+                onChangeText={handleFacilitySearch}
+                placeholderTextColor="#888"
+              />
+            </View>
+            
+            {/* Facility List */}
+            <ScrollView nestedScrollEnabled={true} style={styles.facilityListContainer}>
+              {filteredFacilities.length === 0 ? (
+                <Text style={styles.noFacilityText}>Không tìm thấy cơ sở</Text>
+              ) : (
+                filteredFacilities.map(facility => (
+                  <TouchableOpacity
+                    key={facility.facilityId}
+                    style={styles.facilityItem}
+                    onPress={() => handleSelectFacility(facility)}
+                  >
+                    <View style={styles.facilityItemContent}>
+                      <Text style={styles.facilityItemName}>{facility.facilityName}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                        <FontAwesomeIcon icon={faMapMarkerAlt} size={13} color="#888" style={{ marginRight: 4 }} />
+                        <Text style={styles.facilityItemAddress}>{facility.address}</Text>
+                      </View>
+                      {facility.phone && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                          <FontAwesomeIcon icon={faPhone} size={13} color="#888" style={{ marginRight: 4 }} />
+                          <Text style={styles.facilityItemPhone}>{facility.phone}</Text>
+                        </View>
+                      )}
+                    </View>
+                    {selectedFacility?.facilityId === facility.facilityId && (
+                      <Text style={styles.selectedFacilityIcon}> ✅</Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
       </View>
-      {/* Placeholder for facility list */}
-      <View style={styles.filterButtonContainer}>
-         <TouchableOpacity style={[styles.filterButton, styles.filterButtonActive]}><Text style={styles.filterButtonText}>Gần nhất</Text></TouchableOpacity>
-         <TouchableOpacity style={styles.filterButton}><Text style={styles.filterButtonText}>Đánh giá cao</Text></TouchableOpacity>
+      
+      {/* Popular Facilities - Show 3 facilities by default */}
+      <View style={styles.popularFacilitiesContainer}>
+        {facilities.slice(0, 3).map((facility) => (
+          <TouchableOpacity
+            key={facility.facilityId}
+            style={[
+              styles.popularFacilityCardVertical,
+              selectedFacility?.facilityId === facility.facilityId && styles.popularFacilityItemSelected
+            ]}
+            onPress={() => handleSelectFacility(facility)}
+          >
+            <Text style={styles.popularFacilityName}>{facility.facilityName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+              <FontAwesomeIcon icon={faMapMarkerAlt} size={13} color="#888" style={{ marginRight: 4 }} />
+              <Text style={styles.popularFacilityAddress}>{facility.address}</Text>
+            </View>
+            {facility.phone && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                <FontAwesomeIcon icon={faPhone} size={13} color="#888" style={{ marginRight: 4 }} />
+                <Text style={styles.popularFacilityPhone}>{facility.phone}</Text>
+              </View>
+            )}
+            {selectedFacility?.facilityId === facility.facilityId && (
+              <Text style={styles.selectedFacilityIcon}> ✅</Text>
+            )}
+          </TouchableOpacity>
+        ))}
       </View>
 
-      {/* Placeholder for actual facility list items */}
-      <View style={styles.facilityItem}>
-         <View style={styles.facilityInfo}>
-           <Text style={styles.facilityName}>Trung tâm Tiêm chủng ABC</Text>
-           <Text style={styles.facilityAddress}>123 Nguyễn Văn A, Quận 1, TP.HCM</Text>
-           {/* Placeholder for star rating */}
-           <View style={styles.ratingContainer}>
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStarHalfAlt} size={15} color="#ffc107" />{/* Example of half star */}
-             <Text style={styles.ratingText}>(128)</Text>
-           </View>
-         </View>
-         <Text style={styles.distanceText}>0.8km</Text>
-      </View>
-      <View style={styles.facilityItem}>
-         <View style={styles.facilityInfo}>
-           <Text style={styles.facilityName}>Phòng khám Đa khoa XYZ</Text>
-           <Text style={styles.facilityAddress}>456 Lê Văn B, Quận 3, TP.HCM</Text>
-           {/* Placeholder for star rating */}
-            <View style={styles.ratingContainer}>
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <FontAwesomeIcon icon={faStar} size={15} color="#ffc107" />
-             <Text style={styles.ratingText}>(256)</Text>
-           </View>
-         </View>
-         <Text style={styles.distanceText}>1.2km</Text>
-      </View>
+      {/* Search More Facilities */}
+      
+
+
 
       {/* Gói tiêm phù hợp */}
       <Text style={styles.sectionTitle}>Gói tiêm phù hợp</Text>
-      {/* Placeholder for package items */}
-      <View style={styles.packageItem}>
-         <Text style={styles.packageName}>Gói tiêm cơ bản 6 trong 1</Text>
-         <Text style={styles.packageDetails}>Viêm gan B, Bạch hầu, Ho gà, Uốn ván, Bại liệt, Viêm phổi</Text>
-         <Text style={styles.packagePrice}>2.500.000đ</Text>
-      </View>
-      <View style={[styles.packageItem, styles.packageItemSelected]}>
-         <Text style={[styles.packageName, styles.packageTextSelected]}>Gói tiêm Viêm gan B</Text>
-         <Text style={[styles.packageDetails, styles.packageTextSelected]}>Viêm gan B (3 mũi)</Text>
-         <Text style={[styles.packagePrice, styles.packageTextSelected]}>800.000đ</Text>
-      </View>
+      {filteredPackages.length === 0 && filteredFacilityVaccines.length === 0 ? (
+        <Text style={{ color: '#888', marginBottom: 10 }}>Không có gói/vaccine phù hợp</Text>
+      ) : (
+        <>
+          {/* Vaccine package */}
+          {filteredPackages.map(pkg => {
+            const isInCart = cartItems.some(item => item.packageId === pkg.packageId);
+            const packageCartObj = {
+              packageId: pkg.packageId,
+              name: pkg.name,
+              price: pkg.price,
+              description: pkg.description,
+            };
+            const handleAddPackage = () => {
+              if (!isInCart) handleAddToCart(packageCartObj);
+            };
+            return (
+              <View key={pkg.packageId} style={[styles.packageItem, isInCart && styles.packageItemInCart]}>
+                <TouchableOpacity
+                  onPress={() => setExpandedPackageId(expandedPackageId === pkg.packageId ? null : pkg.packageId)}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.packageInfo}>
+                    <Text style={[styles.packageName, isInCart && styles.packageTextInCart]}>{pkg.name}</Text>
+                    <Text style={[styles.packagePrice, isInCart && styles.packageTextInCart]}>{pkg.price?.toLocaleString('vi-VN')}đ</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.addToCartButton, isInCart && styles.addToCartButtonInCart]}
+                    onPress={handleAddPackage}
+                    disabled={isInCart}
+                  >
+                    <Text style={[styles.addToCartText, isInCart && styles.addToCartTextInCart]}>
+                      {isInCart ? 'Đã thêm' : 'Thêm vào giỏ'}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+                {expandedPackageId === pkg.packageId && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.packageDetails}>{pkg.description}</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 13, marginTop: 5 }}>Vaccine trong gói:</Text>
+                    {pkg.packageVaccines && pkg.packageVaccines.length > 0 ? (
+                      pkg.packageVaccines.map(pv => (
+                        <View key={pv.packageVaccineId} style={{ marginBottom: 8, marginLeft: 5 }}>
+                          <Text style={{ fontSize: 13, color: '#222', fontWeight: 'bold' }}>- Bệnh: {pv.disease?.name || 'Không rõ'}</Text>
+                          <Text style={{ fontSize: 13, color: '#007bff' }}>  Vaccine: {pv.facilityVaccine?.vaccine?.name || 'Không rõ tên vaccine'}</Text>
+                          {pv.disease?.description && (
+                            <Text style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>  Mô tả bệnh: {pv.disease.description}</Text>
+                          )}
+                          <Text style={{ fontSize: 12, color: '#888' }}>  Số lượng: {pv.quantity}</Text>
+                          <Text style={{ fontSize: 12, color: '#888' }}>  Hạn dùng: {pv.facilityVaccine?.expiryDate}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={{ fontSize: 13, color: '#888' }}>Không có vaccine</Text>
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })}
+          {/* Vaccine lẻ */}
+          {filteredFacilityVaccines.map(fv => {
+            const isInCart = cartItems.some(item => item.facilityVaccineId === fv.facilityVaccineId);
+            // Đảm bảo object chỉ có facilityVaccineId, không có packageId
+            const vaccineCartObj = {
+              facilityVaccineId: fv.facilityVaccineId,
+              price: fv.price,
+              vaccine: fv.vaccine,
+              availableQuantity: fv.availableQuantity,
+              expiryDate: fv.expiryDate,
+            };
+            const handleAddVaccine = () => {
+              if (!isInCart) handleAddToCart(vaccineCartObj);
+            };
+            const isExpanded = expandedFacilityVaccineId === fv.facilityVaccineId;
+            return (
+              <View key={fv.facilityVaccineId} style={[styles.packageItem, isInCart && styles.packageItemInCart]}>
+                <TouchableOpacity
+                  onPress={() => setExpandedFacilityVaccineId(isExpanded ? null : fv.facilityVaccineId)}
+                  style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.packageInfo}>
+                    <Text style={[styles.packageName, isInCart && styles.packageTextInCart]}>{fv.vaccine?.name}</Text>
+                    <Text style={[styles.packagePrice, isInCart && styles.packageTextInCart]}>{fv.price?.toLocaleString('vi-VN')}đ</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.addToCartButton, isInCart && styles.addToCartButtonInCart]}
+                    onPress={handleAddVaccine}
+                    disabled={isInCart}
+                  >
+                    <Text style={[styles.addToCartText, isInCart && styles.addToCartTextInCart]}>
+                      {isInCart ? 'Đã thêm' : 'Thêm vào giỏ'}
+                    </Text>
+                  </TouchableOpacity>
+                </TouchableOpacity>
+                {isExpanded && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.packageDetails}>{fv.vaccine?.description}</Text>
+                    <Text style={{ fontWeight: 'bold', fontSize: 13, marginTop: 5 }}>Bệnh liên quan:</Text>
+                    {fv.vaccine?.diseases?.map(d => (
+                      <View key={d.diseaseId} style={{ marginBottom: 4, marginLeft: 5 }}>
+                        <Text style={{ fontSize: 13, color: '#222', fontWeight: 'bold' }}>- {d.name}</Text>
+                        {d.description && (
+                          <Text style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>  {d.description}</Text>
+                        )}
+                      </View>
+                    ))}
+                    <Text style={{ fontSize: 12, color: '#888' }}>Số lượng còn: {fv.availableQuantity}</Text>
+                    <Text style={{ fontSize: 12, color: '#888' }}>Hạn dùng: {fv.expiryDate}</Text>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </>
+      )}
 
       {/* Chọn ngày và giờ */}
       <Text style={styles.sectionTitle}>Chọn ngày và giờ</Text>
-      {/* Placeholder for calendar and time slots */}
+      {/* Calendar chọn ngày động */}
       <View style={styles.calendarContainer}>
-         {/* Placeholder for calendar header */}
+         {/* Calendar header động */}
          <View style={styles.calendarHeader}>
             <FontAwesomeIcon icon={faCalendarAlt} size={18} color="#007bff" style={{ marginRight: 5 }} />
-            <Text style={styles.calendarHeaderText}>Tháng 2, 2024</Text>
+            <Text style={styles.calendarHeaderText}>
+              Tháng {calendarMonth}, {calendarYear}
+            </Text>
             <View style={{flex: 1}} />{/* Spacer */}
-            <FontAwesomeIcon icon={faChevronLeft} size={15} color="gray" style={{ marginRight: 15 }} />
-            <FontAwesomeIcon icon={faChevronRight} size={15} color="gray" />
+            <TouchableOpacity
+              onPress={() => {
+                if (calendarMonth === 1) {
+                  setCalendarMonth(12);
+                  setCalendarYear(calendarYear - 1);
+                } else {
+                  setCalendarMonth(calendarMonth - 1);
+                }
+              }}
+            >
+              <FontAwesomeIcon icon={faChevronLeft} size={15} color="gray" style={{ marginRight: 15 }} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                if (calendarMonth === 12) {
+                  setCalendarMonth(1);
+                  setCalendarYear(calendarYear + 1);
+                } else {
+                  setCalendarMonth(calendarMonth + 1);
+                }
+              }}
+            >
+              <FontAwesomeIcon icon={faChevronRight} size={15} color="gray" />
+            </TouchableOpacity>
          </View>
-
-         {/* Placeholder for weekdays */}
+         {/* Weekdays giữ nguyên */}
          <View style={styles.weekdaysContainer}>
             <Text style={styles.weekdayText}>CN</Text>
             <Text style={styles.weekdayText}>T2</Text>
@@ -127,31 +734,49 @@ const Booking = ({ navigation }) => {
             <Text style={styles.weekdayText}>T6</Text>
             <Text style={styles.weekdayText}>T7</Text>
          </View>
-
-         {/* Placeholder for calendar days */}
+         {/* Calendar days động, không cho chọn ngày quá khứ */}
          <View style={styles.daysContainer}>
-            {[...Array(31)].map((_, index) => {
+            {/* Padding đầu tháng cho đúng thứ */}
+            {Array(getFirstDayOfWeek(calendarMonth, calendarYear)).fill(0).map((_, idx) => (
+              <View key={`pad-${idx}`} style={{ width: '14%', aspectRatio: 1 }} />
+            ))}
+            {/* Render ngày */}
+            {Array(getDaysInMonth(calendarMonth, calendarYear)).fill(0).map((_, index) => {
                const day = index + 1;
-               const isSelected = day === 15; // Example: day 15 is selected
+               const dayStr = `${calendarYear}-${calendarMonth.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+               const isSelected = selectedDate === dayStr;
+               const disabled = isPastDate(calendarYear, calendarMonth, day);
                return (
-                  <TouchableOpacity key={index} style={[styles.dayButton, isSelected && styles.dayButtonSelected]}>
+                  <TouchableOpacity
+                    key={day}
+                    style={[styles.dayButton, isSelected && styles.dayButtonSelected, disabled && { opacity: 0.3 }]}
+                    onPress={() => !disabled && setSelectedDate(dayStr)}
+                    disabled={disabled}
+                  >
                      <Text style={[styles.dayButtonText, isSelected && styles.dayButtonTextSelected]}>{day}</Text>
                   </TouchableOpacity>
                );
             })}
          </View>
       </View>
-
+      {/* Render slot giờ động */}
       <Text style={[styles.sectionTitle, styles.timeSlotSectionTitle]}>Chọn giờ</Text>
       <View style={styles.timeSlotContainer}>
-         <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>08:00</Text></TouchableOpacity>
-         <TouchableOpacity style={styles.timeSlotButtonSelected}><Text style={styles.timeSlotButtonTextSelected}>09:00</Text></TouchableOpacity>
-         <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>10:00</Text></TouchableOpacity>
-      </View>
-       <View style={styles.timeSlotContainer}>
-         <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>14:00</Text></TouchableOpacity>
-         <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>15:00</Text></TouchableOpacity>
-         <TouchableOpacity style={styles.timeSlotButton}><Text style={styles.timeSlotButtonText}>16:00</Text></TouchableOpacity>
+        {availableSlots.length === 0 ? (
+          <Text style={{ color: '#888' }}>Không có khung giờ khả dụng</Text>
+        ) : (
+          availableSlots.map(slot => (
+            <TouchableOpacity
+              key={slot.slotId}
+              style={selectedSlot?.slotId === slot.slotId ? styles.timeSlotButtonSelected : styles.timeSlotButton}
+              onPress={() => setSelectedSlot(slot)}
+            >
+              <Text style={selectedSlot?.slotId === slot.slotId ? styles.timeSlotButtonTextSelected : styles.timeSlotButtonText}>
+                {slot.slotTime}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
       </View>
 
       {/* Ghi chú */}
@@ -162,10 +787,12 @@ const Booking = ({ navigation }) => {
         placeholderTextColor="#888"
         multiline
         numberOfLines={4}
+        value={note}
+        onChangeText={setNote}
       />
 
       {/* Đặt lịch button */}
-      <TouchableOpacity style={styles.bookButton}>
+      <TouchableOpacity style={styles.bookButton} onPress={handleBookAppointment}>
         <Text style={styles.bookButtonText}>Đặt lịch</Text>
       </TouchableOpacity>
 
@@ -210,27 +837,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#333',
   },
-  babySelectContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 15, // Increased horizontal padding
-    marginBottom: 15, // Increased bottom margin
-    backgroundColor: '#fff', // White background
-    paddingVertical: 15, // Increased vertical padding
-    shadowColor: '#000', // Add shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 0.8,
-    elevation: 1,
-  },
-  babySelectText: {
-    flex: 1,
-    height: 50,
-    fontSize: 16,
-    color: '#555',
-    lineHeight: 50, // Center text vertically if height is fixed
-  },
+
   suggestionBox: {
     backgroundColor: '#e0f7fa',
     padding: 15,
@@ -252,138 +859,8 @@ const styles = StyleSheet.create({
   diseaseSectionTitle: {
     marginTop: 10,
   },
-  chipContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 20,
-  },
-  chipButton: {
-    borderWidth: 1,
-    borderColor: '#ddd', // Lighter border for chips
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff', // White background for unselected chips
-    shadowColor: '#000', // Add shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 0.8,
-    elevation: 1,
-  },
-  chipButtonText: {
-    fontSize: 14,
-    color: '#333',
-  },
-   searchBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff', // White background
-    borderRadius: 25,
-    paddingHorizontal: 15, // Increased horizontal padding
-    marginBottom: 15,
-    shadowColor: '#000', // Add shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 0.8,
-    elevation: 1,
-  },
-  searchIcon: {
-    marginRight: 10,
-    color: '#888', // Grey color for search icon
-  },
-  searchBarInput: {
-    flex: 1,
-    height: 45, // Slightly reduced height
-    fontSize: 16,
-    color: '#333',
-  },
-  filterButtonContainer: {
-    flexDirection: 'row',
-    marginBottom: 15,
-  },
-  filterButton: {
-    borderWidth: 1,
-    borderColor: '#007bff', // Blue border
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    marginRight: 10,
-    marginBottom: 10,
-    alignSelf: 'flex-start', // Align buttons to the start
-    backgroundColor: '#fff', // White background
-    shadowColor: '#000', // Add shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 0.8,
-    elevation: 1,
-  },
-  filterButtonActive: {
-    backgroundColor: '#007bff',
-    shadowColor: '#007bff', // Blue shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 1.5,
-    elevation: 2,
-  },
-  filterButtonText: {
-    color: '#007bff',
-  },
-  facilityItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff', // White background
-    borderRadius: 8,
-    paddingVertical: 15,
-    marginBottom: 10,
-    paddingHorizontal: 15,
-    shadowColor: '#000', // Add shadow
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 0.8,
-    elevation: 1,
-    borderWidth: 1, // Add a subtle border
-    borderColor: '#eee', // Light grey border
-  },
-  facilityInfo: {
-    flex: 1,
-    marginRight: 10,
-  },
-  facilityName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 3,
-    color: '#333',
-  },
-  facilityAddress: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 3,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 5,
-  },
-  distanceText: {
-    fontSize: 14,
-    color: '#007bff', // Blue color for distance
-    fontWeight: 'bold',
-  },
-  facilityItemPlaceholder: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
+
+ 
   packageItem: {
     borderWidth: 1,
     borderColor: '#ccc',
@@ -563,6 +1040,404 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  childInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 0.8,
+    elevation: 1,
+  },
+  childInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  childName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  dropdownToggle: {
+    padding: 5,
+  },
+  dropdownContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginHorizontal: 0,
+    marginBottom: 10,
+    marginTop: -15,
+  },
+  dropdownScroll: {
+    maxHeight: 200, // Limit height of scrollable dropdown
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dropdownItemImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  dropdownItemTextContainer: {
+    flex: 1,
+  },
+  dropdownItemName: {
+    fontSize: 15,
+    color: '#333',
+  },
+  selectedIcon: {
+    marginLeft: 5,
+    color: '#007bff',
+  },
+  diseaseSelectionContainer: {
+    marginBottom: 20,
+  },
+  diseaseSelectButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 0.8,
+    elevation: 1,
+  },
+  diseaseSelectText: {
+    fontSize: 16,
+    color: '#333',
+    flex: 1,
+  },
+  diseaseDropdownContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginHorizontal: 0,
+    marginBottom: 10,
+    marginTop: -15,
+  },
+  diseaseSearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  diseaseSearchIcon: {
+    marginRight: 10,
+    color: '#888',
+  },
+  diseaseSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  diseaseListContainer: {
+    maxHeight: 200,
+  },
+  diseaseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  diseaseItemText: {
+    fontSize: 15,
+    color: '#333',
+    flex: 1,
+  },
+  selectedDiseaseIcon: {
+    marginLeft: 5,
+    color: '#007bff',
+  },
+  noDiseaseText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+
+  facilityDropdownContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginHorizontal: 0,
+    marginBottom: 10,
+    marginTop: -15,
+  },
+  facilitySearchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  facilitySearchIcon: {
+    marginRight: 10,
+    color: '#888',
+  },
+  facilitySearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  facilityListContainer: {
+    maxHeight: 200,
+  },
+  facilityItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  facilityItemContent: {
+    flex: 1,
+  },
+  facilityItemName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 3,
+  },
+  facilityItemDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  facilityItemDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  facilityItemAddress: {
+    fontSize: 13,
+    color: '#555',
+    marginLeft: 5,
+  },
+  facilityItemPhone: {
+    fontSize: 13,
+    color: '#007bff', // Blue color for phone number
+    marginLeft: 5,
+  },
+  selectedFacilityIcon: {
+    marginLeft: 5,
+    color: '#007bff',
+  },
+  noFacilityText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 10,
+  },
+  popularFacilitiesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  popularFacilityCard: {
+    width: '45%', // Adjust as needed for 2 columns
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 0.8,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  popularFacilityItemSelected: {
+    borderColor: '#007bff',
+    backgroundColor: '#e0f7fa',
+    shadowColor: '#007bff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  popularFacilityName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  popularFacilityDistance: {
+    fontSize: 12,
+    color: '#007bff', // Blue color for distance
+    marginLeft: 10,
+  },
+  popularFacilityAddress: {
+    fontSize: 12,
+    color: '#888',
+    marginLeft: 5,
+  },
+  popularFacilityPhone: {
+    fontSize: 12,
+    color: '#007bff', // Blue color for phone number
+    marginLeft: 5,
+  },
+  searchMoreContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 0.8,
+    elevation: 1,
+  },
+  searchMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  searchMoreIcon: {
+    marginRight: 10,
+  },
+  searchMoreText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  popularFacilityCardVertical: {
+    width: '100%', // Full width for vertical list
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 0.8,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+
+  // Cart button styles
+  cartButton: {
+    backgroundColor: '#007bff',
+    padding: 8,
+    borderRadius: 20,
+    position: 'relative',
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#ff4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+
+  // Package styles with cart integration
+  packageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  packageInfo: {
+    flex: 1,
+  },
+  packageItemInCart: {
+    borderColor: '#28a745',
+    backgroundColor: '#f8fff9',
+  },
+  packageTextInCart: {
+    color: '#28a745',
+  },
+  addToCartButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginLeft: 10,
+  },
+  addToCartButtonInCart: {
+    backgroundColor: '#28a745',
+  },
+  addToCartText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  addToCartTextInCart: {
+    color: 'white',
   },
 });
 
