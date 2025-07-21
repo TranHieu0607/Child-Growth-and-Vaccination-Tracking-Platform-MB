@@ -22,6 +22,7 @@ import Register from './src/screens/RegisterScreen';
 import AccountScreen from './src/screens/AccountScreen'; 
 import DailyRecordScreen from './src/screens/DailyRecordScreen';
 import CartScreen from './src/screens/CartScreen';
+import VipScreen from './src/screens/VipScreen';
 
 
 const Stack = createStackNavigator();
@@ -72,6 +73,7 @@ export default function App() {
               <Stack.Screen name="HistoryVacc" component={HistoryVacc} />
               <Stack.Screen name="ContinueInject" component={ContinueInjectScreen} />
               <Stack.Screen name="VaccBook" component={VaccBook} />
+              <Stack.Screen name="VipScreen" component={VipScreen} />
               <Stack.Screen name="Account">
                 {(props) => (
                   <View style={{ flex: 1 }}>

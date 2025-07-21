@@ -6,7 +6,7 @@ import { faClipboardList } from '@fortawesome/free-solid-svg-icons';
 
 const tabs = [
   { key: 'home', label: 'Trang chủ', icon: <Ionicons name="home-outline" size={24} color="#1565C0" /> },
-  { key: 'input', label: 'Nhập chỉ số', icon: <MaterialIcons name="edit" size={24} color="#1565C0" /> },
+  { key: 'add_vaccine', label: 'Nhập chỉ số', icon: <MaterialIcons name="edit" size={24} color="#1565C0" /> },
   { key: 'schedule', label: 'Đặt lịch', icon: <Ionicons name="calendar-outline" size={24} color="#1565C0" /> },
   { key: 'contact', label: 'Hàng ngày', icon: <FontAwesomeIcon icon={faClipboardList} size={24} color="#1565C0" /> },
   { key: 'account', label: 'Tài khoản', icon: <Ionicons name="person-outline" size={24} color="#1565C0" /> },
@@ -19,6 +19,7 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
       if (tabKey === 'home') navigation.navigate('Home');
       else if (tabKey === 'account') navigation.navigate('Account');
       else if (tabKey === 'contact') navigation.navigate('DailyRecord');
+      else if (tabKey === 'add_vaccine') navigation.navigate('UpdateGrowth');
       // Thêm các tab khác nếu muốn điều hướng
     }
   };

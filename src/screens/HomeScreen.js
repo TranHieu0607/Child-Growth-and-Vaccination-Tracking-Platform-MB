@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faBaby, faPencil, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical } from '@fortawesome/free-solid-svg-icons';
+import { faBaby, faCrown, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical } from '@fortawesome/free-solid-svg-icons';
 
 
 const features = [
   { key: 'add_baby', label: 'Thêm bé', icon: <FontAwesomeIcon icon={faBaby} size={32} color="#1565C0" /> },
-  { key: 'add_vaccine', label: 'Thêm chỉ số', icon: <FontAwesomeIcon icon={faPencil} size={32} color="#1565C0" /> },
+  { key: 'add_vaccine', label: 'Vip', icon: <FontAwesomeIcon icon={faCrown} size={32} color="#1565C0" /> },
   { key: 'growth_chart', label: 'Biểu đồ tăng trưởng', icon: <FontAwesomeIcon icon={faChartBar} size={32} color="#1565C0" /> },
   { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
   { key: 'vaccine_spot', label: 'Theo dõi hàng ngày', icon: <FontAwesomeIcon icon={faNotesMedical} size={32} color="#1565C0" /> },
@@ -49,7 +49,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               } else if (item.key === 'growth_chart') {
                 navigation.navigate('Chart');
               } else if (item.key === 'add_vaccine') {
-                navigation.navigate('UpdateGrowth');
+                navigation.navigate('VipScreen');
               } else if (item.key === 'health_record') {
                 navigation.navigate('UpdateVaccHiss');
               } else if (item.key === 'payment_history') {
