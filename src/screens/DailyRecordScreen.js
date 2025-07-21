@@ -51,7 +51,7 @@ const DailyRecordScreen = ({ navigation }) => {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.header}>
+      <View style={{...styles.header, marginTop: 20}}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>

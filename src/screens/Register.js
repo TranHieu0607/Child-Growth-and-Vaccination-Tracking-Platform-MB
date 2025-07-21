@@ -48,7 +48,7 @@ const Register = ({ navigation }) => {
 
   return (
     <ScrollView style={{ flex: 1, padding: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' , marginTop: 20 }}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>

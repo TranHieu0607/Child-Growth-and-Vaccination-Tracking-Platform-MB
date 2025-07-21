@@ -323,7 +323,7 @@ const ChartScreen = ({ navigation }) => {
   return (
     <ScrollView style={styles.container}>
       {/* 1. Header Hồ sơ Trẻ */}
-      <View style={styles.header}>
+      <View style={{...styles.header, marginTop: 20}}>
         {/* Back button - Adjust navigation target if needed */}
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />

@@ -56,7 +56,7 @@ const CartScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' , padding: 20, marginTop: 20 }}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
