@@ -8,12 +8,12 @@ import diseasesApi from '../store/api/diseasesApi';
 import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
 import vaccinePackagesApi from '../store/api/vaccinePackagesApi';
 import vaccinesApi from '../store/api/vaccinesApi';
-import { addToCart, selectCartItems, selectCartItemCount, clearCart } from '../store/cartSlice';
+import { addToCart, selectCartItems, selectCartItemCount, clearCart, orderPackage } from '../store/cartSlice';
 import scheduleApi from '../store/api/scheduleApi';
 import dayjs from 'dayjs';
 import bookingApi from '../store/api/bookingApi';
 
-const Booking = ({ navigation }) => {
+const Booking = ({ navigation, route }) => {
   const [children, setChildren] = useState([]);
   const [selectedChildren, setSelectedChildren] = useState([]);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -58,6 +58,8 @@ const Booking = ({ navigation }) => {
   const dispatch = useDispatch();
   const cartItems = useSelector(selectCartItems);
   const cartItemCount = useSelector(selectCartItemCount);
+
+  const orderId = route?.params?.orderId; // Lấy orderId từ params nếu có
 
   // Lấy danh sách trẻ từ API khi vào màn hình
   useEffect(() => {
@@ -181,7 +183,8 @@ const Booking = ({ navigation }) => {
         setFacilityVaccines(allVaccines);
         // Lọc vaccine liên quan đến disease đã chọn
         const filtered = allVaccines.filter(fv =>
-          fv.vaccine?.diseases?.some(d => d.diseaseId === selectedDisease.diseaseId)
+          fv.vaccine && fv.vaccine.diseases &&
+          fv.vaccine.diseases.some(d => String(d.diseaseId) === String(selectedDisease.diseaseId))
         );
         setFilteredFacilityVaccines(filtered);
       } catch (e) {
@@ -301,42 +304,70 @@ const Booking = ({ navigation }) => {
 
   const [expandedFacilityVaccineId, setExpandedFacilityVaccineId] = useState(null);
 
+  // Thêm hàm tạo order cho package
+  const createOrder = async (packageItem, token) => {
+    const selectedVaccines = packageItem.packageVaccines.map(pv => ({
+      diseaseId: pv.diseaseId,
+      facilityVaccineId: pv.facilityVaccineId,
+      quantity: pv.quantity,
+    }));
+    const payload = {
+      packageId: packageItem.packageId,
+      selectedVaccines,
+      orderDate: new Date().toISOString(),
+      status: 'Pending',
+    };
+    const res = await fetch('https://kidtrackingapi20250721100909-bmg3djfmg2exbqfd.eastasia-01.azurewebsites.net/api/Order/package', {
+      method: 'POST',
+      headers: {
+        'accept': '*/*',
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Order failed');
+    return await res.json();
+  };
+
   // Hàm đặt lịch
   const handleBookAppointment = async () => {
     if (!selectedChildren[0] || !selectedDisease || !selectedFacility || !selectedSlot) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn đầy đủ bé, bệnh, cơ sở, ngày, giờ!');
       return;
     }
-    let packageId = null;
-    let facilityVaccineIds = [];
-    // Nếu có package trong cart, chỉ cho đặt 1 gói
-    const packageItem = cartItems.find(item => item.packageId);
-    if (packageItem) {
-      packageId = packageItem.packageId;
-      facilityVaccineIds = [];
-    } else {
-      // Nếu không có package, lấy tất cả vaccine lẻ trong cart
-      facilityVaccineIds = cartItems.filter(item => item.facilityVaccineId).map(item => item.facilityVaccineId);
-      packageId = null;
-    }
-    const data = {
+    let data = {
       childId: selectedChildren[0],
       diseaseId: selectedDisease.diseaseId,
       facilityId: selectedFacility.facilityId,
-      packageId: packageId,
-      facilityVaccineIds: facilityVaccineIds,
       scheduleId: selectedSlot.scheduleId,
       note: note,
     };
+    const packageItem = cartItems.find(item => item.packageId);
     try {
+      if (packageItem) {
+        // 1. Tạo order qua redux
+        const resultAction = await dispatch(orderPackage({ pkg: packageItem, token }));
+        if (orderPackage.fulfilled.match(resultAction)) {
+          const orderId = resultAction.payload?.orderId;
+          if (!orderId) throw new Error('Không lấy được orderId từ server!');
+          data.orderId = orderId;
+        } else {
+          throw new Error(resultAction.payload || 'Tạo đơn hàng thất bại!');
+        }
+      } else {
+        // Nếu là vaccine lẻ, giữ nguyên logic cũ
+        data.facilityVaccineIds = cartItems.filter(item => item.facilityVaccineId).map(item => item.facilityVaccineId);
+      }
+      // Log payload để kiểm tra
+      console.log('Payload gửi từ Booking:', JSON.stringify(data, null, 2));
       const res = await bookingApi.bookAppointment(data, token);
       dispatch(clearCart());
       Alert.alert('Đặt lịch thành công', 'Lịch tiêm đã được xác nhận!', [
         { text: 'OK', onPress: () => navigation.navigate('Home') }
       ]);
-      // TODO: Xử lý sau khi đặt lịch thành công (reset form, chuyển trang...)
     } catch (e) {
-      Alert.alert('Đặt lịch thất bại', 'Vui lòng thử lại!');
+      Alert.alert('Đặt lịch thất bại', e.message || 'Vui lòng thử lại!');
     }
   };
 
@@ -582,6 +613,8 @@ const Booking = ({ navigation }) => {
               name: pkg.name,
               price: pkg.price,
               description: pkg.description,
+              facilityId: pkg.facilityId, // thêm facilityId
+              packageVaccines: pkg.packageVaccines, // thêm packageVaccines
             };
             const handleAddPackage = () => {
               if (!isInCart) handleAddToCart(packageCartObj);

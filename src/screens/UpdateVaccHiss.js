@@ -127,7 +127,9 @@ const UpdateVaccHiss = ({ navigation }) => {
 
   // Lọc vaccine theo diseaseId đã chọn
   const selectedDiseaseId = control._formValues.diseaseName;
-  const filteredVaccines = vaccines.filter(v => v.diseaseIds && v.diseaseIds.includes(selectedDiseaseId));
+  const filteredVaccines = vaccines.filter(
+    v => v.diseases && v.diseases.some(d => String(d.diseaseId) === String(selectedDiseaseId))
+  );
 
   return (
     <ScrollView style={styles.container} nestedScrollEnabled={true}>
