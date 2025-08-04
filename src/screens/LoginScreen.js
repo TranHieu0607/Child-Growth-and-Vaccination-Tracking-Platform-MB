@@ -27,7 +27,7 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
   return (
     <View style={styles.container}>
       <Image source={require('../../assets/icon.png')} style={styles.avatar} />
-      <Text style={styles.title}>KidCare</Text>
+      <Text style={styles.title}>Kid</Text>
       <Text style={styles.welcome}>Chào mừng bạn đến với KidCare</Text>
       <Text style={styles.subtitle}>Theo dõi tiêm chủng và phát triển của bé</Text>
       <View style={styles.inputContainer}>
