@@ -10,30 +10,33 @@ export async function getActiveMemberships() {
 }
 
 /**
- * Đăng ký gói VIP cho user
+ * Tạo payment cho đăng ký VIP
+ * @param {number} accountId
  * @param {number} membershipId
  * @param {string} token
- * @returns {Promise<any>}
+ * @returns {Promise<{paymentUrl: string, orderId: string}>}
  */
-export async function subscribeVip(membershipId, token) {
+export async function createPayment(accountId, membershipId, token) {
   const res = await axiosClient.post(
-    '/UserMemberships/subscribe',
-    { membershipId },
+    '/Payment/create',
+    { accountId, membershipId },
     {
       headers: {
-        'accept': '*/*',
+        'accept': 'text/plain',
         'Authorization': token,
         'Content-Type': 'application/json',
       },
     }
   );
-  return res.data;
+  return {
+    paymentUrl: res.data.data.paymentUrl,
+    orderId: res.data.data.orderId,
+  };
 }
 
 const membershipApi = {
   getActiveMemberships,
+  createPayment,
 };
-
-membershipApi.subscribeVip = subscribeVip;
 
 export default membershipApi; 

@@ -1,24 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Platform, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faCrown, faCheck, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { Ionicons } from '@expo/vector-icons';
 import membershipApi from '../store/api/membershipApi';
 import { useSelector } from 'react-redux';
+import PaymentWebView from './PaymentWebView';
 
 const VipScreen = ({ navigation }) => {
   const [vip, setVip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const token = useSelector(state => state.auth.token);
-  const [subscribing, setSubscribing] = useState(false);
-  const [subscribeMsg, setSubscribeMsg] = useState(null);
+  const accountId = useSelector(state => state.auth.user?.accountId || state.auth.user?.id);
+  const [payLoading, setPayLoading] = useState(false);
+  const [payError, setPayError] = useState(null);
+  const [showWebView, setShowWebView] = useState(false);
+  const [paymentUrl, setPaymentUrl] = useState('');
 
   useEffect(() => {
     const fetchVip = async () => {
       try {
         const data = await membershipApi.getActiveMemberships();
-        // Giả sử chỉ lấy gói VIP đầu tiên (hoặc lọc theo điều kiện nếu có nhiều gói)
         setVip(data[0]);
       } catch (err) {
         setError('Không thể tải dữ liệu gói VIP');
@@ -28,6 +31,68 @@ const VipScreen = ({ navigation }) => {
     };
     fetchVip();
   }, []);
+
+  const handlePaymentSuccess = (orderId) => {
+    Alert.alert(
+      'Thanh toán thành công!',
+      `Bạn đã đăng ký gói VIP thành công. Mã đơn hàng: ${orderId || 'N/A'}`,
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Có thể refresh lại dữ liệu VIP hoặc navigate về màn hình khác
+            navigation.goBack();
+          },
+        },
+      ]
+    );
+  };
+
+  const handlePaymentCancel = () => {
+    Alert.alert(
+      'Thanh toán đã bị hủy',
+      'Bạn đã hủy giao dịch thanh toán.',
+      [
+        {
+          text: 'OK',
+          style: 'default',
+        },
+      ]
+    );
+  };
+
+  const handleRegister = async () => {
+    if (!vip || !accountId) return;
+    setPayLoading(true);
+    setPayError(null);
+    try {
+      const res = await membershipApi.createPayment(accountId, vip.membershipId, token);
+      
+      // Hiển thị thông báo và hỏi người dùng có muốn thanh toán không
+      Alert.alert(
+        'Thanh toán VIP',
+        `Bạn có muốn thanh toán gói ${vip.name} với giá ${vip.price}đ?`,
+        [
+          {
+            text: 'Hủy',
+            style: 'cancel',
+          },
+          {
+            text: 'Thanh toán',
+            onPress: () => {
+              // Mở WebView trong app
+              setPaymentUrl(res.paymentUrl);
+              setShowWebView(true);
+            },
+          },
+        ]
+      );
+    } catch (err) {
+      setPayError('Không thể tạo thanh toán.');
+    } finally {
+      setPayLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -77,33 +142,28 @@ const VipScreen = ({ navigation }) => {
             ) : null}
           </View>
         </ScrollView>
-        {/* Nút nâng cấp ngay cố định dưới cùng */}
+        {/* Nút đăng ký VIP */}
         <View style={styles.upgradeBtnContainer}>
           <TouchableOpacity
             style={styles.upgradeBtn}
-            disabled={subscribing || !vip}
-            onPress={async () => {
-              setSubscribing(true);
-              setSubscribeMsg(null);
-              try {
-                const res = await membershipApi.subscribeVip(vip.membershipId, token);
-                setSubscribeMsg(res.message || 'Đăng ký thành công!');
-                setTimeout(() => {
-                  navigation.navigate('Home');
-                }, 1000);
-              } catch (err) {
-                setSubscribeMsg('Đăng ký thất bại!');
-              } finally {
-                setSubscribing(false);
-              }
-            }}
+            disabled={payLoading || !vip}
+            onPress={handleRegister}
           >
-            <Text style={styles.upgradeText}>{subscribing ? 'Đang xử lý...' : 'Nâng cấp ngay'}</Text>
+            <Text style={styles.upgradeText}>{payLoading ? 'Đang xử lý...' : 'Đăng ký VIP'}</Text>
           </TouchableOpacity>
-          {subscribeMsg && (
-            <Text style={{ color: subscribeMsg.includes('thành công') ? '#4caf50' : 'red', marginTop: 8, textAlign: 'center' }}>{subscribeMsg}</Text>
+          {payError && (
+            <Text style={{ color: 'red', marginTop: 8, textAlign: 'center' }}>{payError}</Text>
           )}
         </View>
+        
+        {/* Payment WebView */}
+        <PaymentWebView
+          visible={showWebView}
+          paymentUrl={paymentUrl}
+          onClose={() => setShowWebView(false)}
+          onSuccess={handlePaymentSuccess}
+          onCancel={handlePaymentCancel}
+        />
       </View>
     </SafeAreaView>
   );
