@@ -59,21 +59,12 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
       <TouchableOpacity style={styles.button} onPress={handleContinue} disabled={loading}>
         <Text style={styles.buttonText}>{loading ? 'Đang đăng nhập...' : 'Tiếp tục'}</Text>
       </TouchableOpacity>
-      <View style={styles.orContainer}>
-        <View style={styles.line} />
-        <Text style={styles.orText}>Hoặc</Text>
-        <View style={styles.line} />
-      </View>
-      <TouchableOpacity style={styles.googleButton} onPress={handleGoogleLogin}>
-        <Text style={styles.googleIcon}>G</Text>
-        <Text style={styles.googleText}>Đăng nhập với Google</Text>
-      </TouchableOpacity>
-      <Text style={styles.registerText}>
-        Chưa có tài khoản?{' '}
+      <View style={styles.registerContainer}>
+        <Text style={styles.registerText}>Chưa có tài khoản? </Text>
         <TouchableOpacity onPress={() => navigation.navigate('Register')}>
           <Text style={styles.registerLink}>Đăng ký ngay</Text>
         </TouchableOpacity>
-      </Text>
+      </View>
     </View>
   );
 }
@@ -185,6 +176,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  registerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   registerText: {
     fontSize: 14,
     color: '#888',
@@ -192,5 +188,6 @@ const styles = StyleSheet.create({
   registerLink: {
     color: '#2196F3',
     fontWeight: 'bold',
+    fontSize: 14,
   },
 }); 

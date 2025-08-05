@@ -1,24 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Alert } from 'react-native';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../store/authSlice';
 import childrenApi from '../store/api/childrenApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
-// Dữ liệu mẫu cho user và các bé
-const user = {
-  accountName: 'kidparent01',
-  email: 'user@example.com',
-  fullName: 'Nguyễn Văn A',
-  phone: '0123456789',
-  address: '123 Đường ABC, Quận 1, TP.HCM',
-  avatar: require('../../assets/icon.png'),
-};
-
 export default function AccountScreen({ navigation, onLogout }) {
   const dispatch = useDispatch();
+  const { user } = useSelector((state) => state.auth);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -73,14 +64,13 @@ export default function AccountScreen({ navigation, onLogout }) {
   return (
     <View style={styles.container}>
       <View style={styles.profileSection}>
-        <Image source={user.avatar} style={styles.avatar} />
-        <Text style={styles.name}>{user.fullName}</Text>
-        <Text style={styles.username}>@{user.accountName}</Text>
+        <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+        <Text style={styles.name}>{user?.fullName || 'Chưa cập nhật'}</Text>
       </View>
       <View style={styles.infoSection}>
-        <Text style={styles.label}>Email: <Text style={styles.value}>{user.email}</Text></Text>
-        <Text style={styles.label}>Số điện thoại: <Text style={styles.value}>{user.phone}</Text></Text>
-        <Text style={styles.label}>Địa chỉ: <Text style={styles.value}>{user.address}</Text></Text>
+        <Text style={styles.label}>Email: <Text style={styles.value}>{user?.email || 'Chưa cập nhật'}</Text></Text>
+        <Text style={styles.label}>Số điện thoại: <Text style={styles.value}>{user?.phone || 'Chưa cập nhật'}</Text></Text>
+        <Text style={styles.label}>Địa chỉ: <Text style={styles.value}>{user?.address || 'Chưa cập nhật'}</Text></Text>
       </View>
       <View style={styles.childrenSection}>
         <Text style={styles.sectionTitle}>Các bé đang theo dõi</Text>
