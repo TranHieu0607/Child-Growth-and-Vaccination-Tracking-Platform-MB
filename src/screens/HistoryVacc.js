@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Alert } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import childrenApi from '../store/api/childrenApi';
 import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
 import vaccinesApi from '../store/api/vaccinesApi';
 import diseasesApi from '../store/api/diseasesApi';
 import appointmentApi from '../store/api/appointmentApi';
+import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
 import { useSelector } from 'react-redux';
 
 const HistoryVacc = ({ navigation }) => {   
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'tracking'
+  const [historySubTab, setHistorySubTab] = useState('completed'); // 'completed' or 'scheduled'
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [vaccineHistory, setVaccineHistory] = useState([]);
   const [vaccines, setVaccines] = useState([]);
   const [diseases, setDiseases] = useState([]);
+  const [facilities, setFacilities] = useState([]);
   const [appointmentHistory, setAppointmentHistory] = useState([]);
   const token = useSelector(state => state.auth.token);
 
+  // Fetch children một lần duy nhất khi component mount
   useEffect(() => {
     const fetchChildren = async () => {
       try {
@@ -35,49 +40,65 @@ const HistoryVacc = ({ navigation }) => {
     fetchChildren();
   }, []);
 
-  useEffect(() => {
-    if (!selectedChildId) return;
-    const fetchVaccineHistory = async () => {
-      try {
-        const res = await childVaccineProfileApi.getByChildId(selectedChildId);
-        setVaccineHistory(res.data || []);
-      } catch (e) {
-        setVaccineHistory([]);
-      }
-    };
-    fetchVaccineHistory();
-  }, [selectedChildId]);
+  // Tự động fetch lại vaccine history mỗi khi màn hình được focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!selectedChildId) return;
+      
+      const fetchVaccineHistory = async () => {
+        try {
+          console.log('🔄 Refreshing vaccine history for child:', selectedChildId);
+          const res = await childVaccineProfileApi.getByChildId(selectedChildId);
+          setVaccineHistory(res.data || []);
+        } catch (e) {
+          console.error('Error fetching vaccine history:', e);
+          setVaccineHistory([]);
+        }
+      };
+      
+      fetchVaccineHistory();
+    }, [selectedChildId])
+  );
 
   useEffect(() => {
     const fetchVaccinesAndDiseases = async () => {
       try {
-        const [vaccinesRes, diseasesRes] = await Promise.all([
+        const [vaccinesRes, diseasesRes, facilitiesRes] = await Promise.all([
           vaccinesApi.getAllVaccines(),
-          diseasesApi.getAllDiseases()
+          diseasesApi.getAllDiseases(),
+          vaccinationFacilitiesApi.getVaccinationFacilities(1, 100) // Lấy 100 cơ sở đầu tiên
         ]);
         setVaccines(vaccinesRes.data || []);
         setDiseases(diseasesRes.data || []);
+        setFacilities(facilitiesRes.data || []);
       } catch (e) {
         setVaccines([]);
         setDiseases([]);
+        setFacilities([]);
       }
     };
     fetchVaccinesAndDiseases();
   }, []);
 
   // Lấy lịch sử đặt lịch tiêm chủng khi sang tab tracking
-  useEffect(() => {
-    if (activeTab !== 'tracking' || !selectedChildId || !token) return;
-    const fetchAppointmentHistory = async () => {
-      try {
-        const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
-        setAppointmentHistory(res.data?.appointments || []);
-      } catch (e) {
-        setAppointmentHistory([]);
-      }
-    };
-    fetchAppointmentHistory();
-  }, [activeTab, selectedChildId, token]);
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab !== 'tracking' || !selectedChildId || !token) return;
+      
+      const fetchAppointmentHistory = async () => {
+        try {
+          console.log('🔄 Refreshing appointment history for child:', selectedChildId);
+          const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+          setAppointmentHistory(res.data?.appointments || []);
+        } catch (e) {
+          console.error('Error fetching appointment history:', e);
+          setAppointmentHistory([]);
+        }
+      };
+      
+      fetchAppointmentHistory();
+    }, [activeTab, selectedChildId, token])
+  );
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
@@ -198,54 +219,141 @@ const HistoryVacc = ({ navigation }) => {
             />
           </View>
 
-          {/* Filters */}
-          <View style={styles.filters}>
-            <TouchableOpacity style={styles.filterButton}>
-              <Text>Năm 2024</Text>
-              <MaterialIcons name="keyboard-arrow-down" size={20} color="black" />
+          {/* Sub Tabs for History */}
+          <View style={styles.subTabs}>
+            <TouchableOpacity
+              style={historySubTab === 'completed' ? styles.activeSubTab : styles.subTab}
+              onPress={() => setHistorySubTab('completed')}
+            >
+              <Text style={historySubTab === 'completed' ? styles.activeSubTabText : styles.subTabText}>
+                ✅ Đã tiêm
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.filterButton}>
-              <Text>Tất cả quý</Text>
-              <MaterialIcons name="keyboard-arrow-down" size={20} color="black" />
+            <TouchableOpacity
+              style={historySubTab === 'scheduled' ? styles.activeSubTab : styles.subTab}
+              onPress={() => setHistorySubTab('scheduled')}
+            >
+              <Text style={historySubTab === 'scheduled' ? styles.activeSubTabText : styles.subTabText}>
+                📅 Dự kiến tiêm
+              </Text>
             </TouchableOpacity>
           </View>
 
           {/* Vaccination History List */}
           <View style={styles.vaccineList}>
-            {vaccineHistory.map(vaccine => {
-              const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
-              const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+            {historySubTab === 'completed' && (
+              <View style={styles.sectionContainer}>
+                {vaccineHistory.filter(vaccine => vaccine.status === 'Completed').map(vaccine => {
+                  const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                  const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+                  const facilityObj = facilities.find(f => f.facilityId === vaccine.facilityId);
 
-              // Tổng số mũi
-              const totalDoses = vaccineObj?.numberOfDoses || 0;
-
-              // Số mũi đã tiêm (cùng vaccineId, đã có actualDate)
-              const dosesGiven = vaccineHistory.filter(
-                v => v.vaccineId === vaccine.vaccineId && v.actualDate
-              ).length;
-
-              return (
-                <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
-                  <MaterialIcons name="check-circle" size={24} color="#007bff" style={styles.checkIcon} />
-                  <View style={styles.vaccineDetails}>
-                    <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
-                    {/* Hiển thị số mũi đã tiêm / tổng số mũi */}
-                    <Text style={{ color: '#007bff', fontWeight: 'bold', marginBottom: 5 }}>
-                      Đã tiêm {dosesGiven}/{totalDoses} mũi
-                    </Text>
-                    <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
-                    <View style={styles.detailRow}>
-                      <MaterialIcons name="access-time" size={16} color="gray" />
-                      <Text style={styles.detailText}>{vaccine.actualDate}</Text>
+                  return (
+                    <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
+                      <MaterialIcons name="check-circle" size={24} color="#28a745" style={styles.checkIcon} />
+                      <View style={styles.vaccineDetails}>
+                        <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
+                        <Text style={{ color: '#28a745', fontWeight: 'bold', marginBottom: 5 }}>
+                          Mũi số {vaccine.doseNum} - Đã hoàn thành
+                        </Text>
+                        <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
+                        <View style={styles.detailRow}>
+                          <MaterialIcons name="access-time" size={16} color="gray" />
+                          <Text style={styles.detailText}>Ngày tiêm: {vaccine.actualDate}</Text>
+                        </View>
+                        <View style={styles.detailRow}>
+                          <MaterialIcons name="location-on" size={16} color="gray" />
+                          <Text style={styles.detailText}>Cơ sở: {facilityObj ? facilityObj.facilityName : (vaccine.facilityId ? `ID ${vaccine.facilityId}` : 'Chưa xác định')}</Text>
+                        </View>
+                        {vaccine.note && (
+                          <View style={styles.detailRow}>
+                            <MaterialIcons name="info-outline" size={16} color="gray" />
+                            <Text style={styles.detailText}>Ghi chú: {vaccine.note}</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
-                    <View style={styles.detailRow}>
-                      <MaterialIcons name="info-outline" size={16} color="gray" />
-                      <Text style={styles.detailText}>Ghi chú: {vaccine.note}</Text>
+                  );
+                })}
+                {vaccineHistory.filter(vaccine => vaccine.status === 'Completed').length === 0 && (
+                  <Text style={styles.emptyText}>Chưa có mũi tiêm nào được hoàn thành</Text>
+                )}
+              </View>
+            )}
+
+            {historySubTab === 'scheduled' && (
+              <View style={styles.sectionContainer}>
+                {vaccineHistory.filter(vaccine => vaccine.status === 'Scheduled').map(vaccine => {
+                  const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                  const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+
+                  return (
+                    <View key={vaccine.vaccineProfileId} style={styles.packageCard}>
+                      {/* Header với icon và tên vaccine */}
+                      <View style={styles.packageHeader}>
+                        <MaterialIcons name="vaccines" size={24} color="#007bff" />
+                        <Text style={styles.packageTitle}>
+                          {vaccineObj ? vaccineObj.name : `Vaccine ${vaccine.vaccineId}`}
+                        </Text>
+                        {/* Status indicator */}
+                        <View style={[
+                          styles.statusBadge, 
+                          vaccine.status === 'Pending' ? styles.statusPending : styles.statusScheduled
+                        ]}>
+                          <Text style={styles.statusText}>
+                            {vaccine.status === 'Pending' ? 'Chờ xác nhận' : 'Đã lên lịch'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Chi tiết vaccine */}
+                      <View style={styles.vaccineDetailItem}>
+                        <MaterialIcons name="schedule" size={20} color="#ffc107" />
+                        <View style={styles.vaccineTextContainer}>
+                          <Text style={styles.vaccineShotName}>
+                            {diseaseObj ? diseaseObj.name : `Disease ${vaccine.diseaseId}`} - Mũi {vaccine.doseNum}
+                          </Text>
+                          <Text style={styles.vaccineDiseases}>
+                            {vaccine.priority} - {vaccine.isRequired ? 'Bắt buộc' : 'Tùy chọn'}
+                          </Text>
+                        </View>
+                        <Text style={styles.vaccineDate}>{vaccine.expectedDate}</Text>
+                        <MaterialIcons name="schedule" size={16} color="gray" />
+                      </View>
+
+                      {/* Gợi ý tiêm tiếp */}
+                      <Text style={styles.vaccineDiseases}>
+                        Gợi ý tiêm tiếp: {vaccine.expectedDate}
+                      </Text>
+
+                      {/* Nút đặt lịch */}
+                      <TouchableOpacity 
+                        style={styles.scheduleButton}
+                        onPress={() => navigation.navigate('ReBook', {
+                          vaccine: vaccine,
+                          child: selectedChild,
+                          childVaccineProfileId: vaccine.vaccineProfileId
+                        })}
+                      >
+                        <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIÊM THEO</Text>
+                        <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+                      </TouchableOpacity>
+
+                      {/* Thông tin bổ sung */}
+                      {vaccine.note && (
+                        <View style={styles.suggestionRow}>
+                          <MaterialIcons name="info-outline" size={16} color="#007bff" />
+                          <Text style={styles.suggestionText}>Ghi chú: {vaccine.note}</Text>
+                        </View>
+                      )}
                     </View>
-                  </View>
-                </View>
-              );
-            })}
+                  );
+                })}
+                {vaccineHistory.filter(vaccine => vaccine.status === 'Scheduled').length === 0 && (
+                  <Text style={styles.emptyText}>Không có lịch tiêm dự kiến</Text>
+                )}
+              </View>
+            )}
           </View>
         </>
       )}
@@ -517,6 +625,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginLeft: 10,
+    flex: 1,
   },
   progressBarBackground: {
     height: 8,
@@ -589,6 +698,79 @@ const styles = StyleSheet.create({
   trackingPackagesList: {
     flex: 1,
     paddingVertical: 15,
+  },
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+    paddingHorizontal: 5,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007bff',
+    paddingLeft: 10,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#888',
+    fontStyle: 'italic',
+    marginVertical: 20,
+    fontSize: 14,
+  },
+  subTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f8f8',
+    marginHorizontal: 15,
+    marginBottom: 15,
+    borderRadius: 8,
+    padding: 4,
+  },
+  subTab: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeSubTab: {
+    flex: 1,
+    padding: 12,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  subTabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeSubTabText: {
+    fontSize: 14,
+    color: '#007bff',
+    fontWeight: 'bold',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  statusScheduled: {
+    backgroundColor: '#28a745',
+  },
+  statusPending: {
+    backgroundColor: '#ffc107',
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });
 

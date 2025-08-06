@@ -23,6 +23,7 @@ import AccountScreen from './src/screens/AccountScreen';
 import DailyRecordScreen from './src/screens/DailyRecordScreen';
 import CartScreen from './src/screens/CartScreen';
 import VipScreen from './src/screens/VipScreen';
+import ReBook from './src/screens/ReBook';
 
 
 const Stack = createStackNavigator();
@@ -85,6 +86,7 @@ export default function App() {
               <Stack.Screen name="DailyRecord" component={DailyRecordScreen} />
               <Stack.Screen name="CreateDaily" component={require('./src/screens/CreateDailyScreen').default} />
               <Stack.Screen name="Cart" component={CartScreen} />
+              <Stack.Screen name="ReBook" component={ReBook} />
             </>
           )}
         </Stack.Navigator>

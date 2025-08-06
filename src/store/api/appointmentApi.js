@@ -25,6 +25,30 @@ const appointmentApi = {
       }
     );
   },
+  getAvailableSlots: (facilityId, date, token) => {
+    return axiosClient.get(
+      `/AppointmentBooking/available-slots?facilityId=${facilityId}&date=${date}`,
+      {
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        }
+      }
+    );
+  },
+  createAppointment: (appointmentData, token) => {
+    return axiosClient.post(
+      `/AppointmentBooking`,
+      appointmentData,
+      {
+        headers: {
+          'accept': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+  },
 };
 
 export default appointmentApi; 
