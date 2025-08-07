@@ -10,7 +10,17 @@ const cartSlice = createSlice({
       if (action.payload.packageId) {
         // Nếu là package, xóa các package cũ, chỉ giữ lại vaccine lẻ và package mới
         state.items = state.items.filter(item => !item.packageId);
-        state.items.push({ ...action.payload, quantity: 1 });
+        
+        // Sửa quantity của mỗi vaccine trong package theo phác đồ (numberOfDoses)
+        const packageWithUpdatedQuantity = { ...action.payload, quantity: 1 };
+        if (packageWithUpdatedQuantity.packageVaccines) {
+          packageWithUpdatedQuantity.packageVaccines = packageWithUpdatedQuantity.packageVaccines.map(pv => ({
+            ...pv,
+            quantity: pv.facilityVaccine?.vaccine?.numberOfDoses || 1
+          }));
+        }
+        
+        state.items.push(packageWithUpdatedQuantity);
       } else {
         // Vaccine lẻ: cho phép nhiều loại
         const existingItem = state.items.find(item => item.facilityVaccineId === action.payload.facilityVaccineId);

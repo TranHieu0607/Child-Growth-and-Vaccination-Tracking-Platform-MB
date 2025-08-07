@@ -46,6 +46,28 @@ const CartScreen = ({ navigation }) => {
 
   // Handler for updating vaccine or dose in a package disease
   const handleUpdatePackageVaccine = (packageId, packageVaccineId, newFacilityVaccineId, newQuantity) => {
+    // Nếu thay đổi vaccine (facilityVaccineId), tự động set quantity bằng numberOfDoses của vaccine mới
+    const pkg = cartItems.find(item => item.packageId === packageId);
+    if (pkg && pkg.packageVaccines) {
+      const currentPv = pkg.packageVaccines.find(v => v.packageVaccineId === packageVaccineId);
+      if (currentPv && currentPv.facilityVaccineId !== newFacilityVaccineId) {
+        // Đang thay đổi vaccine, tìm facility vaccines để lấy numberOfDoses mới
+        const facilityVaccines = (facilityVaccinesMap[pkg.facilityId] || []).filter(fv =>
+          fv.vaccine?.diseases?.some(d => d.diseaseId === currentPv.diseaseId)
+        );
+        const newFacilityVaccine = facilityVaccines.find(fv => fv.facilityVaccineId === newFacilityVaccineId);
+        const newNumberOfDoses = newFacilityVaccine?.vaccine?.numberOfDoses || 1;
+        
+        // Set quantity bằng numberOfDoses của vaccine mới
+        dispatch({
+          type: 'cart/updatePackageVaccine',
+          payload: { packageId, packageVaccineId, facilityVaccineId: newFacilityVaccineId, quantity: newNumberOfDoses },
+        });
+        return;
+      }
+    }
+    
+    // Nếu chỉ thay đổi quantity, giữ nguyên logic cũ
     dispatch({
       type: 'cart/updatePackageVaccine',
       payload: { packageId, packageVaccineId, facilityVaccineId: newFacilityVaccineId, quantity: newQuantity },
@@ -165,7 +187,7 @@ const CartScreen = ({ navigation }) => {
                           <Picker
                             selectedValue={pv.facilityVaccineId}
                             style={styles.vaccinePicker}
-                            onValueChange={val => handleUpdatePackageVaccine(pkg.packageId, pv.packageVaccineId, val, pv.quantity)}
+                            onValueChange={val => handleUpdatePackageVaccine(pkg.packageId, pv.packageVaccineId, val, null)}
                           >
                             {allVaccines.map(fv => (
                               <Picker.Item

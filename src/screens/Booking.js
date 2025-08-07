@@ -35,6 +35,7 @@ const Booking = ({ navigation, route }) => {
   // Vaccine lẻ state
   const [facilityVaccines, setFacilityVaccines] = useState([]);
   const [filteredFacilityVaccines, setFilteredFacilityVaccines] = useState([]);
+  const [selectedSingleVaccine, setSelectedSingleVaccine] = useState(null); // Vaccine lẻ được chọn
 
   // Vaccine Package state
   const [vaccinePackages, setVaccinePackages] = useState([]);
@@ -244,6 +245,8 @@ const Booking = ({ navigation, route }) => {
     setIsDiseaseDropdownVisible(false);
     setDiseaseSearchText('');
     setFilteredDiseases(diseases);
+    // Reset vaccine lẻ được chọn khi thay đổi bệnh
+    setSelectedSingleVaccine(null);
   };
 
   // Function to handle facility selection
@@ -252,6 +255,8 @@ const Booking = ({ navigation, route }) => {
     setIsFacilityDropdownVisible(false);
     setFacilitySearchText('');
     setFilteredFacilities(facilities);
+    // Reset vaccine lẻ được chọn khi thay đổi cơ sở
+    setSelectedSingleVaccine(null);
   };
 
   // Function to handle the dropdown press
@@ -271,8 +276,34 @@ const Booking = ({ navigation, route }) => {
 
   // Cart functions
   const handleAddToCart = (packageItem) => {
+    // Kiểm tra xem đã có vaccine lẻ được chọn chưa
+    if (selectedSingleVaccine) {
+      Alert.alert('Thông báo', 'Bạn đã chọn vaccine lẻ. Vui lòng bỏ chọn vaccine lẻ trước khi thêm gói tiêm!');
+      return;
+    }
+
     dispatch(addToCart(packageItem));
+    // Reset vaccine lẻ được chọn khi thêm gói vào giỏ
+    setSelectedSingleVaccine(null);
     Alert.alert('Thành công', 'Đã thêm gói tiêm vào giỏ hàng!');
+  };
+
+  // Function to handle single vaccine selection
+  const handleSelectSingleVaccine = (facilityVaccine) => {
+    // Kiểm tra xem đã có gói tiêm trong giỏ hàng chưa
+    const hasPackageInCart = cartItems.some(item => item.packageId);
+    if (hasPackageInCart) {
+      Alert.alert('Thông báo', 'Bạn đã có gói tiêm trong giỏ hàng. Vui lòng xóa gói tiêm trước khi chọn vaccine lẻ!');
+      return;
+    }
+
+    if (selectedSingleVaccine?.facilityVaccineId === facilityVaccine.facilityVaccineId) {
+      // Nếu đã chọn rồi thì bỏ chọn
+      setSelectedSingleVaccine(null);
+    } else {
+      // Chọn vaccine mới
+      setSelectedSingleVaccine(facilityVaccine);
+    }
   };
 
   const handleDecreaseCart = (packageItem) => {
@@ -336,6 +367,14 @@ const Booking = ({ navigation, route }) => {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn đầy đủ bé, bệnh, cơ sở, ngày, giờ!');
       return;
     }
+
+    // Kiểm tra có gói tiêm hoặc vaccine lẻ được chọn
+    const packageItem = cartItems.find(item => item.packageId);
+    if (!packageItem && !selectedSingleVaccine) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói tiêm hoặc vaccine để đặt lịch!');
+      return;
+    }
+
     let data = {
       childId: selectedChildren[0],
       diseaseId: selectedDisease.diseaseId,
@@ -343,10 +382,10 @@ const Booking = ({ navigation, route }) => {
       scheduleId: selectedSlot.scheduleId,
       note: note,
     };
-    const packageItem = cartItems.find(item => item.packageId);
+
     try {
       if (packageItem) {
-        // 1. Tạo order qua redux
+        // 1. Tạo order qua redux cho gói tiêm
         const resultAction = await dispatch(orderPackage({ pkg: packageItem, token }));
         if (orderPackage.fulfilled.match(resultAction)) {
           const orderId = resultAction.payload?.orderId;
@@ -355,14 +394,19 @@ const Booking = ({ navigation, route }) => {
         } else {
           throw new Error(resultAction.payload || 'Tạo đơn hàng thất bại!');
         }
-      } else {
-        // Nếu là vaccine lẻ, giữ nguyên logic cũ
-        data.facilityVaccineIds = cartItems.filter(item => item.facilityVaccineId).map(item => item.facilityVaccineId);
+      } else if (selectedSingleVaccine) {
+        // Nếu là vaccine lẻ được chọn
+        data.facilityVaccineIds = [selectedSingleVaccine.facilityVaccineId];
       }
+
       // Log payload để kiểm tra
       console.log('Payload gửi từ Booking:', JSON.stringify(data, null, 2));
       const res = await bookingApi.bookAppointment(data, token);
+      
+      // Clear cart và vaccine đã chọn
       dispatch(clearCart());
+      setSelectedSingleVaccine(null);
+      
       Alert.alert('Đặt lịch thành công', 'Lịch tiêm đã được xác nhận!', [
         { text: 'OK', onPress: () => navigation.navigate('Home') }
       ]);
@@ -608,6 +652,8 @@ const Booking = ({ navigation, route }) => {
           {/* Vaccine package */}
           {filteredPackages.map(pkg => {
             const isInCart = cartItems.some(item => item.packageId === pkg.packageId);
+            const isDisabled = selectedSingleVaccine && !isInCart;
+            
             const packageCartObj = {
               packageId: pkg.packageId,
               name: pkg.name,
@@ -617,26 +663,46 @@ const Booking = ({ navigation, route }) => {
               packageVaccines: pkg.packageVaccines, // thêm packageVaccines
             };
             const handleAddPackage = () => {
-              if (!isInCart) handleAddToCart(packageCartObj);
+              if (!isInCart && !isDisabled) handleAddToCart(packageCartObj);
             };
             return (
-              <View key={pkg.packageId} style={[styles.packageItem, isInCart && styles.packageItemInCart]}>
+              <View key={pkg.packageId} style={[
+                styles.packageItem, 
+                isInCart && styles.packageItemInCart,
+                isDisabled && styles.packageItemDisabled
+              ]}>
                 <TouchableOpacity
                   onPress={() => setExpandedPackageId(expandedPackageId === pkg.packageId ? null : pkg.packageId)}
                   style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                   activeOpacity={0.8}
                 >
                   <View style={styles.packageInfo}>
-                    <Text style={[styles.packageName, isInCart && styles.packageTextInCart]}>{pkg.name}</Text>
-                    <Text style={[styles.packagePrice, isInCart && styles.packageTextInCart]}>{pkg.price?.toLocaleString('vi-VN')}đ</Text>
+                    <Text style={[
+                      styles.packageName, 
+                      isInCart && styles.packageTextInCart,
+                      isDisabled && styles.packageTextDisabled
+                    ]}>{pkg.name}</Text>
+                    <Text style={[
+                      styles.packagePrice, 
+                      isInCart && styles.packageTextInCart,
+                      isDisabled && styles.packageTextDisabled
+                    ]}>{pkg.price?.toLocaleString('vi-VN')}đ</Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.addToCartButton, isInCart && styles.addToCartButtonInCart]}
+                    style={[
+                      styles.addToCartButton, 
+                      isInCart && styles.addToCartButtonInCart,
+                      isDisabled && styles.addToCartButtonDisabled
+                    ]}
                     onPress={handleAddPackage}
-                    disabled={isInCart}
+                    disabled={isInCart || isDisabled}
                   >
-                    <Text style={[styles.addToCartText, isInCart && styles.addToCartTextInCart]}>
-                      {isInCart ? 'Đã thêm' : 'Thêm vào giỏ'}
+                    <Text style={[
+                      styles.addToCartText, 
+                      isInCart && styles.addToCartTextInCart,
+                      isDisabled && styles.addToCartTextDisabled
+                    ]}>
+                      {isDisabled ? 'Không thể thêm' : (isInCart ? 'Đã thêm' : 'Thêm vào giỏ')}
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -653,6 +719,7 @@ const Booking = ({ navigation, route }) => {
                             <Text style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>  Mô tả bệnh: {pv.disease.description}</Text>
                           )}
                           <Text style={{ fontSize: 12, color: '#888' }}>  Số lượng: {pv.quantity}</Text>
+                          <Text style={{ fontSize: 12, color: '#888' }}>  Phác đồ: {pv.facilityVaccine?.vaccine?.numberOfDoses || 1} liều</Text>
                           <Text style={{ fontSize: 12, color: '#888' }}>  Hạn dùng: {pv.facilityVaccine?.expiryDate}</Text>
                         </View>
                       ))
@@ -666,37 +733,54 @@ const Booking = ({ navigation, route }) => {
           })}
           {/* Vaccine lẻ */}
           {filteredFacilityVaccines.map(fv => {
-            const isInCart = cartItems.some(item => item.facilityVaccineId === fv.facilityVaccineId);
-            // Đảm bảo object chỉ có facilityVaccineId, không có packageId
-            const vaccineCartObj = {
-              facilityVaccineId: fv.facilityVaccineId,
-              price: fv.price,
-              vaccine: fv.vaccine,
-              availableQuantity: fv.availableQuantity,
-              expiryDate: fv.expiryDate,
-            };
-            const handleAddVaccine = () => {
-              if (!isInCart) handleAddToCart(vaccineCartObj);
+            const isSelected = selectedSingleVaccine?.facilityVaccineId === fv.facilityVaccineId;
+            const hasPackageInCart = cartItems.some(item => item.packageId);
+            const isDisabled = hasPackageInCart && !isSelected;
+            
+            const handleSelectVaccine = () => {
+              if (!isDisabled) {
+                handleSelectSingleVaccine(fv);
+              }
             };
             const isExpanded = expandedFacilityVaccineId === fv.facilityVaccineId;
             return (
-              <View key={fv.facilityVaccineId} style={[styles.packageItem, isInCart && styles.packageItemInCart]}>
+              <View key={fv.facilityVaccineId} style={[
+                styles.packageItem, 
+                isSelected && styles.packageItemSelected,
+                isDisabled && styles.packageItemDisabled
+              ]}>
                 <TouchableOpacity
                   onPress={() => setExpandedFacilityVaccineId(isExpanded ? null : fv.facilityVaccineId)}
                   style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                   activeOpacity={0.8}
                 >
                   <View style={styles.packageInfo}>
-                    <Text style={[styles.packageName, isInCart && styles.packageTextInCart]}>{fv.vaccine?.name}</Text>
-                    <Text style={[styles.packagePrice, isInCart && styles.packageTextInCart]}>{fv.price?.toLocaleString('vi-VN')}đ</Text>
+                    <Text style={[
+                      styles.packageName, 
+                      isSelected && styles.packageTextSelected,
+                      isDisabled && styles.packageTextDisabled
+                    ]}>{fv.vaccine?.name}</Text>
+                    <Text style={[
+                      styles.packagePrice, 
+                      isSelected && styles.packageTextSelected,
+                      isDisabled && styles.packageTextDisabled
+                    ]}>{fv.price?.toLocaleString('vi-VN')}đ</Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.addToCartButton, isInCart && styles.addToCartButtonInCart]}
-                    onPress={handleAddVaccine}
-                    disabled={isInCart}
+                    style={[
+                      styles.addToCartButton, 
+                      isSelected && styles.addToCartButtonSelected,
+                      isDisabled && styles.addToCartButtonDisabled
+                    ]}
+                    onPress={handleSelectVaccine}
+                    disabled={isDisabled}
                   >
-                    <Text style={[styles.addToCartText, isInCart && styles.addToCartTextInCart]}>
-                      {isInCart ? 'Đã thêm' : 'Thêm vào giỏ'}
+                    <Text style={[
+                      styles.addToCartText, 
+                      isSelected && styles.addToCartTextSelected,
+                      isDisabled && styles.addToCartTextDisabled
+                    ]}>
+                      {isDisabled ? 'Không thể chọn' : (isSelected ? 'Đã chọn' : 'Chọn')}
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
@@ -714,6 +798,7 @@ const Booking = ({ navigation, route }) => {
                     ))}
                     <Text style={{ fontSize: 12, color: '#888' }}>Số lượng còn: {fv.availableQuantity}</Text>
                     <Text style={{ fontSize: 12, color: '#888' }}>Hạn dùng: {fv.expiryDate}</Text>
+                    <Text style={{ fontSize: 12, color: '#888' }}>Phác đồ: {fv.vaccine?.numberOfDoses || 1} liều</Text>
                   </View>
                 )}
               </View>
@@ -1452,8 +1537,28 @@ const styles = StyleSheet.create({
     borderColor: '#28a745',
     backgroundColor: '#f8fff9',
   },
+  packageItemSelected: {
+    borderColor: '#007bff',
+    backgroundColor: '#e0f7fa',
+    shadowColor: '#007bff',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  packageItemDisabled: {
+    borderColor: '#ddd',
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+  },
   packageTextInCart: {
     color: '#28a745',
+  },
+  packageTextSelected: {
+    color: '#007bff',
+  },
+  packageTextDisabled: {
+    color: '#999',
   },
   addToCartButton: {
     backgroundColor: '#007bff',
@@ -1465,6 +1570,12 @@ const styles = StyleSheet.create({
   addToCartButtonInCart: {
     backgroundColor: '#28a745',
   },
+  addToCartButtonSelected: {
+    backgroundColor: '#007bff',
+  },
+  addToCartButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
   addToCartText: {
     color: 'white',
     fontSize: 12,
@@ -1472,6 +1583,12 @@ const styles = StyleSheet.create({
   },
   addToCartTextInCart: {
     color: 'white',
+  },
+  addToCartTextSelected: {
+    color: 'white',
+  },
+  addToCartTextDisabled: {
+    color: '#666',
   },
 });
 
