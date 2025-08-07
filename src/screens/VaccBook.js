@@ -4,34 +4,90 @@ import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming Material
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import useChildren from '../store/hook/useChildren';
-import useVaccinationBook from '../store/hook/useVaccinationBook';
+import useVaccineTemplate from '../store/hook/useVaccineTemplate';
 
 const VaccBook = ({ navigation }) => {
   const progressAnimation = useRef(new Animated.Value(0)).current;
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
   const { children, loading: loadingChildren } = useChildren();
   const [selectedChildId, setSelectedChildId] = useState(null);
   const selectedChild = children.find(child => child.childId?.toString() === selectedChildId);
 
-  // Lấy dữ liệu sổ tiêm chủng cho trẻ được chọn
-  const { vaccineBook, loading: loadingBook } = useVaccinationBook(selectedChildId);
+  // Function để tính tuổi chính xác
+  const calculateAge = (birthDate) => {
+    if (!birthDate) return '';
+    
+    const now = new Date();
+    const birth = new Date(birthDate);
+    const diffTime = Math.abs(now - birth);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const diffMonths = Math.floor(diffDays / 30.44); // Trung bình ngày/tháng
+    const diffYears = Math.floor(diffDays / 365.25); // Trung bình ngày/năm
+
+    if (diffDays <= 60) {
+      return `${diffDays} ngày tuổi`;
+    } else if (diffMonths < 24) {
+      return `${diffMonths} tháng tuổi`;
+    } else {
+      return `${diffYears} tuổi`;
+    }
+  };
+
+  // Function để chuẩn hóa chuỗi tìm kiếm (bỏ dấu, chuyển thường)
+  const normalizeString = (str) => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Bỏ dấu tiếng Việt
+      .replace(/đ/g, 'd')
+      .replace(/Đ/g, 'd');
+  };
+
+  // Lấy dữ liệu vaccine template cho trẻ được chọn
+  const { vaccineBook, loading: loadingBook } = useVaccineTemplate(selectedChildId);
 
   // Tính toán progress và status
   const progressData = React.useMemo(() => {
     let completedDoses = 0, totalDoses = 0, completedDiseases = 0, totalDiseases = 0, missingDosesDiseases = 0, unvacinatedDiseases = 0;
     if (vaccineBook && vaccineBook.length) {
       totalDiseases = vaccineBook.length;
-      vaccineBook.forEach(group => {
-        totalDoses += group.numberOfDoses;
-        const completed = group.doses.filter(d => d.status === 'completed').length;
-        completedDoses += completed;
-        if (completed === group.numberOfDoses) completedDiseases++;
-        else if (completed > 0) missingDosesDiseases++;
+      vaccineBook.forEach(disease => {
+        totalDoses += disease.totalDoses;
+        completedDoses += disease.completedDoses;
+        
+        if (disease.overallStatus === 'Đã đủ liều') completedDiseases++;
+        else if (disease.overallStatus === 'Chưa đủ liều') missingDosesDiseases++;
         else unvacinatedDiseases++;
       });
     }
     return { completedDoses, totalDoses, completedDiseases, totalDiseases, missingDosesDiseases, unvacinatedDiseases };
   }, [vaccineBook]);
+
+  // Filter vaccines based on search query
+  const filteredVaccineBook = React.useMemo(() => {
+    if (!searchQuery.trim()) return vaccineBook;
+    const normalizedQuery = normalizeString(searchQuery);
+    return vaccineBook.filter(disease => 
+      normalizeString(disease.diseaseName).includes(normalizedQuery)
+    );
+  }, [vaccineBook, searchQuery]);
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredVaccineBook.length / itemsPerPage);
+  const currentPageData = React.useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredVaccineBook.slice(startIndex, endIndex);
+  }, [filteredVaccineBook, currentPage]);
+
+  // Reset page when search changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   useEffect(() => {
     Animated.timing(progressAnimation, {
@@ -80,7 +136,7 @@ const VaccBook = ({ navigation }) => {
               <Text style={styles.childName}>{childDetail.fullName}</Text>
             )}
             {childDetail && (
-              <Text style={styles.childAge}>{childDetail.birthDate ? `${new Date().getFullYear() - new Date(childDetail.birthDate).getFullYear()} tuổi` : ''}</Text>
+              <Text style={styles.childAge}>{calculateAge(childDetail.birthDate)}</Text>
             )}
           </View>
           <TouchableOpacity style={styles.dropdownToggle} onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
@@ -104,7 +160,7 @@ const VaccBook = ({ navigation }) => {
                   />
                   <View style={styles.dropdownItemTextContainer}>
                     <Text style={styles.dropdownItemName}>{child.fullName}</Text>
-                    <Text style={styles.dropdownItemAge}>{child.birthDate ? `${new Date().getFullYear() - new Date(child.birthDate).getFullYear()} tuổi` : ''}</Text>
+                    <Text style={styles.dropdownItemAge}>{calculateAge(child.birthDate)}</Text>
                   </View>
                   {selectedChildId === child.childId?.toString() && <Text style={styles.selectedIcon}> ✅</Text>}
                 </TouchableOpacity>
@@ -144,22 +200,49 @@ const VaccBook = ({ navigation }) => {
             style={styles.searchBarInput}
             placeholder="Tìm theo tên bệnh..."
             placeholderTextColor="#888"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
           />
+        </View>
+
+        {/* Legend */}
+        <View style={styles.legendContainer}>
+          <Text style={styles.legendTitle}>Chú thích:</Text>
+          <View style={styles.legendItem}>
+            <Text style={styles.legendSymbol}>*</Text>
+            <Text style={styles.legendText}> = Mũi tiêm bắt buộc</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <Icon name="check-circle" size={16} color="green" />
+            <Text style={styles.legendText}> = Đã đủ liều</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <Icon name="access-time" size={16} color="orange" />
+            <Text style={styles.legendText}> = Chưa đủ liều</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <Icon name="cancel" size={16} color="red" />
+            <Text style={styles.legendText}> = Chưa tiêm</Text>
+          </View>
         </View>
 
         {/* Vaccine List Items */}
         {loadingBook ? (
           <Text style={{ textAlign: 'center', marginTop: 20 }}>Đang tải dữ liệu...</Text>
+        ) : filteredVaccineBook.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 20, color: '#666' }}>
+            {searchQuery ? 'Không tìm thấy bệnh nào phù hợp' : 'Chưa có dữ liệu vaccine'}
+          </Text>
         ) : (
-          vaccineBook.map((group, index) => (
+          <>
+            {currentPageData.map((disease, index) => (
             <View key={index} style={styles.vaccineListItem}>
               <View style={styles.vaccineHeader}>
-                <Text style={styles.vaccineTitle}>{group.vaccine.name} ({group.disease.name})</Text>
+                <Text style={styles.vaccineTitle}>{disease.diseaseName}</Text>
                 {/* Status icon */}
                 {(() => {
-                  const completed = group.doses.filter(d => d.status === 'completed').length;
-                  if (completed === group.numberOfDoses) return <Icon name="check-circle" size={20} color="green" />;
-                  if (completed > 0) return <Icon name="access-time" size={20} color="orange" />;
+                  if (disease.overallStatus === 'Đã đủ liều') return <Icon name="check-circle" size={20} color="green" />;
+                  if (disease.overallStatus === 'Chưa đủ liều') return <Icon name="access-time" size={20} color="orange" />;
                   return <Icon name="cancel" size={20} color="red" />;
                 })()}
               </View>
@@ -167,27 +250,75 @@ const VaccBook = ({ navigation }) => {
                 <View style={styles.tableRow}>
                   <Text style={styles.tableHeader}>Mũi</Text>
                   <Text style={styles.tableHeader}>Trạng thái</Text>
-                  <Text style={styles.tableHeader}>Ngày tiêm</Text>
-                  <Text style={styles.tableHeader}>Ghi chú</Text>
+                  <Text style={styles.tableHeader}>Thời gian tiêm</Text>
+                  <Text style={styles.tableHeader}>Tiến độ</Text>
                 </View>
-                {Array.from({ length: group.numberOfDoses }).map((_, doseIdx) => {
-                  const dose = group.doses.find(d => d.doseNum === doseIdx + 1);
-                  return (
-                    <View key={doseIdx} style={styles.tableRow}>
-                      <Text style={styles.tableCell}>Mũi {doseIdx + 1}</Text>
-                      {dose && dose.status === 'completed' ? (
-                        <Icon name="check-circle" size={16} color="green" style={styles.tableCell} />
+                {disease.doses.map((dose, doseIdx) => (
+                  <View key={doseIdx} style={styles.tableRow}>
+                    <Text style={styles.tableCell}>Mũi {dose.doseNum}</Text>
+                    {/* Status icon */}
+                    <View style={[styles.tableCell, { alignItems: 'center' }]}>
+                      {dose.status === 'Đã đủ liều' ? (
+                        <Icon name="check-circle" size={16} color="green" />
+                      ) : dose.status === 'Chưa đủ liều' ? (
+                        <Icon name="access-time" size={16} color="orange" />
                       ) : (
-                        <Icon name="cancel" size={16} color="red" style={styles.tableCell} />
+                        <Icon name="cancel" size={16} color="red" />
                       )}
-                      <Text style={styles.tableCell}>{dose ? dose.actualDate : '-'}</Text>
-                      <Text style={styles.tableCell}>{dose ? dose.note : 'Chưa tiêm'}</Text>
                     </View>
-                  );
-                })}
+                    <Text style={styles.tableCell}>{dose.periodFrom} - {dose.periodTo}</Text>
+                    <Text style={styles.tableCell}>
+                      {dose.completedDoseNum}/{dose.doseNum}
+                      {dose.isRequired && <Text style={{ color: 'red', fontWeight: 'bold' }}> *</Text>}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              {/* Disease summary */}
+              <View style={styles.diseaseSummary}>
+                <Text style={styles.diseaseSummaryText}>
+                  Tổng: {disease.completedDoses}/{disease.totalDoses} mũi đã hoàn thành
+                </Text>
+                <Text style={[styles.diseaseStatus, { 
+                  color: disease.overallStatus === 'Đã đủ liều' ? 'green' : 
+                        disease.overallStatus === 'Chưa đủ liều' ? 'orange' : 'red' 
+                }]}>
+                  {disease.overallStatus}
+                </Text>
               </View>
             </View>
-          ))
+          ))}
+          
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <View style={styles.paginationContainer}>
+              <TouchableOpacity 
+                style={styles.paginationArrow}
+                onPress={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <Icon name="chevron-left" size={24} color={currentPage === 1 ? '#ccc' : '#007AFF'} />
+              </TouchableOpacity>
+              
+              <View style={styles.paginationInfo}>
+                <Text style={styles.paginationText}>
+                  Trang {currentPage} / {totalPages}
+                </Text>
+                <Text style={styles.paginationSubText}>
+                  ({filteredVaccineBook.length} bệnh)
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.paginationArrow}
+                onPress={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+              >
+                <Icon name="chevron-right" size={24} color={currentPage === totalPages ? '#ccc' : '#007AFF'} />
+              </TouchableOpacity>
+            </View>
+          )}
+          </>
         )}
       </ScrollView>
     </View>
@@ -411,6 +542,91 @@ const styles = StyleSheet.create({
     color: 'green',
     fontSize: 16,
     marginLeft: 10,
+  },
+  diseaseSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  diseaseSummaryText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  diseaseStatus: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  legendContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginTop: 15,
+    padding: 15,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  legendTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  legendSymbol: {
+    color: 'red',
+    fontWeight: 'bold',
+    fontSize: 16,
+    width: 16,
+    textAlign: 'center',
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 15,
+    marginTop: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  paginationArrow: {
+    padding: 8,
+  },
+  paginationInfo: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  paginationText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  paginationSubText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });
 
