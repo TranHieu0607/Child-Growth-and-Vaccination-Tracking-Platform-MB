@@ -11,7 +11,7 @@ const features = [
   { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
   { key: 'vaccine_spot', label: 'Theo dõi hàng ngày', icon: <FontAwesomeIcon icon={faNotesMedical} size={32} color="#1565C0" /> },
   { key: 'health_record', label: 'Nhập lịch sử tiêm', icon: <FontAwesomeIcon icon={faFileMedical} size={32} color="#1565C0" /> },
-  { key: 'payment_history', label: 'Đặt lịch tiêm', icon: <FontAwesomeIcon icon={faSyringe} size={32} color="#1565C0" /> },
+  { key: 'payment_history', label: 'Đặt lại lịch tiêm', icon: <FontAwesomeIcon icon={faSyringe} size={32} color="#1565C0" /> },
   { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
   { key: 'rating', label: 'Sổ tiêm chủng', icon: <FontAwesomeIcon icon={faBookMedical} size={32} color="#1565C0" /> },
 ];
@@ -45,7 +45,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               } else if (item.key === 'news') {
                 navigation.navigate('News');
               } else if (item.key === 'vaccination_schedule') {
-                navigation.navigate('Booking');
+                navigation.navigate('HistoryVacc');
               } else if (item.key === 'growth_chart') {
                 navigation.navigate('Chart');
               } else if (item.key === 'add_vaccine') {
@@ -53,7 +53,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               } else if (item.key === 'health_record') {
                 navigation.navigate('UpdateVaccHiss');
               } else if (item.key === 'payment_history') {
-                navigation.navigate('HistoryVacc');
+                navigation.navigate('ReOrder');
               }  
               else if (item.key === 'rating') {
                 navigation.navigate('VaccBook');

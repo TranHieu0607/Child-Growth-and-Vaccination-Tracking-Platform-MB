@@ -20,6 +20,7 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
       else if (tabKey === 'account') navigation.navigate('Account');
       else if (tabKey === 'contact') navigation.navigate('DailyRecord');
       else if (tabKey === 'add_vaccine') navigation.navigate('UpdateGrowth');
+      else if (tabKey === 'schedule') navigation.navigate('Booking');
       // Thêm các tab khác nếu muốn điều hướng
     }
   };

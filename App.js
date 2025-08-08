@@ -87,6 +87,7 @@ export default function App() {
               <Stack.Screen name="CreateDaily" component={require('./src/screens/CreateDailyScreen').default} />
               <Stack.Screen name="Cart" component={CartScreen} />
               <Stack.Screen name="ReBook" component={ReBook} />
+              <Stack.Screen name="ReOrder" component={require('./src/screens/ReOrderScreen').default} />
             </>
           )}
         </Stack.Navigator>
