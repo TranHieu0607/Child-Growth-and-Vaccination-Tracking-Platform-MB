@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faBaby, faCrown, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical } from '@fortawesome/free-solid-svg-icons';
+import useBlogs from '../store/hook/useBlogs';
+import BlogCard from '../component/BlogCard';
 
 
 const features = [
@@ -17,17 +19,9 @@ const features = [
 ];
 
 const newsTabs = [
-  { key: 'facility', label: 'Cơ sở tiêm chủng' },
-  { key: 'area', label: 'Vắc xin cho trẻ' },
-  { key: 'vip', label: 'Gói Vắc xin' },
-];
-
-const facilities = [
-  { key: '1', name: 'VNVC Đà Nẵng', address: '99 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', image: require('../../assets/vnvc.jpg') },
-  { key: '2', name: 'VNVC Đà Nẵng', address: '99 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', image: require('../../assets/vnvc.jpg') },
-  { key: '3', name: 'VNVC Đà Nẵng', address: '99 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', image: require('../../assets/vnvc.jpg') },
-  { key: '4', name: 'VNVC Đà Nẵng', address: '99 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', image: require('../../assets/vnvc.jpg') },
-  { key: '5', name: 'VNVC Đà Nẵng', address: '99 Nguyễn Văn Linh, Hải Châu, Đà Nẵng', image: require('../../assets/vnvc.jpg') },
+  { key: 'all', label: 'Tất cả tin tức' },
+  { key: 'health', label: 'Sức khỏe' },
+  { key: 'tiêm chủng', label: 'Tiêm chủng' },
 ];
 
 // Component cho phần Header của FlatList (chứa các thành phần tĩnh)
@@ -76,30 +70,37 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
         </TouchableOpacity>
       ))}
     </View>
-    <TouchableOpacity >
+    <TouchableOpacity onPress={() => navigation.navigate('News')}>
       <Text style={styles.sectionTitle}>Tin tức</Text>
     </TouchableOpacity>
   </View>
 );
 
 export default function HomeScreen({ navigation }) {
-  const [newsTab, setNewsTab] = useState('facility');
+  const [newsTab, setNewsTab] = useState('all');
+  const { blogs, loading, error } = useBlogs();
+
+  // Đảm bảo blogs luôn là array
+  const blogsArray = Array.isArray(blogs) ? blogs : [];
+
+  // Filter blogs based on selected tab
+  const filteredBlogs = newsTab === 'all' 
+    ? blogsArray.slice(0, 5) // Show only first 5 blogs on home screen
+    : blogsArray.filter(blog => blog.category && blog.category.toLowerCase().includes(newsTab.toLowerCase())).slice(0, 5);
 
   // HomeScreen chỉ render FlatList
   return (
     <FlatList
-      data={facilities}
-      keyExtractor={item => item.key}
+      data={filteredBlogs}
+      keyExtractor={item => item.blogId.toString()}
       renderItem={({ item }) => (
-        <View style={styles.facilityCard}>
-          <Image source={item.image} style={styles.facilityImage} />
-          <View style={styles.facilityInfo}>
-            <Text style={styles.facilityName}>{item.name}</Text>
-            <Text style={styles.facilityAddress}>{item.address}</Text>
-          </View>
-        </View>
+        <BlogCard
+          blog={item}
+          variant="horizontal"
+          onPress={() => navigation.navigate('BlogDetail', { blogId: item.blogId })}
+          style={styles.newsCard}
+        />
       )}
-      // Sử dụng HomeListHeader làm header của FlatList
       ListHeaderComponent={
         <HomeListHeader
           newsTabs={newsTabs}
@@ -108,8 +109,30 @@ export default function HomeScreen({ navigation }) {
           navigation={navigation}
         />
       }
-      style={styles.list} // Style cho FlatList
-      contentContainerStyle={styles.listContent} // Style cho nội dung bên trong FlatList
+      ListEmptyComponent={() => {
+        if (loading) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#1565C0" />
+              <Text style={styles.loadingText}>Đang tải tin tức...</Text>
+            </View>
+          );
+        }
+        if (error) {
+          return (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>Không thể tải tin tức</Text>
+            </View>
+          );
+        }
+        return (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Chưa có tin tức nào</Text>
+          </View>
+        );
+      }}
+      style={styles.list}
+      contentContainerStyle={styles.listContent}
     />
   );
 }
@@ -197,37 +220,38 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#222',
   },
-  facilityCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 10,
+  newsCard: {
+    marginHorizontal: 0, // BlogCard đã có margin riêng
+  },
+  loadingContainer: {
+    justifyContent: 'center',
     alignItems: 'center',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 2,
-    shadowOffset: { width: 0, height: 1 },
+    paddingVertical: 40,
   },
-  facilityImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    marginRight: 12,
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 10,
   },
-  facilityInfo: {
-    flex: 1,
+  errorContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
-  facilityName: {
-    fontWeight: 'bold',
-    fontSize: 15,
-    color: '#1565C0',
+  errorText: {
+    fontSize: 14,
+    color: '#f44336',
+    textAlign: 'center',
   },
-  facilityAddress: {
-    fontSize: 13,
-    color: '#555',
-    marginTop: 2,
+  emptyContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 }); 

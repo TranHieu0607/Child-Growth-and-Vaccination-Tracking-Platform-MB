@@ -1,11 +1,73 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import useBlogs from '../store/hook/useBlogs';
+import BlogCard from '../component/BlogCard';
 
 const NewsScreen = ({ navigation }) => {
+  const [searchText, setSearchText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const { blogs, loading, error, refetch } = useBlogs();
+
+  // Đảm bảo blogs luôn là array
+  const blogsArray = Array.isArray(blogs) ? blogs : [];
+
+  // Filter blogs based on search and category
+  const filteredBlogs = blogsArray.filter(blog => {
+    const title = blog.title || '';
+    const content = blog.content || '';
+    const category = blog.category || '';
+    
+    const matchesSearch = title.toLowerCase().includes(searchText.toLowerCase()) ||
+                         content.toLowerCase().includes(searchText.toLowerCase());
+    
+    if (selectedCategory === 'all') return matchesSearch;
+    return matchesSearch && category.toLowerCase().includes(selectedCategory.toLowerCase());
+  });
+
+  // Get featured articles (first 3 blogs)
+  const featuredArticles = filteredBlogs.slice(0, 3);
+  // Get latest articles (remaining blogs)
+  const latestArticles = filteredBlogs.slice(3);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  const truncateContent = (content, maxLength = 100) => {
+    if (!content) return '';
+    if (content.length <= maxLength) return content;
+    return content.substring(0, maxLength) + '...';
+  };
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('Home')}>
+            <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Tin tức</Text>
+        </View>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryButtonText}>Thử lại</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={loading} onRefresh={refetch} />
+      }
+    >
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
@@ -21,126 +83,86 @@ const NewsScreen = ({ navigation }) => {
           style={styles.searchInput}
           placeholder="Tìm kiếm bài viết"
           placeholderTextColor="#888"
+          value={searchText}
+          onChangeText={setSearchText}
         />
       </View>
 
       {/* Categories */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-        <TouchableOpacity style={[styles.categoryButton, styles.categoryButtonActive]}>
-          <Text style={[styles.categoryButtonText, styles.categoryButtonTextActive]}>Tất cả</Text>
+        <TouchableOpacity 
+          style={[styles.categoryButton, selectedCategory === 'all' && styles.categoryButtonActive]}
+          onPress={() => setSelectedCategory('all')}
+        >
+          <Text style={[styles.categoryButtonText, selectedCategory === 'all' && styles.categoryButtonTextActive]}>Tất cả</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.categoryButton}>
-          <Text style={styles.categoryButtonText}>Tiêm chủng</Text>
+        <TouchableOpacity 
+          style={[styles.categoryButton, selectedCategory === 'tiêm chủng' && styles.categoryButtonActive]}
+          onPress={() => setSelectedCategory('tiêm chủng')}
+        >
+          <Text style={[styles.categoryButtonText, selectedCategory === 'tiêm chủng' && styles.categoryButtonTextActive]}>Tiêm chủng</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.categoryButton}>
-          <Text style={styles.categoryButtonText}>Dinh dưỡng</Text>
+        <TouchableOpacity 
+          style={[styles.categoryButton, selectedCategory === 'health' && styles.categoryButtonActive]}
+          onPress={() => setSelectedCategory('health')}
+        >
+          <Text style={[styles.categoryButtonText, selectedCategory === 'health' && styles.categoryButtonTextActive]}>Sức khỏe</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.categoryButton}>
-          <Text style={styles.categoryButtonText}>Phá</Text>
+        <TouchableOpacity 
+          style={[styles.categoryButton, selectedCategory === 'dinh dưỡng' && styles.categoryButtonActive]}
+          onPress={() => setSelectedCategory('dinh dưỡng')}
+        >
+          <Text style={[styles.categoryButtonText, selectedCategory === 'dinh dưỡng' && styles.categoryButtonTextActive]}>Dinh dưỡng</Text>
         </TouchableOpacity>
-        {/* Add more categories as needed */}
       </ScrollView>
 
-      {/* Featured Article Section */}
-      <Text style={styles.sectionTitle}>Bài Viết Nổi Bật</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredScroll}>
-        {/* Featured Article Item 1 */}
-        <View style={styles.featuredArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.featuredArticleImage}
-          />
-          <View style={styles.featuredArticleOverlay}>
-            <Text style={styles.featuredArticleTag}>NỔI BẬT</Text>
-            <Text style={styles.featuredArticleTitle}>Hướng dẫn chi tiết lịch tiêm chủng cho trẻ từ 0-12 tháng tuổi</Text>
-            <Text style={styles.featuredArticleInfo}>© 15/02/2024 - 5 phút đọc</Text>
-          </View>
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007bff" />
+          <Text style={styles.loadingText}>Đang tải tin tức...</Text>
         </View>
+      )}
 
-        {/* Featured Article Item 2 - Placeholder */}
-        <View style={styles.featuredArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.featuredArticleImage}
-          />
-          <View style={styles.featuredArticleOverlay}>
-            <Text style={styles.featuredArticleTag}>KHÁM PHÁ</Text>
-            <Text style={styles.featuredArticleTitle}>Những lợi ích bất ngờ của việc cho trẻ tắm nắng đúng cách</Text>
-            <Text style={styles.featuredArticleInfo}>© 14/02/2024 - 3 phút đọc</Text>
-          </View>
-        </View>
+      {!loading && featuredArticles.length > 0 && (
+        <>
+          {/* Featured Article Section */}
+          <Text style={styles.sectionTitle}>Bài Viết Nổi Bật</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.featuredScroll}>
+            {featuredArticles.map((article) => (
+              <BlogCard
+                key={article.blogId}
+                blog={article}
+                variant="featured"
+                onPress={() => navigation.navigate('BlogDetail', { blogId: article.blogId })}
+              />
+            ))}
+          </ScrollView>
+        </>
+      )}
 
-        {/* Featured Article Item 3 - Placeholder */}
-        <View style={styles.featuredArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.featuredArticleImage}
-          />
-          <View style={styles.featuredArticleOverlay}>
-            <Text style={styles.featuredArticleTag}>TIPS</Text>
-            <Text style={styles.featuredArticleTitle}>Cách chọn sữa công thức phù hợp cho bé yêu</Text>
-            <Text style={styles.featuredArticleInfo}>© 13/02/2024 - 4 phút đọc</Text>
-          </View>
-        </View>
+      {!loading && latestArticles.length > 0 && (
+        <>
+          {/* Latest Articles Section */}
+          <Text style={styles.sectionTitle}>Bài Viết Mới Nhất</Text>
+          <ScrollView style={styles.latestArticlesScroll}>
+            {latestArticles.map((article) => (
+              <BlogCard
+                key={article.blogId}
+                blog={article}
+                variant="horizontal"
+                onPress={() => navigation.navigate('BlogDetail', { blogId: article.blogId })}
+                style={styles.latestArticleCard}
+              />
+            ))}
+          </ScrollView>
+        </>
+      )}
 
-      </ScrollView>
-
-      {/* Latest Articles Section */}
-      <Text style={styles.sectionTitle}>Bài Viết Mới Nhất</Text>
-      <ScrollView style={styles.latestArticlesScroll}>
-        {/* Latest Article Item */}
-        <View style={styles.latestArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.latestArticleImage}
-          />
-          <View style={styles.latestArticleContent}>
-            <Text style={styles.latestArticleTitle}>Chế độ dinh dưỡng cho trẻ biếng ăn</Text>
-            <Text style={styles.latestArticleSnippet}>Tổng hợp những thực phẩm và cách chế biến giúp trẻ ăn ngon</Text>
-            <Text style={styles.latestArticleDate}>13/02/2024</Text>
-          </View>
-          <Text style={styles.latestArticleArrow}>{'>'}</Text>
+      {!loading && filteredBlogs.length === 0 && (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Không tìm thấy bài viết nào</Text>
         </View>
-        {/* Latest Article Item */}
-        <View style={styles.latestArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.latestArticleImage}
-          />
-          <View style={styles.latestArticleContent}>
-            <Text style={styles.latestArticleTitle}>Cách phòng ngừa bệnh tay chân miệng ở trẻ</Text>
-            <Text style={styles.latestArticleSnippet}>Các biện pháp phòng ngừa hiệu quả và dấu hiệu nhận biết sớm...</Text>
-            <Text style={styles.latestArticleDate}>12/02/2024</Text>
-          </View>
-          <Text style={styles.latestArticleArrow}>{'>'}</Text>
-        </View>
-         {/* Latest Article Item */}
-        <View style={styles.latestArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.latestArticleImage}
-          />
-          <View style={styles.latestArticleContent}>
-            <Text style={styles.latestArticleTitle}>Những mốc phát triển quan trọng của trẻ 1-3 tuổi</Text>
-            <Text style={styles.latestArticleSnippet}>Theo dõi sự phát triển của con qua các cột mốc quan trọng...</Text>
-            <Text style={styles.latestArticleDate}>11/02/2024</Text>
-          </View>
-          <Text style={styles.latestArticleArrow}>{'>'}</Text>
-        </View>
-        <View style={styles.latestArticle}>
-          <Image
-            source={require('../../assets/suckhoe.jpg')}
-            style={styles.latestArticleImage}
-          />
-          <View style={styles.latestArticleContent}>
-            <Text style={styles.latestArticleTitle}>Những mốc phát triển quan trọng của trẻ 1-3 tuổi</Text>
-            <Text style={styles.latestArticleSnippet}>Theo dõi sự phát triển của con qua các cột mốc quan trọng...</Text>
-            <Text style={styles.latestArticleDate}>11/02/2024</Text>
-          </View>
-          <Text style={styles.latestArticleArrow}>{'>'}</Text>
-        </View>
-        {/* Add more latest articles */}
-      </ScrollView>
+      )}
     </ScrollView>
   );
 };
@@ -277,8 +299,11 @@ const styles = StyleSheet.create({
     color: '#ddd',
   },
   latestArticlesScroll: {
-    paddingHorizontal: 15,
+    paddingHorizontal: 0,
     paddingBottom: 15,
+  },
+  latestArticleCard: {
+    marginHorizontal: 15,
   },
   latestArticle: {
     flexDirection: 'row',
@@ -317,6 +342,52 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#888',
     marginLeft: 10,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#f44336',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });
 
