@@ -23,9 +23,37 @@ const TabBar = ({ selectedTab, onSelectTab }) => (
   </View>
 );
 
+// Chart Type Tab Bar (Actual vs Standard)
+const ChartTypeTabBar = ({ selectedChartType, onSelectChartType }) => (
+  <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: 10, marginBottom: 10 }}>
+    {['Thực tế', 'Tiêu chuẩn'].map((type) => (
+      <TouchableOpacity
+        key={type}
+        onPress={() => onSelectChartType(type)}
+        style={{ 
+          padding: 12, 
+          marginHorizontal: 8,
+          borderBottomWidth: selectedChartType === type ? 3 : 0, 
+          borderBottomColor: selectedChartType === type ? (type === 'Thực tế' ? '#007bff' : '#ff6384') : 'transparent',
+          backgroundColor: selectedChartType === type ? (type === 'Thực tế' ? '#e7f3ff' : '#ffe7eb') : 'transparent',
+          borderRadius: 8
+        }}
+      >
+        <Text style={{ 
+          color: selectedChartType === type ? (type === 'Thực tế' ? '#007bff' : '#ff6384') : '#666', 
+          fontWeight: selectedChartType === type ? 'bold' : 'normal',
+          fontSize: 16
+        }}>
+          {type}
+        </Text>
+      </TouchableOpacity>
+    ))}
+  </View>
+);
+
 
 // Updated DataTable component
-const DataTable = ({ data, selectedTab, assessment, prediction }) => {
+const DataTable = ({ data, selectedTab }) => {
   // Determine the unit based on the selected tab
   const unit = selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : '';
 
@@ -36,8 +64,6 @@ const DataTable = ({ data, selectedTab, assessment, prediction }) => {
         return styles.statusNormal;
       case 'Tăng nhẹ':
         return styles.statusMildIncrease;
-      case 'Dự đoán':
-        return styles.statusPredicted;
       // Add more cases for other statuses if needed
       default:
         return {}; // Default empty style
@@ -46,80 +72,42 @@ const DataTable = ({ data, selectedTab, assessment, prediction }) => {
 
   return (
     <View style={styles.dataTableContainer}>
-      
-
-      {assessment && (
-        <View style={styles.assessmentContainer}>
-          <View style={styles.assessmentHeader}>
-            <Text style={styles.assessmentTitle}>
-              📊 Đánh giá mới nhất ({new Date(assessment.measurementDate).toLocaleDateString('vi-VN')})
-            </Text>
-          </View>
-          <View style={styles.assessmentRow}>
-            <Text style={styles.assessmentLabel}>Chiều cao:</Text>
-            <Text style={styles.assessmentValue}>{`${assessment.height} cm - ${assessment.assessments.heightStatus}`}</Text>
-          </View>
-          <View style={styles.assessmentRow}>
-            <Text style={styles.assessmentLabel}>Cân nặng:</Text>
-            <Text style={styles.assessmentValue}>{`${assessment.weight} kg - ${assessment.assessments.weightStatus}`}</Text>
-          </View>
-          <View style={styles.assessmentRow}>
-            <Text style={styles.assessmentLabel}>BMI:</Text>
-            <Text style={styles.assessmentValue}>{`${assessment.bmi} - ${assessment.assessments.bmiStatus}`}</Text>
-          </View>
-          <View style={styles.assessmentRow}>
-            <Text style={styles.assessmentLabel}>Vòng đầu:</Text>
-            <Text style={styles.assessmentValue}>{`${assessment.headCircumference} cm - ${assessment.assessments.headCircumferenceStatus}`}</Text>
-          </View>
-          <Text style={[styles.assessmentTitle, { marginTop: 10 }]}>Khuyến nghị</Text>
-          <Text style={styles.recommendationsText}>{assessment.recommendations}</Text>
-        </View>
-      )}
-
-      {/* Prediction Information */}
-      {prediction && (
-        <View style={styles.predictionContainer}>
-          <View style={styles.predictionHeader}>
-            <Text style={styles.predictionTitle}>
-              🔮 Dự đoán tương lai ({new Date(prediction.lastMeasurementDate).toLocaleDateString('vi-VN')})
-            </Text>
-          </View>
-          {prediction.predictionPoints && prediction.predictionPoints.length > 0 && (
-            prediction.predictionPoints.map((point, index) => (
-              <View key={index} style={styles.predictionRow}>
-                <Text style={styles.predictionLabel}>{point.timeLabel}:</Text>
-                <Text style={styles.predictionValue}>
-                  {selectedTab === 'Chiều cao' && `${point.predictedHeight} cm`}
-                  {selectedTab === 'Cân nặng' && `${point.predictedWeight} kg`}
-                  {selectedTab === 'BMI' && `${point.predictedBMI}`}
-                  {selectedTab === 'Vòng đầu' && `${point.predictedHeadCircumference} cm`}
-                </Text>
-              </View>
-            ))
-          )}
-          <Text style={[styles.predictionTitle, { marginTop: 10 }]}>💡 Khuyến nghị dự đoán</Text>
-          <Text style={styles.predictionRecommendationsText}>{prediction.recommendations}</Text>
-        </View>
-      )}
     </View>
   );
+};
+
+// Helper function to get status color
+const getStatusColor = (status) => {
+  if (!status) return '#000';
+  
+  const normalStatuses = ['Bình thường', 'Chuẩn', 'Normal'];
+  const warningStatuses = ['Tăng nhẹ', 'Giảm nhẹ', 'Hơi thấp', 'Hơi cao'];
+  const dangerStatuses = ['Thấp còi', 'Thấp còi nặng', 'Béo phì', 'Béo phì nặng', 'Suy dinh dưỡng', 'Microcephaly', 'Đầu rất nhỏ'];
+  
+  if (normalStatuses.some(s => status.includes(s))) return '#28a745'; // Green
+  if (warningStatuses.some(s => status.includes(s))) return '#ffc107'; // Yellow
+  if (dangerStatuses.some(s => status.includes(s))) return '#dc3545'; // Red
+  
+  return '#6c757d'; // Default gray
 };
 
 const ChartScreen = ({ navigation }) => {
 
   const [selectedTab, setSelectedTab] = useState('Chiều cao');
+  const [selectedChartType, setSelectedChartType] = useState('Thực tế'); // New state for chart type
 
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [childGrowthData, setChildGrowthData] = useState(null);
-  const [assessment, setAssessment] = useState(null);
-  const [prediction, setPrediction] = useState(null);
   const [heightStandardData, setHeightStandardData] = useState([]);
   const [weightStandardData, setWeightStandardData] = useState([]);
   const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
   const [bmiStandardData, setBMIStandardData] = useState([]);
+
+  // Assessment state
+  const [assessmentData, setAssessmentData] = useState(null);
 
   // Tooltip state
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: '', label: '', isPrediction: false });
@@ -142,32 +130,39 @@ const ChartScreen = ({ navigation }) => {
     const fetchAllDataForChild = async () => {
       if (!selectedChildId) {
         setChildGrowthData(null);
-        setAssessment(null);
         setHeightStandardData([]);
         setWeightStandardData([]);
         setHeadCircumferenceStandardData([]);
         setBMIStandardData([]);
+        setAssessmentData(null);
         return;
       }
       // Lấy gender từ danh sách children
       const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
       try {
-        const result = await getFullGrowthData(selectedChildId, gender);
-        setChildGrowthData(result.growthData);
-        setAssessment(result.assessment);
-        setPrediction(result.prediction);
-        setHeightStandardData(result.heightStandardData);
-        setWeightStandardData(result.weightStandardData);
-        setHeadCircumferenceStandardData(result.headCircumferenceStandardData);
-        setBMIStandardData(result.bmiStandardData);
+        // Fetch growth data and assessment in parallel
+        const [growthResult, assessmentResult] = await Promise.all([
+          getFullGrowthData(selectedChildId, gender),
+          childrenApi.getLatestGrowthAssessment(selectedChildId)
+        ]);
+
+        // Set growth data
+        setChildGrowthData(growthResult.growthData);
+        setHeightStandardData(growthResult.heightStandardData);
+        setWeightStandardData(growthResult.weightStandardData);
+        setHeadCircumferenceStandardData(growthResult.headCircumferenceStandardData);
+        setBMIStandardData(growthResult.bmiStandardData);
+
+        // Set assessment data
+        setAssessmentData(assessmentResult.data);
       } catch (err) {
+        console.error('Error fetching data:', err);
         setChildGrowthData(null);
-        setAssessment(null);
-        setPrediction(null);
         setHeightStandardData([]);
         setWeightStandardData([]);
         setHeadCircumferenceStandardData([]);
         setBMIStandardData([]);
+        setAssessmentData(null);
       }
     };
     fetchAllDataForChild();
@@ -209,101 +204,88 @@ const ChartScreen = ({ navigation }) => {
   };
 
 
-  const getChartAndTableData = (tab) => {
+  const getChartAndTableData = (tab, chartType) => {
     const data = childGrowthData?.data?.[tab] || [];
     const validData = data.filter(item => typeof item.value === 'number' && isFinite(item.value));
     
-    // Separate actual and prediction data
+    // Chỉ lấy dữ liệu thực tế
     const actualData = validData.filter(item => item.status !== 'Dự đoán');
-    const predictionData = validData.filter(item => item.status === 'Dự đoán');
 
-    // Tạo mảng allData để giữ thứ tự thời gian
-    const allData = [...actualData, ...predictionData];
-    // Dataset thực tế: các điểm thực tế, các điểm dự đoán là null
-    let actualValues = allData.map((item, idx) => idx < actualData.length ? item.value : null);
-    // Loại bỏ các phần tử null cuối cùng khỏi actualValues
-    while (actualValues.length > 0 && actualValues[actualValues.length - 1] === null) {
-      actualValues.pop();
-    }
-    // Dataset dự đoán: các điểm trước là "cầu nối", từ điểm cuối thực tế trở đi là dự đoán
-    const offset = actualData.length - 1;
-    const bridgeValue = actualData.length > 0 ? actualData[actualData.length - 1].value : null;
-    let predictionValues = [
-      ...Array(Math.max(0, actualData.length - 1)).fill(null),
-      ...(bridgeValue !== null ? [bridgeValue] : []),
-      ...predictionData.map(i => i.value)
-    ];
+    if (chartType === 'Thực tế') {
+      // Dataset thực tế: thêm điểm 0 ở đầu, sau đó các điểm thực tế
+      let actualValues = [0, ...actualData.map(item => item.value)];
+      
+      // Tạo labels cho trục X của dữ liệu thực tế (ngày)
+      let actualLabels = ['0', ...actualData.map(item => item.ageInDays.toString())];
 
-    let datasets = [
-      {
-        data: actualValues,
-        color: (opacity = 1) => `rgba(0,123,255,${opacity})`, 
-        strokeWidth: 2,
-        withDots: true,
-      },
-      {
-        data: predictionValues,
-        color: (opacity = 1) => `rgba(204,85,0,${opacity})`,
-        strokeWidth: 2,
-        withDots: false,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#cc5500', fill: '#ff9900' },
-      },
-    ];
-    let legend = [`${tab} (Thực tế)`, `${tab} (Dự đoán)`];
+      let datasets = [
+        {
+          data: actualValues,
+          color: (opacity = 1) => `rgba(0,123,255,${opacity})`, 
+          strokeWidth: 2,
+          withDots: true,
+        }
+      ];
 
+      const chartKitData = {
+        labels: actualLabels,
+        datasets,
+        legend: []
+      };
+      return { chartKitData, tableData: actualData };
+    } else {
+      // Chart type === 'Tiêu chuẩn'
+      let standardData = [];
+      if (tab === 'Chiều cao') standardData = heightStandardData;
+      else if (tab === 'Cân nặng') standardData = weightStandardData;
+      else if (tab === 'Vòng đầu') standardData = headCircumferenceStandardData;
+      else if (tab === 'BMI') standardData = bmiStandardData;
 
-    if (tab === 'Chiều cao' && heightStandardData.length > 0) {
-      const medianValues = heightStandardData.map(item => item.median);
-      datasets.push({
-        data: medianValues,
-        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
-        withDots: true,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
-      });
-      legend.push('Chuẩn (median)');
+      if (standardData.length === 0) {
+        // No standard data available
+        const chartKitData = {
+          labels: ['0'],
+          datasets: [{ data: [0], color: (opacity = 1) => `rgba(255,99,132,${opacity})` }],
+          legend: []
+        };
+        return { chartKitData, tableData: [] };
+      }
+
+      const medianValues = [0, ...standardData.map(item => item.median)];
+      const standardLabels = ['0', ...standardData.map(item => item.month.toString())];
+      
+      let datasets = [
+        {
+          data: medianValues,
+          color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
+          withDots: true,
+          strokeWidth: 2,
+          propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
+        }
+      ];
+
+      const chartKitData = {
+        labels: standardLabels,
+        datasets,
+        legend: []
+      };
+      
+      // Convert standard data for table display
+      const standardTableData = standardData.map(item => ({
+        ageInDays: item.month * 30, // Approximate conversion for display
+        ageInMonths: item.month,
+        value: item.median,
+        status: 'Chuẩn',
+        measurementDate: null // Standard data doesn't have measurement dates
+      }));
+      
+      return { chartKitData, tableData: standardTableData };
     }
-    if (tab === 'Cân nặng' && weightStandardData.length > 0) {
-      const medianValues = weightStandardData.map(item => item.median);
-      datasets.push({
-        data: medianValues,
-        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
-        withDots: true,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
-      });
-      legend.push('Chuẩn (median)');
-    }
-    if (tab === 'Vòng đầu' && headCircumferenceStandardData.length > 0) {
-      const medianValues = headCircumferenceStandardData.map(item => item.median);
-      datasets.push({
-        data: medianValues,
-        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
-        withDots: true,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
-      });
-      legend.push('Chuẩn (median)');
-    }
-    if (tab === 'BMI' && bmiStandardData.length > 0) {
-      const medianValues = bmiStandardData.map(item => item.median);
-      datasets.push({
-        data: medianValues,
-        color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
-        withDots: true,
-        propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
-      });
-      legend.push('Chuẩn (median)');
-    }
-    
-    const chartKitData = {
-      labels: [],
-      datasets,
-      legend
-    };
-    return { chartKitData, tableData: validData };
   };
   
 
   // Get the chart and table data based on the current selection
-  const { chartKitData, tableData } = getChartAndTableData(selectedTab);
+  const { chartKitData, tableData } = getChartAndTableData(selectedTab, selectedChartType);
   // Ẩn legend mặc định
   chartKitData.legend = [];
 
@@ -396,31 +378,74 @@ const ChartScreen = ({ navigation }) => {
 
       {/* 2. Tab phân loại biểu đồ */}
       <TabBar selectedTab={selectedTab} onSelectTab={setSelectedTab} />
+      
+      {/* 3. Chart Type Tab Bar */}
+      <ChartTypeTabBar selectedChartType={selectedChartType} onSelectChartType={setSelectedChartType} />
 
 <ScrollView style={{ paddingHorizontal: 16 }}>
   <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
-    Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
+    Biểu đồ {selectedTab.toLowerCase()} - {selectedChartType} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
-  {/* Custom Legend */}
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-      <View style={{ width: 16, height: 4, backgroundColor: '#007bff', borderRadius: 2, marginRight: 4 }} />
-      <Text style={{ color: '#007bff', fontWeight: 'bold', marginRight: 8 }}>Thực tế</Text>
-    </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-      <View style={{ width: 16, height: 4, backgroundColor: '#ffa500', borderRadius: 2, marginRight: 4 }} />
-      <Text style={{ color: '#ffa500', fontWeight: 'bold', marginRight: 8 }}>Dự đoán</Text>
-    </View>
+  {/* Single Chart Legend */}
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center' }}>
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <View style={{ width: 16, height: 4, backgroundColor: '#ff6384', borderRadius: 2, marginRight: 4 }} />
-      <Text style={{ color: '#ff6384', fontWeight: 'bold' }}>Chuẩn</Text>
+      <View style={{ 
+        width: 16, 
+        height: 4, 
+        backgroundColor: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384', 
+        borderRadius: 2, 
+        marginRight: 4 
+      }} />
+      <Text style={{ 
+        color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384', 
+        fontWeight: 'bold' 
+      }}>
+        {selectedChartType}
+      </Text>
     </View>
   </View>
 
-  <View style={{ minHeight: 220, justifyContent: 'center' }}>
+  <View style={{ minHeight: 280, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
     {chartKitData.datasets[0].data.length > 0 && (
       <>
+        {/* Y-axis label (at the top-left of Y-axis) */}
+        <View style={{
+          position: 'absolute',
+          left: 10,
+          top: 30,
+          zIndex: 5
+        }}>
+          <Text style={{
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384',
+            textAlign: 'left'
+          }}>
+            {selectedTab === 'Chiều cao' ? 'cm' : 
+             selectedTab === 'Cân nặng' ? 'kg' : 
+             selectedTab === 'Vòng đầu' ? 'cm' : 'BMI'}
+          </Text>
+        </View>
+
+        {/* X-axis label (horizontal text at the bottom) */}
+        <View style={{
+          position: 'absolute',
+          bottom: 10,
+          left: 0,
+          right: 0,
+          zIndex: 5
+        }}>
+          <Text style={{
+            fontSize: 14,
+            fontWeight: 'bold',
+            color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384',
+            textAlign: 'center'
+          }}>
+            {selectedChartType === 'Thực tế' ? 'ngày' : 'tháng'}
+          </Text>
+        </View>
+
         <LineChart
           data={chartKitData}
           width={chartWidth}
@@ -433,24 +458,60 @@ const ChartScreen = ({ navigation }) => {
             color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
             labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
             propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
-            yAxisSuffix: '' // Không có đơn vị ở trục Oy
+            formatYLabel: (value) => value.toFixed(1), // Hiển thị 1 chữ số thập phân
+            formatXLabel: (value) => {
+              // Chỉ hiển thị số, không hiển thị đơn vị để tránh bị dính
+              if (value.includes('/')) {
+                const parts = value.split('/');
+                return parts[0].length <= 3 ? parts[0] : `${parts[0].substring(0,2)}..`;
+              }
+              return value.length <= 4 ? value : `${value.substring(0,3)}..`;
+            }
           }}
           withShadow={false}
-          onDataPointClick={({ value, index, x, y }) => {
+          fromZero={true} // Bắt đầu từ 0 - trục Y sẽ luôn bắt đầu từ 0
+          segments={5} // Chia trục Y thành 5 phần để hiển thị rõ hơn
+          onDataPointClick={({ value, index, x, y, datasetIndex }) => {
             let unit = '';
             if (selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu') unit = 'cm';
             else if (selectedTab === 'Cân nặng') unit = 'kg';
             else if (selectedTab === 'BMI') unit = '';
             
-            // Get the data point to check if it's prediction or actual
-            const dataPoint = tableData[index];
-            const isPrediction = dataPoint?.status === 'Dự đoán';
-            
-            // Lấy lại label gốc (số ngày/tháng)
-            const label = dataPoint?.ageInDays;
+            let label = '';
             let labelUnit = '';
-            if (selectedTab === 'Chiều cao' || selectedTab === 'Cân nặng' || selectedTab === 'Vòng đầu') labelUnit = 'ngày';
-            else if (selectedTab === 'BMI') labelUnit = '';
+            
+            // Kiểm tra loại biểu đồ hiện tại
+            if (selectedChartType === 'Thực tế') {
+              // Biểu đồ thực tế - hiển thị ngày
+              if (index === 0) {
+                // Điểm đầu tiên là điểm 0
+                label = '0';
+                labelUnit = 'ngày';
+              } else {
+                // Lấy ngày từ tableData thực tế
+                const dataPoint = tableData[index - 1]; // index - 1 vì có thêm điểm 0 ở đầu
+                label = dataPoint?.ageInDays || '';
+                labelUnit = 'ngày';
+              }
+            } else {
+              // Biểu đồ tiêu chuẩn - hiển thị tháng
+              if (index === 0) {
+                // Điểm đầu tiên là điểm 0
+                label = '0';
+                labelUnit = 'tháng';
+              } else {
+                // Lấy tháng từ standardData tương ứng
+                let standardData = [];
+                if (selectedTab === 'Chiều cao') standardData = heightStandardData;
+                else if (selectedTab === 'Cân nặng') standardData = weightStandardData;
+                else if (selectedTab === 'Vòng đầu') standardData = headCircumferenceStandardData;
+                else if (selectedTab === 'BMI') standardData = bmiStandardData;
+                
+                const monthData = standardData[index - 1]; // index - 1 vì có thêm điểm 0 ở đầu
+                label = monthData?.month || '';
+                labelUnit = 'tháng';
+              }
+            }
             
             setTooltip({
               visible: true,
@@ -458,7 +519,7 @@ const ChartScreen = ({ navigation }) => {
               y,
               value: `${value} ${unit}`,
               label: `${label} ${labelUnit}`,
-              isPrediction: isPrediction
+              isPrediction: false
             });
           }}
           style={{ borderRadius: 16 }}
@@ -473,7 +534,7 @@ const ChartScreen = ({ navigation }) => {
             borderRadius: 6,
             padding: 6,
             borderWidth: 1,
-            borderColor: tooltip.isPrediction ? '#ffa500' : '#007bff',
+            borderColor: '#007bff',
             zIndex: 10,
             elevation: 10,
             shadowColor: '#000',
@@ -484,10 +545,10 @@ const ChartScreen = ({ navigation }) => {
           }}>
             <Text style={{ 
               fontWeight: 'bold', 
-              color: tooltip.isPrediction ? '#ffa500' : '#007bff', 
+              color: '#007bff', 
               fontSize: 14 
             }}>
-              {tooltip.value} {tooltip.isPrediction ? '(Dự đoán)' : ''}
+              {tooltip.value}
             </Text>
             <Text style={{ fontSize: 12, color: '#333' }}>{tooltip.label}</Text>
           </View>
@@ -497,7 +558,90 @@ const ChartScreen = ({ navigation }) => {
   </View>
 
   {/* Bảng dữ liệu chi tiết nếu muốn hiển thị */}
-  <DataTable data={tableData} selectedTab={selectedTab} assessment={assessment} prediction={prediction} />
+  <DataTable data={tableData} selectedTab={selectedTab} />
+
+  {/* Assessment section */}
+  {assessmentData && (
+    <View style={styles.assessmentContainer}>
+      <View style={styles.assessmentHeader}>
+        <Text style={styles.assessmentTitle}>📊 Đánh giá tăng trưởng mới nhất</Text>
+        <Text style={{ fontSize: 12, color: '#666', marginBottom: 5 }}>
+          Ngày đo: {new Date(assessmentData.measurementDate).toLocaleDateString('vi-VN')}
+        </Text>
+      </View>
+      
+      {/* Current measurements */}
+      <View style={{ marginBottom: 15 }}>
+        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007bff', marginBottom: 8 }}>
+          Chỉ số hiện tại:
+        </Text>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Chiều cao:</Text>
+          <Text style={styles.assessmentValue}>{assessmentData.height} cm</Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Cân nặng:</Text>
+          <Text style={styles.assessmentValue}>{assessmentData.weight} kg</Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>BMI:</Text>
+          <Text style={styles.assessmentValue}>{assessmentData.bmi}</Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Vòng đầu:</Text>
+          <Text style={styles.assessmentValue}>{assessmentData.headCircumference} cm</Text>
+        </View>
+      </View>
+
+      {/* Assessment results */}
+      <View style={{ marginBottom: 15 }}>
+        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007bff', marginBottom: 8 }}>
+          Kết quả đánh giá:
+        </Text>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Chiều cao:</Text>
+          <Text style={[styles.assessmentValue, { color: getStatusColor(assessmentData.assessments.heightStatus) }]}>
+            {assessmentData.assessments.heightStatus}
+          </Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Cân nặng:</Text>
+          <Text style={[styles.assessmentValue, { color: getStatusColor(assessmentData.assessments.weightStatus) }]}>
+            {assessmentData.assessments.weightStatus}
+          </Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>BMI:</Text>
+          <Text style={[styles.assessmentValue, { color: getStatusColor(assessmentData.assessments.bmiStatus) }]}>
+            {assessmentData.assessments.bmiStatus}
+          </Text>
+        </View>
+        <View style={styles.assessmentRow}>
+          <Text style={styles.assessmentLabel}>Vòng đầu:</Text>
+          <Text style={[styles.assessmentValue, { color: getStatusColor(assessmentData.assessments.headCircumferenceStatus) }]}>
+            {assessmentData.assessments.headCircumferenceStatus}
+          </Text>
+        </View>
+      </View>
+
+      {/* Recommendations */}
+      {assessmentData.recommendations && (
+        <View style={styles.recommendationsContainer}>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#007bff', marginBottom: 8 }}>
+            💡 Khuyến nghị:
+          </Text>
+          {assessmentData.recommendations.split('\n').filter(line => line.trim()).map((recommendation, index) => (
+            <View key={index} style={styles.recommendationItem}>
+              <Text style={styles.recommendationBullet}>•</Text>
+              <Text style={styles.recommendationsText}>
+                {recommendation.replace(/^- /, '')}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  )}
 </ScrollView>
 
 
@@ -692,9 +836,17 @@ const combinedStyles = StyleSheet.create({
     borderTopWidth: 2,
     borderTopColor: '#007bff', // Blue border to distinguish from prediction
     paddingTop: 15,
-    backgroundColor: '#f0f8ff', // Light blue background
-    borderRadius: 8,
-    padding: 12,
+    backgroundColor: '#f8f9fa', // Light gray-blue background
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   assessmentHeader: {
     borderBottomWidth: 1,
@@ -726,15 +878,39 @@ const combinedStyles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
-  recommendationsText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#0056b3', // Darker blue for recommendations
+  recommendationsContainer: {
     backgroundColor: '#fff',
-    padding: 8,
     borderRadius: 4,
     borderLeftWidth: 3,
     borderLeftColor: '#007bff',
+    padding: 12,
+    marginTop: 8,
+  },
+  recommendationItem: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    alignItems: 'flex-start',
+  },
+  recommendationBullet: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  recommendationsText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#0056b3',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  noRecommendationsText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 12,
   },
   // Prediction styles - khác biệt với assessment
   predictionContainer: {
