@@ -262,14 +262,12 @@ const Booking = ({ navigation, route }) => {
   // Function to handle the dropdown press
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!');
   };
 
   // Function to handle selecting a child from the dropdown
   const handleSelectChild = (childId) => {
     setSelectedChildren([childId]);
     setIsDropdownVisible(false);
-    console.log('Selected child ID:', childId);
   };
 
   const selectedChild = children.find(child => child.childId === selectedChildren[0]);
@@ -399,8 +397,6 @@ const Booking = ({ navigation, route }) => {
         data.facilityVaccineIds = [selectedSingleVaccine.facilityVaccineId];
       }
 
-      // Log payload để kiểm tra
-      console.log('Payload gửi từ Booking:', JSON.stringify(data, null, 2));
       const res = await bookingApi.bookAppointment(data, token);
       
       // Clear cart và vaccine đã chọn

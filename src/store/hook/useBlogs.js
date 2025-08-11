@@ -18,9 +18,6 @@ const useBlogs = (category = null) => {
         response = await blogApi.getAllBlogs();
       }
       
-      // Kiểm tra cấu trúc response từ API
-      console.log('API Response:', response);
-      
       // API trả về { totalCount: number, data: [] }
       if (response && response.data && Array.isArray(response.data.data)) {
         setBlogs(response.data.data);

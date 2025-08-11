@@ -20,13 +20,6 @@ const ReBook = ({ navigation, route }) => {
   // Lấy thông tin vaccine từ route params
   const { vaccine, child, childVaccineProfileId } = route.params;
   
-  console.log('=== ROUTE PARAMS DEBUG ===');
-  console.log('vaccine:', vaccine);
-  console.log('child:', child);
-  console.log('childVaccineProfileId:', childVaccineProfileId);
-  console.log('vaccine.vaccineProfileId:', vaccine?.vaccineProfileId);
-  console.log('=== END ROUTE PARAMS DEBUG ===');
-  
   // States
   const [facilities, setFacilities] = useState([]);
   const [filteredFacilities, setFilteredFacilities] = useState([]);
@@ -79,8 +72,6 @@ const ReBook = ({ navigation, route }) => {
       
       setLoadingOrders(true);
       try {
-        console.log('Tìm kiếm orders có vaccine:', vaccine.vaccineId, 'disease:', vaccine.diseaseId);
-        
         const ordersRes = await orderApi.getMyOrders(1, 50, token);
         const allOrders = ordersRes.data?.data || [];
         
@@ -95,7 +86,6 @@ const ReBook = ({ navigation, route }) => {
           );
         });
         
-        console.log(`Tìm thấy ${matchingOrders.length} orders phù hợp`);
         setAvailableOrders(matchingOrders);
         
       } catch (error) {
@@ -116,11 +106,8 @@ const ReBook = ({ navigation, route }) => {
       
       setLoadingFacilities(true);
       try {
-        console.log('Tìm kiếm cơ sở có vaccine:', vaccine.vaccineId);
-        
         // Sử dụng API FacilityVaccines để lấy tất cả facility vaccines
         const facilityVaccinesRes = await vaccinesApi.getAllFacilityVaccines(token);
-        console.log('Response từ API FacilityVaccines:', facilityVaccinesRes);
         
         // Xử lý dữ liệu trả về - có thể là facilityVaccinesRes.data.data hoặc facilityVaccinesRes.data
         let allFacilityVaccines = [];
@@ -133,20 +120,14 @@ const ReBook = ({ navigation, route }) => {
           allFacilityVaccines = [];
         }
         
-        console.log('Tất cả facility vaccines:', allFacilityVaccines);
-        console.log('Số lượng facility vaccines:', allFacilityVaccines.length);
-        
         // Lọc các facility vaccines có vaccineId khớp
         const matchingFacilityVaccines = allFacilityVaccines.filter(fv => 
           fv && fv.vaccineId === vaccine.vaccineId
         );
         
-        console.log(`Tìm thấy ${matchingFacilityVaccines.length} facility vaccines cho vaccine ${vaccine.vaccineId}`);
-        
         if (matchingFacilityVaccines.length > 0) {
           // Lấy danh sách facilityId duy nhất
           const facilityIds = [...new Set(matchingFacilityVaccines.map(fv => fv.facilityId))];
-          console.log('Danh sách facility IDs:', facilityIds);
           
           // Lấy thông tin đầy đủ của các facilities
           const allFacilitiesRes = await vaccinationFacilitiesApi.getVaccinationFacilities(1, 100);
@@ -157,11 +138,9 @@ const ReBook = ({ navigation, route }) => {
             facilityIds.includes(facility.facilityId)
           );
           
-          console.log(`Tìm thấy ${filteredFacilities.length} cơ sở có vaccine ${vaccine.vaccineId}`);
           setFacilities(filteredFacilities);
           setFilteredFacilities(filteredFacilities);
         } else {
-          console.log('Không tìm thấy cơ sở nào có vaccine này');
           setFacilities([]);
           setFilteredFacilities([]);
         }
@@ -293,24 +272,7 @@ const ReBook = ({ navigation, route }) => {
       }
       // Với tiêm lẻ: không thêm orderId field
 
-      console.log('=== REBOOK PAYLOAD DEBUG ===');
-      console.log('childVaccineProfileId từ route params:', childVaccineProfileId);
-      console.log('selectedSlot:', selectedSlot);
-      console.log('scheduleId:', selectedSlot?.scheduleId);
-      console.log('selectedOrder:', selectedOrder);
-      console.log('note:', note);
-      console.log('Loại booking:', selectedOrder ? 'Tiêm theo gói' : 'Tiêm lẻ');
-      console.log('Payload sẽ gửi đi:', JSON.stringify(rebookData, null, 2));
-      console.log('Token (first 50 chars):', token?.substring(0, 50) + '...');
-      console.log('=== END REBOOK PAYLOAD DEBUG ===');
-
       const response = await rebookApi.rebookAppointment(rebookData, token);
-      
-      console.log('=== REBOOK RESPONSE DEBUG ===');
-      console.log('Response từ API:', response);
-      console.log('Response data:', response?.data);
-      console.log('Response status:', response?.status);
-      console.log('=== END REBOOK RESPONSE DEBUG ===');
       
       const bookingType = selectedOrder ? 'theo gói đã mua' : 'tiêm lẻ';
       Alert.alert(
@@ -324,13 +286,7 @@ const ReBook = ({ navigation, route }) => {
         ]
       );
     } catch (error) {
-      console.log('=== REBOOK ERROR DEBUG ===');
       console.error('Error rebooking appointment:', error);
-      console.error('Error response:', error?.response);
-      console.error('Error response data:', error?.response?.data);
-      console.error('Error response status:', error?.response?.status);
-      console.error('Error message:', error?.message);
-      console.log('=== END REBOOK ERROR DEBUG ===');
       Alert.alert('Lỗi', 'Không thể đặt lại lịch hẹn. Vui lòng thử lại!');
     }
   };

@@ -64,14 +64,12 @@ const UpdateGrowth = ({ navigation }) => {
   // Function to handle the dropdown press
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!'); // Placeholder log
   };
 
   // Function to handle selecting a child from the dropdown
   const handleSelectChild = (childId) => {
     setSelectedChildren([childId]); // Set the selected child
     setIsDropdownVisible(false); // Close the dropdown after selecting
-    console.log('Selected child ID:', childId);
   };
 
   const selectedChild = children.find(child => child.childId === selectedChildren[0]);

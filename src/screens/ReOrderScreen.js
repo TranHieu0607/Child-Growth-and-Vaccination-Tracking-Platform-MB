@@ -32,9 +32,6 @@ const ReOrderScreen = ({ navigation }) => {
 	    setSelectedPackage(pkg);
 	    setSelectedDiseaseId(null);
 	    
-	    // Log package và facilityId
-	    console.log('Chọn gói:', pkg);
-	    
 	    // Kiểm tra tất cả facilityId trong orderDetails
 	    const facilityIds = pkg?.order?.orderDetails?.map(od => od.facilityVaccine?.facilityId).filter(id => id);
 	    const uniqueFacilityIds = [...new Set(facilityIds)];
@@ -43,9 +40,6 @@ const ReOrderScreen = ({ navigation }) => {
 	        console.warn('❌ Gói không có facilityId nào!');
 	    } else if (uniqueFacilityIds.length > 1) {
 	        console.warn('⚠️ Gói có nhiều facilityId khác nhau:', uniqueFacilityIds);
-	        console.log('✅ Sử dụng facilityId đầu tiên:', uniqueFacilityIds[0]);
-	    } else {
-	        console.log('✅ facilityId của gói:', uniqueFacilityIds[0]);
 	    }
 	};
 
@@ -56,20 +50,12 @@ const ReOrderScreen = ({ navigation }) => {
 		const fetchSlots = async () => {
 			// Lấy facilityId từ orderDetails[0].facilityVaccine.facilityId
 			const facilityId = selectedPackage?.order?.orderDetails?.[0]?.facilityVaccine?.facilityId;
-			console.log('🔍 Debug useEffect fetchSlots:', {
-				selectedPackage: selectedPackage ? 'có' : 'không',
-				selectedDate,
-				token: token ? 'có' : 'không',
-				facilityId
-			});
 			
 			if (!selectedPackage || !selectedDate || !token) {
 				setAvailableSlots([]);
 				setSelectedSlot(null);
 				return;
 			}
-			// Log facilityId và ngày
-			console.log('Lấy slot với facilityId:', facilityId, 'ngày:', selectedDate);
 			if (!facilityId) {
 				console.warn('❌ Không có facilityId từ selectedPackage');
 				setAvailableSlots([]);
@@ -116,14 +102,8 @@ const ReOrderScreen = ({ navigation }) => {
 				const res = await orderApi.getMyOrders(1, 10, token);
 				let data = res && res.data && Array.isArray(res.data.data) ? res.data.data : [];
 				
-				// Log để debug
-				console.log('📦 Tất cả orders:', data.length);
-				console.log('📦 Status các orders:', data.map(o => ({ id: o.orderId, status: o.status })));
-				
 				// Lọc chỉ lấy những order có status là "Paid" (viết hoa chữ P)
 				const paidOrders = data.filter(order => order.status === 'Paid');
-				
-				console.log('💰 Orders đã thanh toán (Paid):', paidOrders.length);
 				
 				setOrders(paidOrders);
 			} catch (e) {
@@ -196,16 +176,7 @@ const ReOrderScreen = ({ navigation }) => {
 		
 		// Lấy thông tin bệnh và vaccine được chọn
 		const selectedDisease = diseases.find(d => d.diseaseId === diseaseId);
-		if (selectedDisease) {
-			console.log('✅ Chọn bệnh:', {
-				diseaseId: selectedDisease.diseaseId,
-				name: selectedDisease.name,
-				vaccineId: selectedDisease.vaccineId,
-				facilityVaccineId: selectedDisease.facilityVaccineId
-			});
-		}
-		
-		// Log tất cả vaccines liên quan đến bệnh này
+		// Lấy all vaccines liên quan đến bệnh này
 		const relatedVaccines = selectedPackage?.order.orderDetails
 			.filter(od => od.diseaseId === diseaseId && od.remainingQuantity > 0)
 			.map(od => ({
@@ -213,10 +184,6 @@ const ReOrderScreen = ({ navigation }) => {
 				vaccineName: od.facilityVaccine?.vaccine?.name,
 				facilityVaccineId: od.facilityVaccineId,
 			}));
-		
-		if (relatedVaccines && relatedVaccines.length > 0) {
-			console.log('✅ Vaccines liên quan:', relatedVaccines);
-		}
 	};
 
 	// Helper function để lấy thông tin hiện tại đã chọn
@@ -267,13 +234,8 @@ const ReOrderScreen = ({ navigation }) => {
 		};
 
 		try {
-			// Log payload để kiểm tra
-			console.log('🚀 Payload đặt lịch ReOrder:', JSON.stringify(payload, null, 2));
-			
 			// Gọi API đặt lịch
 			const response = await bookingApi.bookAppointment(payload, token);
-			
-			console.log('✅ Đặt lịch thành công:', response);
 			
 			// Thông báo thành công
 			Alert.alert(

@@ -31,7 +31,7 @@ const UpdateVaccHiss = ({ navigation }) => {
         doseNum: Number(data.doseNum),
         expectedDate: data.vaccinationDate,
         actualDate: data.vaccinationDate,
-        status: 'completed',
+        status: 'Completed',
         isRequired: true,
         priority: '',
         note: data.notes,

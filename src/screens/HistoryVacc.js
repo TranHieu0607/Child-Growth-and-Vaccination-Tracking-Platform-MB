@@ -47,7 +47,6 @@ const HistoryVacc = ({ navigation }) => {
       
       const fetchVaccineHistory = async () => {
         try {
-          console.log('🔄 Refreshing vaccine history for child:', selectedChildId);
           const res = await childVaccineProfileApi.getByChildId(selectedChildId);
           setVaccineHistory(res.data || []);
         } catch (e) {
@@ -87,7 +86,6 @@ const HistoryVacc = ({ navigation }) => {
       
       const fetchAppointmentHistory = async () => {
         try {
-          console.log('🔄 Refreshing appointment history for child:', selectedChildId);
           const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
           setAppointmentHistory(res.data?.appointments || []);
         } catch (e) {

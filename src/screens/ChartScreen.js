@@ -170,16 +170,12 @@ const ChartScreen = ({ navigation }) => {
 
 
   const handleSelectChildPress = () => {
-
     setIsDropdownVisible(!isDropdownVisible);
-    console.log('Select child pressed!');
   };
-
 
   const handleSelectChild = (childId) => {
     setSelectedChildId(childId);
     setIsDropdownVisible(false);
-    console.log('Selected child ID:', childId);
   };
 
   const calculateAge = (dob) => {

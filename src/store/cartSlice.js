@@ -79,8 +79,6 @@ export const orderPackage = createAsyncThunk(
         orderDate: new Date().toISOString(),
         status: 'Pending',
       };
-      console.log('selectedVaccines:', selectedVaccines);
-      console.log('Payload gửi đi:', JSON.stringify(payload, null, 2));
       const res = await fetch('https://kidtrackingapi20250721100909-bmg3djfmg2exbqfd.eastasia-01.azurewebsites.net/api/Order/package', {
         method: 'POST',
         headers: {
