@@ -8,10 +8,11 @@ import diseasesApi from '../store/api/diseasesApi';
 import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
 import vaccinePackagesApi from '../store/api/vaccinePackagesApi';
 import vaccinesApi from '../store/api/vaccinesApi';
-import { addToCart, selectCartItems, selectCartItemCount, clearCart, orderPackage } from '../store/cartSlice';
+import { addToCart, selectCartItems, selectCartItemCount, clearCart } from '../store/cartSlice';
 import scheduleApi from '../store/api/scheduleApi';
 import dayjs from 'dayjs';
 import bookingApi from '../store/api/bookingApi';
+import orderApi from '../store/api/orderApi';
 
 const Booking = ({ navigation, route }) => {
   const [children, setChildren] = useState([]);
@@ -333,32 +334,6 @@ const Booking = ({ navigation, route }) => {
 
   const [expandedFacilityVaccineId, setExpandedFacilityVaccineId] = useState(null);
 
-  // Thêm hàm tạo order cho package
-  const createOrder = async (packageItem, token) => {
-    const selectedVaccines = packageItem.packageVaccines.map(pv => ({
-      diseaseId: pv.diseaseId,
-      facilityVaccineId: pv.facilityVaccineId,
-      quantity: pv.quantity,
-    }));
-    const payload = {
-      packageId: packageItem.packageId,
-      selectedVaccines,
-      orderDate: new Date().toISOString(),
-      status: 'Pending',
-    };
-    const res = await fetch('https://kidtrackingapi20250721100909-bmg3djfmg2exbqfd.eastasia-01.azurewebsites.net/api/Order/package', {
-      method: 'POST',
-      headers: {
-        'accept': '*/*',
-        'Authorization': token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) throw new Error('Order failed');
-    return await res.json();
-  };
-
   // Hàm đặt lịch
   const handleBookAppointment = async () => {
     if (!selectedChildren[0] || !selectedDisease || !selectedFacility || !selectedSlot) {
@@ -383,15 +358,11 @@ const Booking = ({ navigation, route }) => {
 
     try {
       if (packageItem) {
-        // 1. Tạo order qua redux cho gói tiêm
-        const resultAction = await dispatch(orderPackage({ pkg: packageItem, token }));
-        if (orderPackage.fulfilled.match(resultAction)) {
-          const orderId = resultAction.payload?.orderId;
-          if (!orderId) throw new Error('Không lấy được orderId từ server!');
-          data.orderId = orderId;
-        } else {
-          throw new Error(resultAction.payload || 'Tạo đơn hàng thất bại!');
-        }
+        // 1. Tạo order trực tiếp cho gói tiêm
+        const orderResponse = await orderApi.createOrder(packageItem, token);
+        const orderId = orderResponse.data?.orderId;
+        if (!orderId) throw new Error('Không lấy được orderId từ server!');
+        data.orderId = orderId;
       } else if (selectedSingleVaccine) {
         // Nếu là vaccine lẻ được chọn
         data.facilityVaccineIds = [selectedSingleVaccine.facilityVaccineId];

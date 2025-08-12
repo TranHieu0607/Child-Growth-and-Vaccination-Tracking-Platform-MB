@@ -18,6 +18,28 @@ const orderApi = {
       }
     });
   },
+
+  createOrder: (packageItem, token) => {
+    const selectedVaccines = packageItem.packageVaccines.map(pv => ({
+      diseaseId: pv.diseaseId,
+      facilityVaccineId: pv.facilityVaccineId,
+      quantity: pv.quantity,
+    }));
+    const payload = {
+      packageId: packageItem.packageId,
+      selectedVaccines,
+      orderDate: new Date().toISOString(),
+      status: 'Pending',
+    };
+    
+    return axiosClient.post('/Order/package', payload, {
+      headers: {
+        'accept': '*/*',
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      }
+    });
+  },
 };
 
 export default orderApi;

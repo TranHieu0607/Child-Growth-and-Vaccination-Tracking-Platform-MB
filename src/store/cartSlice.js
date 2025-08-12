@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import orderApi from './api/orderApi';
 
 const cartSlice = createSlice({
   name: 'cart',
@@ -68,30 +69,10 @@ export const orderPackage = createAsyncThunk(
   'cart/orderPackage',
   async ({ pkg, token }, { rejectWithValue }) => {
     try {
-      const selectedVaccines = pkg.packageVaccines.map(pv => ({
-        diseaseId: pv.diseaseId,
-        facilityVaccineId: pv.facilityVaccineId,
-        quantity: pv.quantity,
-      }));
-      const payload = {
-        packageId: pkg.packageId,
-        selectedVaccines,
-        orderDate: new Date().toISOString(),
-        status: 'Pending',
-      };
-      const res = await fetch('https://kidtrackingapi20250721100909-bmg3djfmg2exbqfd.eastasia-01.azurewebsites.net/api/Order/package', {
-        method: 'POST',
-        headers: {
-          'accept': '*/*',
-          'Authorization': token,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Order failed');
-      return await res.json();
+      const response = await orderApi.createOrder(pkg, token);
+      return response.data;
     } catch (e) {
-      return rejectWithValue(e.message);
+      return rejectWithValue(e.response?.data?.message || e.message || 'Order failed');
     }
   }
 );
