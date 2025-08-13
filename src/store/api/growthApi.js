@@ -38,63 +38,63 @@ export async function getFullGrowthData(childId, gender) {
       status: 'Bình thường',
     })).filter(item => typeof item.value === 'number' && isFinite(item.value));
 
-  // Chuẩn bị các tháng cần lấy chuẩn
-  const monthsHeight = processRecords('height').map(item => item.month);
-  let allMonthsHeight = [];
-  if (monthsHeight.length > 0) {
-    const maxMonth = Math.max(...monthsHeight);
+  // Chuẩn bị các ngày cần lấy chuẩn
+  const daysHeight = processRecords('height').map(item => item.ageInDays);
+  let allDaysHeight = [];
+  if (daysHeight.length > 0) {
+    const maxDays = Math.max(...daysHeight);
     for (let i = 0; i < 4; i++) {
-      allMonthsHeight.push(maxMonth + i);
+      allDaysHeight.push(maxDays + (i * 30)); // Thêm mỗi 30 ngày
     }
   }
-  const monthsWeight = processRecords('weight').map(item => item.month);
-  let allMonthsWeight = [];
-  if (monthsWeight.length > 0) {
-    const maxMonth = Math.max(...monthsWeight);
+  const daysWeight = processRecords('weight').map(item => item.ageInDays);
+  let allDaysWeight = [];
+  if (daysWeight.length > 0) {
+    const maxDays = Math.max(...daysWeight);
     for (let i = 0; i < 4; i++) {
-      allMonthsWeight.push(maxMonth + i);
+      allDaysWeight.push(maxDays + (i * 30));
     }
   }
-  const monthsHead = processRecords('headCircumference').map(item => item.month);
-  let allMonthsHead = [];
-  if (monthsHead.length > 0) {
-    const maxMonth = Math.max(...monthsHead);
+  const daysHead = processRecords('headCircumference').map(item => item.ageInDays);
+  let allDaysHead = [];
+  if (daysHead.length > 0) {
+    const maxDays = Math.max(...daysHead);
     for (let i = 0; i < 4; i++) {
-      allMonthsHead.push(maxMonth + i);
+      allDaysHead.push(maxDays + (i * 30));
     }
   }
-  const monthsBMI = processRecords('bmi').map(item => item.month);
-  let allMonthsBMI = [];
-  if (monthsBMI.length > 0) {
-    const maxMonth = Math.max(...monthsBMI);
+  const daysBMI = processRecords('bmi').map(item => item.ageInDays);
+  let allDaysBMI = [];
+  if (daysBMI.length > 0) {
+    const maxDays = Math.max(...daysBMI);
     for (let i = 0; i < 4; i++) {
-      allMonthsBMI.push(maxMonth + i);
+      allDaysBMI.push(maxDays + (i * 30));
     }
   }
 
   // Fetch chuẩn song song
   const [resultsHeight, resultsWeight, resultsHead, resultsBMI] = await Promise.all([
-    Promise.all(allMonthsHeight.map(month => childrenApi.getHeightStandard(gender, month))),
-    Promise.all(allMonthsWeight.map(month => childrenApi.getWeightStandard(gender, month))),
-    Promise.all(allMonthsHead.map(month => childrenApi.getHeadCircumferenceStandard(gender, month))),
-    Promise.all(allMonthsBMI.map(month => childrenApi.getBMIStandard(gender, month))),
+    Promise.all(allDaysHeight.map(days => childrenApi.getHeightStandard(gender, days))),
+    Promise.all(allDaysWeight.map(days => childrenApi.getWeightStandard(gender, days))),
+    Promise.all(allDaysHead.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
+    Promise.all(allDaysBMI.map(days => childrenApi.getBMIStandard(gender, days))),
   ]);
 
   const standardDataHeight = resultsHeight.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { month: allMonthsHeight[idx], median: arr[0].median } : { month: allMonthsHeight[idx], median: null };
+    return arr.length > 0 ? { ageInDays: allDaysHeight[idx], month: Math.round(allDaysHeight[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysHeight[idx], month: Math.round(allDaysHeight[idx] / 30.44), median: null };
   });
   const standardDataWeight = resultsWeight.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { month: allMonthsWeight[idx], median: arr[0].median } : { month: allMonthsWeight[idx], median: null };
+    return arr.length > 0 ? { ageInDays: allDaysWeight[idx], month: Math.round(allDaysWeight[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysWeight[idx], month: Math.round(allDaysWeight[idx] / 30.44), median: null };
   });
   const standardDataHead = resultsHead.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { month: allMonthsHead[idx], median: arr[0].median } : { month: allMonthsHead[idx], median: null };
+    return arr.length > 0 ? { ageInDays: allDaysHead[idx], month: Math.round(allDaysHead[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysHead[idx], month: Math.round(allDaysHead[idx] / 30.44), median: null };
   });
   const standardDataBMI = resultsBMI.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { month: allMonthsBMI[idx], median: arr[0].median } : { month: allMonthsBMI[idx], median: null };
+    return arr.length > 0 ? { ageInDays: allDaysBMI[idx], month: Math.round(allDaysBMI[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysBMI[idx], month: Math.round(allDaysBMI[idx] / 30.44), median: null };
   });
 
   const actualHeightData = processRecords('height');

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions, Modal, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
-import { LineChart } from 'react-native-chart-kit';
+import CustomLineChart from '../components/CustomLineChart';
 import childrenApi from '../store/api/childrenApi';
 import { getFullGrowthData } from '../store/api/growthApi';
 
@@ -17,34 +17,6 @@ const TabBar = ({ selectedTab, onSelectTab }) => (
       >
         <Text style={{ color: selectedTab === tab ? 'blue' : 'black', fontWeight: selectedTab === tab ? 'bold' : 'normal' }}>
           {tab}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-);
-
-// Chart Type Tab Bar (Actual vs Standard)
-const ChartTypeTabBar = ({ selectedChartType, onSelectChartType }) => (
-  <View style={{ flexDirection: 'row', justifyContent: 'center', paddingVertical: 10, marginBottom: 10 }}>
-    {['Thực tế', 'Tiêu chuẩn'].map((type) => (
-      <TouchableOpacity
-        key={type}
-        onPress={() => onSelectChartType(type)}
-        style={{ 
-          padding: 12, 
-          marginHorizontal: 8,
-          borderBottomWidth: selectedChartType === type ? 3 : 0, 
-          borderBottomColor: selectedChartType === type ? (type === 'Thực tế' ? '#007bff' : '#ff6384') : 'transparent',
-          backgroundColor: selectedChartType === type ? (type === 'Thực tế' ? '#e7f3ff' : '#ffe7eb') : 'transparent',
-          borderRadius: 8
-        }}
-      >
-        <Text style={{ 
-          color: selectedChartType === type ? (type === 'Thực tế' ? '#007bff' : '#ff6384') : '#666', 
-          fontWeight: selectedChartType === type ? 'bold' : 'normal',
-          fontSize: 16
-        }}>
-          {type}
         </Text>
       </TouchableOpacity>
     ))}
@@ -94,7 +66,6 @@ const getStatusColor = (status) => {
 const ChartScreen = ({ navigation }) => {
 
   const [selectedTab, setSelectedTab] = useState('Chiều cao');
-  const [selectedChartType, setSelectedChartType] = useState('Thực tế'); // New state for chart type
 
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
 
@@ -200,94 +171,145 @@ const ChartScreen = ({ navigation }) => {
   };
 
 
-  const getChartAndTableData = (tab, chartType) => {
-    const data = childGrowthData?.data?.[tab] || [];
-    const validData = data.filter(item => typeof item.value === 'number' && isFinite(item.value));
-    
-    // Chỉ lấy dữ liệu thực tế
-    const actualData = validData.filter(item => item.status !== 'Dự đoán');
+  const getChartAndTableData = (tab) => {
+    const actualData = childGrowthData?.data?.[tab] || [];
+    const validActualData = actualData.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
 
-    if (chartType === 'Thực tế') {
-      // Dataset thực tế: thêm điểm 0 ở đầu, sau đó các điểm thực tế
-      let actualValues = [0, ...actualData.map(item => item.value)];
+    // Get standard data
+    let standardData = [];
+    if (tab === 'Chiều cao') standardData = heightStandardData;
+    else if (tab === 'Cân nặng') standardData = weightStandardData;
+    else if (tab === 'Vòng đầu') standardData = headCircumferenceStandardData;
+    else if (tab === 'BMI') standardData = bmiStandardData;
+
+    // Create datasets for both actual and standard data
+    let datasets = [];
+    let labels = [];
+    let tableData = [];
+
+    // Actual data (blue line) - chỉ lấy 3 điểm cuối
+    if (validActualData.length > 0) {
+      // Lấy tối đa 3 điểm cuối cùng
+      const last3ActualData = validActualData.slice(-3);
+      const actualValues = [0, ...last3ActualData.map(item => item.value)];
+      const actualLabels = ['0', ...last3ActualData.map(item => item.ageInDays.toString())];
       
-      // Tạo labels cho trục X của dữ liệu thực tế (ngày)
-      let actualLabels = ['0', ...actualData.map(item => item.ageInDays.toString())];
-
-      let datasets = [
-        {
-          data: actualValues,
-          color: (opacity = 1) => `rgba(0,123,255,${opacity})`, 
-          strokeWidth: 2,
-          withDots: true,
-        }
-      ];
-
-      const chartKitData = {
-        labels: actualLabels,
-        datasets,
-        legend: []
-      };
-      return { chartKitData, tableData: actualData };
-    } else {
-      // Chart type === 'Tiêu chuẩn'
-      let standardData = [];
-      if (tab === 'Chiều cao') standardData = heightStandardData;
-      else if (tab === 'Cân nặng') standardData = weightStandardData;
-      else if (tab === 'Vòng đầu') standardData = headCircumferenceStandardData;
-      else if (tab === 'BMI') standardData = bmiStandardData;
-
-      if (standardData.length === 0) {
-        // No standard data available
-        const chartKitData = {
-          labels: ['0'],
-          datasets: [{ data: [0], color: (opacity = 1) => `rgba(255,99,132,${opacity})` }],
-          legend: []
-        };
-        return { chartKitData, tableData: [] };
-      }
-
-      const medianValues = [0, ...standardData.map(item => item.median)];
-      const standardLabels = ['0', ...standardData.map(item => item.month.toString())];
+      console.log('Actual Labels:', actualLabels); // Debug log
       
-      let datasets = [
-        {
-          data: medianValues,
-          color: (opacity = 1) => `rgba(255,99,132,${opacity})`,
-          withDots: true,
-          strokeWidth: 2,
-          propsForDots: { r: '5', strokeWidth: '2', stroke: '#ff6384', fill: '#ff6384' }
-        }
-      ];
-
-      const chartKitData = {
-        labels: standardLabels,
-        datasets,
-        legend: []
-      };
+      datasets.push({
+        data: actualValues,
+        labels: actualLabels, // Labels riêng cho dataset này
+        color: (opacity = 1) => `rgba(0,123,255,${opacity})`, // Blue
+        strokeWidth: 2,
+        label: 'Thực tế'
+      });
       
-      // Convert standard data for table display
-      const standardTableData = standardData.map(item => ({
-        ageInDays: item.month * 30, // Approximate conversion for display
-        ageInMonths: item.month,
-        value: item.median,
-        status: 'Chuẩn',
-        measurementDate: null // Standard data doesn't have measurement dates
-      }));
-      
-      return { chartKitData, tableData: standardTableData };
+      labels = actualLabels; // Để tương thích với code cũ
+      tableData = last3ActualData;
     }
+
+    // Standard data (pink line) - chỉ lấy 2 điểm dựa vào ngày thực tế gần nhất
+    if (standardData.length > 0) {
+      let filteredStandardData = standardData;
+      
+      // Nếu có dữ liệu thực tế, lọc dữ liệu tiêu chuẩn dựa vào ngày gần nhất
+      if (validActualData.length > 0) {
+        const latestActualDay = validActualData[validActualData.length - 1].ageInDays;
+        
+        // Luôn sử dụng mốc chuẩn 30 ngày (30, 60, 90, 120, 150...)
+        const standardDays = standardData.map((item, index) => ({
+          ...item,
+          standardDay: (index + 1) * 30 // Luôn sử dụng mốc chuẩn
+        }));
+        
+        console.log('Standard data with standard days:', standardDays.map(item => ({ day: item.standardDay, median: item.median })));
+        
+        // Tìm điểm tiêu chuẩn nhỏ hơn và lớn hơn gần nhất với ngày thực tế
+        const beforePoint = standardDays.filter(item => item.standardDay <= latestActualDay).slice(-1)[0]; // Điểm gần nhất nhỏ hơn hoặc bằng
+        const afterPoint = standardDays.find(item => item.standardDay > latestActualDay); // Điểm đầu tiên lớn hơn
+        
+        // Lấy 2 điểm: trước và sau ngày thực tế
+        filteredStandardData = [];
+        if (beforePoint) filteredStandardData.push(beforePoint);
+        if (afterPoint) filteredStandardData.push(afterPoint);
+        
+        // Nếu không có điểm trước, lấy 2 điểm đầu
+        // Nếu không có điểm sau, lấy 2 điểm cuối
+        if (filteredStandardData.length < 2) {
+          if (!beforePoint) {
+            filteredStandardData = standardDays.slice(0, 2);
+          } else if (!afterPoint) {
+            filteredStandardData = standardDays.slice(-2);
+          }
+        }
+        
+        console.log(`Latest actual day: ${latestActualDay}, Selected standard points: ${filteredStandardData.map(item => `${item.standardDay}(${item.median})`).join(', ')}`);
+      }
+      
+      const medianValues = [0, ...filteredStandardData.map(item => item.median)];
+      const standardLabels = ['0', ...filteredStandardData.map(item => item.standardDay.toString())];
+      
+      console.log('Standard Labels:', standardLabels); // Debug log
+      
+      datasets.push({
+        data: medianValues,
+        labels: standardLabels, // Labels riêng cho dataset này
+        color: (opacity = 1) => `rgba(255,99,132,${opacity})`, // Pink
+        strokeWidth: 2,
+        label: 'Tiêu chuẩn'
+      });
+      
+      // Use standard labels if no actual data, otherwise keep actual labels
+      if (labels.length === 0) {
+        labels = standardLabels;
+      }
+      
+      // Add standard data to table if no actual data
+      if (tableData.length === 0) {
+        tableData = filteredStandardData.map(item => ({
+          ageInDays: item.standardDay,
+          ageInMonths: item.ageInMonths,
+          value: item.median,
+          status: 'Chuẩn',
+          measurementDate: null
+        }));
+      }
+    }
+
+    // If no data available
+    if (datasets.length === 0) {
+      const chartKitData = {
+        labels: ['0'],
+        datasets: [{ 
+          data: [0], 
+          color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
+          strokeWidth: 2
+        }],
+        legend: []
+      };
+      return { chartKitData, tableData: [] };
+    }
+
+    const chartKitData = {
+      labels,
+      datasets,
+      legend: datasets.map(d => d.label)
+    };
+    
+    return { chartKitData, tableData };
   };
   
 
   // Get the chart and table data based on the current selection
-  const { chartKitData, tableData } = getChartAndTableData(selectedTab, selectedChartType);
+  const { chartKitData, tableData } = getChartAndTableData(selectedTab);
   // Ẩn legend mặc định
   chartKitData.legend = [];
 
   // Get screen width to make chart responsive (subtracting container padding)
   const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
   const chartWidth = screenWidth - 32; // 16 padding on each side
+  const chartHeight = Math.max(250, Math.min(350, screenHeight * 0.4)); // Responsive height
 
   // Tooltip auto-hide effect
   useEffect(() => {
@@ -374,48 +396,62 @@ const ChartScreen = ({ navigation }) => {
 
       {/* 2. Tab phân loại biểu đồ */}
       <TabBar selectedTab={selectedTab} onSelectTab={setSelectedTab} />
-      
-      {/* 3. Chart Type Tab Bar */}
-      <ChartTypeTabBar selectedChartType={selectedChartType} onSelectChartType={setSelectedChartType} />
 
 <ScrollView style={{ paddingHorizontal: 16 }}>
   <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
-    Biểu đồ {selectedTab.toLowerCase()} - {selectedChartType} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
+    Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
-  {/* Single Chart Legend */}
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center' }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+  {/* Chart Legend */}
+  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20, marginBottom: 4 }}>
       <View style={{ 
-        width: 16, 
+        width: Math.max(14, screenWidth * 0.04), 
         height: 4, 
-        backgroundColor: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384', 
+        backgroundColor: '#007bff', 
         borderRadius: 2, 
         marginRight: 4 
       }} />
       <Text style={{ 
-        color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384', 
-        fontWeight: 'bold' 
+        color: '#007bff', 
+        fontWeight: 'bold',
+        fontSize: Math.max(12, Math.min(14, screenWidth / 25))
       }}>
-        {selectedChartType}
+        Thực tế
+      </Text>
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+      <View style={{ 
+        width: Math.max(14, screenWidth * 0.04), 
+        height: 4, 
+        backgroundColor: '#ff6384', 
+        borderRadius: 2, 
+        marginRight: 4 
+      }} />
+      <Text style={{ 
+        color: '#ff6384', 
+        fontWeight: 'bold',
+        fontSize: Math.max(12, Math.min(14, screenWidth / 25))
+      }}>
+        Tiêu chuẩn
       </Text>
     </View>
   </View>
 
-  <View style={{ minHeight: 280, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+  <View style={{ minHeight: chartHeight + 40, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
     {chartKitData.datasets[0].data.length > 0 && (
       <>
         {/* Y-axis label (at the top-left of Y-axis) */}
         <View style={{
           position: 'absolute',
-          left: 10,
-          top: 30,
+          left: 5,
+          top: 20,
           zIndex: 5
         }}>
           <Text style={{
-            fontSize: 14,
+            fontSize: Math.max(12, Math.min(14, screenWidth / 25)),
             fontWeight: 'bold',
-            color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384',
+            color: '#333',
             textAlign: 'left'
           }}>
             {selectedTab === 'Chiều cao' ? 'cm' : 
@@ -427,36 +463,33 @@ const ChartScreen = ({ navigation }) => {
         {/* X-axis label (horizontal text at the bottom) */}
         <View style={{
           position: 'absolute',
-          bottom: 10,
+          bottom: 5,
           left: 0,
           right: 0,
           zIndex: 5
         }}>
           <Text style={{
-            fontSize: 14,
+            fontSize: Math.max(12, Math.min(14, screenWidth / 25)),
             fontWeight: 'bold',
-            color: selectedChartType === 'Thực tế' ? '#007bff' : '#ff6384',
+            color: '#333',
             textAlign: 'center'
           }}>
-            {selectedChartType === 'Thực tế' ? 'ngày' : 'tháng'}
+            ngày
           </Text>
         </View>
 
-        <LineChart
+        <CustomLineChart
           data={chartKitData}
           width={chartWidth}
-          height={220}
+          height={chartHeight}
           chartConfig={{
             backgroundColor: '#fff',
             backgroundGradientFrom: '#fff',
             backgroundGradientTo: '#fff',
             decimalPlaces: 1,
-            color: (opacity = 1) => `rgba(0,123,255,${opacity})`,
             labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-            propsForDots: { r: '5', strokeWidth: '2', stroke: '#007bff' },
-            formatYLabel: (value) => value.toFixed(1), // Hiển thị 1 chữ số thập phân
+            formatYLabel: (value) => value.toFixed(1),
             formatXLabel: (value) => {
-              // Chỉ hiển thị số, không hiển thị đơn vị để tránh bị dính
               if (value.includes('/')) {
                 const parts = value.split('/');
                 return parts[0].length <= 3 ? parts[0] : `${parts[0].substring(0,2)}..`;
@@ -464,9 +497,6 @@ const ChartScreen = ({ navigation }) => {
               return value.length <= 4 ? value : `${value.substring(0,3)}..`;
             }
           }}
-          withShadow={false}
-          fromZero={true} // Bắt đầu từ 0 - trục Y sẽ luôn bắt đầu từ 0
-          segments={5} // Chia trục Y thành 5 phần để hiển thị rõ hơn
           onDataPointClick={({ value, index, x, y, datasetIndex }) => {
             let unit = '';
             if (selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu') unit = 'cm';
@@ -476,36 +506,35 @@ const ChartScreen = ({ navigation }) => {
             let label = '';
             let labelUnit = '';
             
-            // Kiểm tra loại biểu đồ hiện tại
-            if (selectedChartType === 'Thực tế') {
+            // Determine if this is actual or standard data based on datasetIndex
+            const isActualData = datasetIndex === 0;
+            
+            if (isActualData) {
               // Biểu đồ thực tế - hiển thị ngày
               if (index === 0) {
-                // Điểm đầu tiên là điểm 0
                 label = '0';
                 labelUnit = 'ngày';
               } else {
-                // Lấy ngày từ tableData thực tế
-                const dataPoint = tableData[index - 1]; // index - 1 vì có thêm điểm 0 ở đầu
+                const dataPoint = tableData[index - 1];
                 label = dataPoint?.ageInDays || '';
                 labelUnit = 'ngày';
               }
             } else {
-              // Biểu đồ tiêu chuẩn - hiển thị tháng
+              // Biểu đồ tiêu chuẩn - lấy ngày từ labels thật sự của dataset
               if (index === 0) {
-                // Điểm đầu tiên là điểm 0
                 label = '0';
-                labelUnit = 'tháng';
+                labelUnit = 'ngày';
               } else {
-                // Lấy tháng từ standardData tương ứng
-                let standardData = [];
-                if (selectedTab === 'Chiều cao') standardData = heightStandardData;
-                else if (selectedTab === 'Cân nặng') standardData = weightStandardData;
-                else if (selectedTab === 'Vòng đầu') standardData = headCircumferenceStandardData;
-                else if (selectedTab === 'BMI') standardData = bmiStandardData;
-                
-                const monthData = standardData[index - 1]; // index - 1 vì có thêm điểm 0 ở đầu
-                label = monthData?.month || '';
-                labelUnit = 'tháng';
+                // Lấy label thực từ dataset labels
+                const currentDataset = chartKitData.datasets.find(d => d.label === 'Tiêu chuẩn');
+                if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
+                  label = currentDataset.labels[index];
+                  labelUnit = 'ngày';
+                } else {
+                  // Fallback: tính theo index * 30
+                  label = (index * 30).toString();
+                  labelUnit = 'ngày';
+                }
               }
             }
             
@@ -524,11 +553,11 @@ const ChartScreen = ({ navigation }) => {
         {tooltip.visible && (
           <View style={{
             position: 'absolute',
-            left: (tooltip.x || 0) + 8, // 8 để tránh che điểm
-            top: (tooltip.y || 0) + 8, // 8 để tránh che điểm
+            left: Math.min((tooltip.x || 0) + 8, screenWidth - 120), // Đảm bảo tooltip không bị cắt
+            top: Math.max((tooltip.y || 0) + 8, 20), // Đảm bảo tooltip không bị cắt
             backgroundColor: 'white',
             borderRadius: 6,
-            padding: 6,
+            padding: 8,
             borderWidth: 1,
             borderColor: '#007bff',
             zIndex: 10,
@@ -537,16 +566,22 @@ const ChartScreen = ({ navigation }) => {
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2,
             shadowRadius: 2,
-            minWidth: 60
+            minWidth: 60,
+            maxWidth: screenWidth * 0.3
           }}>
             <Text style={{ 
               fontWeight: 'bold', 
               color: '#007bff', 
-              fontSize: 14 
+              fontSize: Math.max(12, Math.min(14, screenWidth / 25))
             }}>
               {tooltip.value}
             </Text>
-            <Text style={{ fontSize: 12, color: '#333' }}>{tooltip.label}</Text>
+            <Text style={{ 
+              fontSize: Math.max(10, Math.min(12, screenWidth / 30)), 
+              color: '#333' 
+            }}>
+              {tooltip.label}
+            </Text>
           </View>
         )}
       </>
