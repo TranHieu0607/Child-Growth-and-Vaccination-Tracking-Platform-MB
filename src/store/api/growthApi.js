@@ -1,10 +1,11 @@
 import childrenApi from './childrenApi';
+import growthPredictionApi from './growthPredictionApi';
 
 /**
  * Lấy toàn bộ dữ liệu tăng trưởng và chuẩn cho 1 trẻ
  * @param {string} childId
  * @param {string} gender
- * @returns {Promise<{growthData, heightStandardData, weightStandardData, headCircumferenceStandardData, bmiStandardData}>}
+ * @returns {Promise<{growthData, heightStandardData, weightStandardData, headCircumferenceStandardData, bmiStandardData, predictionData}>}
  */
 export async function getFullGrowthData(childId, gender) {
   if (!childId) {
@@ -102,6 +103,16 @@ export async function getFullGrowthData(childId, gender) {
   const actualHeadData = processRecords('headCircumference');
   const actualBMIData = processRecords('bmi');
 
+  // Fetch prediction data
+  let predictionData = null;
+  try {
+    const predictionResponse = await growthPredictionApi.getGrowthPrediction(childId, 30);
+    predictionData = predictionResponse.data;
+  } catch (err) {
+    console.log('Không thể lấy dữ liệu dự đoán:', err);
+    predictionData = null;
+  }
+
   return {
     growthData: {
       childId,
@@ -116,5 +127,6 @@ export async function getFullGrowthData(childId, gender) {
     weightStandardData: standardDataWeight,
     headCircumferenceStandardData: standardDataHead,
     bmiStandardData: standardDataBMI,
+    predictionData: predictionData,
   };
 } 

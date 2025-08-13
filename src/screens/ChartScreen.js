@@ -7,45 +7,118 @@ import childrenApi from '../store/api/childrenApi';
 import { getFullGrowthData } from '../store/api/growthApi';
 
 // Placeholder components
-const TabBar = ({ selectedTab, onSelectTab }) => (
-  <View style={{ flexDirection: 'row', justifyContent: 'space-around', paddingVertical: 10 }}>
-    {['Chiều cao', 'Cân nặng', 'Vòng đầu', 'BMI'].map((tab) => (
-      <TouchableOpacity
-        key={tab}
-        onPress={() => onSelectTab(tab)}
-        style={{ padding: 8, borderBottomWidth: selectedTab === tab ? 2 : 0, borderBottomColor: 'blue' }}
-      >
-        <Text style={{ color: selectedTab === tab ? 'blue' : 'black', fontWeight: selectedTab === tab ? 'bold' : 'normal' }}>
-          {tab}
-        </Text>
-      </TouchableOpacity>
-    ))}
-  </View>
-);
+const TabBar = ({ selectedTab, onSelectTab }) => {
+  const screenWidth = Dimensions.get('window').width;
+  const isSmallScreen = screenWidth < 375;
+  
+  return (
+    <View style={{ 
+      flexDirection: 'row', 
+      justifyContent: 'space-around', 
+      paddingVertical: Math.max(8, screenWidth * 0.02),
+      paddingHorizontal: Math.max(8, screenWidth * 0.02)
+    }}>
+      {['Chiều cao', 'Cân nặng', 'Vòng đầu', 'BMI'].map((tab) => (
+        <TouchableOpacity
+          key={tab}
+          onPress={() => onSelectTab(tab)}
+          style={{ 
+            padding: isSmallScreen ? 6 : 8, 
+            borderBottomWidth: selectedTab === tab ? 2 : 0, 
+            borderBottomColor: 'blue',
+            flex: 1,
+            alignItems: 'center'
+          }}
+        >
+          <Text style={{ 
+            color: selectedTab === tab ? 'blue' : 'black', 
+            fontWeight: selectedTab === tab ? 'bold' : 'normal',
+            fontSize: Math.max(12, Math.min(14, screenWidth / 28)),
+            textAlign: 'center'
+          }}>
+            {tab}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+};
 
 
 // Updated DataTable component
 const DataTable = ({ data, selectedTab }) => {
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
+  const isSmallScreen = screenWidth < 375;
+  
   // Determine the unit based on the selected tab
   const unit = selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? ' cm' : selectedTab === 'Cân nặng' ? ' kg' : '';
 
   // Function to get status text style based on status value
-  const getStatusStyle = (status) => {
+  const getStatusStyle = (status, isPrediction) => {
+    if (isPrediction) {
+      return { fontStyle: 'italic', color: '#888' };
+    }
+    
     switch (status) {
       case 'Bình thường':
-        return styles.statusNormal;
+        return { color: 'green' };
       case 'Tăng nhẹ':
-        return styles.statusMildIncrease;
+        return { color: 'orange' };
+      case 'Chuẩn':
+        return { color: 'green' };
+      case 'Dự đoán':
+        return { fontStyle: 'italic', color: '#888' };
       // Add more cases for other statuses if needed
       default:
         return {}; // Default empty style
     }
   };
 
-  return (
-    <View style={styles.dataTableContainer}>
-    </View>
-  );
+  // Simple inline styles for DataTable since we can't access ChartScreen styles
+  const dataTableStyles = {
+    dataTableContainer: {
+      borderWidth: 1,
+      borderColor: '#eee',
+      padding: Math.max(8, screenWidth * 0.025),
+      marginBottom: Math.max(16, screenHeight * 0.02),
+      borderRadius: Math.max(4, screenWidth * 0.012),
+    },
+    tableTitle: {
+      fontSize: Math.max(14, screenWidth * 0.038),
+      fontWeight: 'bold',
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: '#ccc',
+      paddingBottom: Math.max(4, screenHeight * 0.006),
+      marginBottom: Math.max(4, screenHeight * 0.006),
+    },
+    tableHeaderCell: {
+      fontWeight: 'bold',
+      fontSize: Math.max(12, screenWidth * 0.032),
+      color: '#555',
+    },
+    tableBodyScroll: {
+      maxHeight: Math.max(150, screenHeight * 0.25),
+    },
+    tableRow: {
+      flexDirection: 'row',
+      borderBottomColor: '#eee',
+    },
+    tableCell: {
+      fontSize: Math.max(12, screenWidth * 0.032),
+    },
+    noDataText: {
+      textAlign: 'center',
+      marginTop: Math.max(8, screenHeight * 0.012),
+      color: '#555',
+    }
+  };
+
+  return null;
 };
 
 // Helper function to get status color
@@ -55,15 +128,20 @@ const getStatusColor = (status) => {
   const normalStatuses = ['Bình thường', 'Chuẩn', 'Normal'];
   const warningStatuses = ['Tăng nhẹ', 'Giảm nhẹ', 'Hơi thấp', 'Hơi cao'];
   const dangerStatuses = ['Thấp còi', 'Thấp còi nặng', 'Béo phì', 'Béo phì nặng', 'Suy dinh dưỡng', 'Microcephaly', 'Đầu rất nhỏ'];
+  const predictionStatuses = ['Dự đoán'];
   
   if (normalStatuses.some(s => status.includes(s))) return '#28a745'; // Green
   if (warningStatuses.some(s => status.includes(s))) return '#ffc107'; // Yellow
   if (dangerStatuses.some(s => status.includes(s))) return '#dc3545'; // Red
+  if (predictionStatuses.some(s => status.includes(s))) return '#FFA500'; // Orange for prediction
   
   return '#6c757d'; // Default gray
 };
 
 const ChartScreen = ({ navigation }) => {
+  // Get screen dimensions for responsive styles
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
   const [selectedTab, setSelectedTab] = useState('Chiều cao');
 
@@ -76,6 +154,7 @@ const ChartScreen = ({ navigation }) => {
   const [weightStandardData, setWeightStandardData] = useState([]);
   const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
   const [bmiStandardData, setBMIStandardData] = useState([]);
+  const [predictionData, setPredictionData] = useState(null);
 
   // Assessment state
   const [assessmentData, setAssessmentData] = useState(null);
@@ -106,6 +185,7 @@ const ChartScreen = ({ navigation }) => {
         setHeadCircumferenceStandardData([]);
         setBMIStandardData([]);
         setAssessmentData(null);
+        setPredictionData(null);
         return;
       }
       // Lấy gender từ danh sách children
@@ -123,6 +203,7 @@ const ChartScreen = ({ navigation }) => {
         setWeightStandardData(growthResult.weightStandardData);
         setHeadCircumferenceStandardData(growthResult.headCircumferenceStandardData);
         setBMIStandardData(growthResult.bmiStandardData);
+        setPredictionData(growthResult.predictionData);
 
         // Set assessment data
         setAssessmentData(assessmentResult.data);
@@ -134,6 +215,7 @@ const ChartScreen = ({ navigation }) => {
         setHeadCircumferenceStandardData([]);
         setBMIStandardData([]);
         setAssessmentData(null);
+        setPredictionData(null);
       }
     };
     fetchAllDataForChild();
@@ -206,6 +288,58 @@ const ChartScreen = ({ navigation }) => {
       
       labels = actualLabels; // Để tương thích với code cũ
       tableData = last3ActualData;
+    }
+
+    // Prediction data (dotted orange line) - chỉ lấy điểm cách 30 ngày từ ngày thực tế mới nhất
+    if (predictionData && predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0) {
+      const lastActualPoint = validActualData[validActualData.length - 1];
+      const targetPredictionDay = lastActualPoint.ageInDays + 30; // Chỉ lấy điểm cách 30 ngày
+      
+      // Tìm prediction point gần nhất với targetPredictionDay
+      const closestPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
+        const currentDiff = Math.abs(current.ageInDays - targetPredictionDay);
+        const closestDiff = Math.abs(closest.ageInDays - targetPredictionDay);
+        return currentDiff < closestDiff ? current : closest;
+      });
+      
+      // Map field names based on selected tab
+      let predictionFieldMap = {
+        'Chiều cao': 'predictedHeight',
+        'Cân nặng': 'predictedWeight',
+        'Vòng đầu': 'predictedHeadCircumference',
+        'BMI': 'predictedBMI'
+      };
+      
+      const predictionField = predictionFieldMap[tab];
+      if (predictionField && closestPredictionPoint[predictionField] != null) {
+        // Create prediction line with only 2 points: last actual + closest prediction
+        const predictionValues = [lastActualPoint.value, closestPredictionPoint[predictionField]];
+        const predictionLabels = [lastActualPoint.ageInDays.toString(), closestPredictionPoint.ageInDays.toString()];
+        
+        console.log('Prediction Labels:', predictionLabels); // Debug log
+        console.log(`Target: ${targetPredictionDay}, Selected: ${closestPredictionPoint.ageInDays}`); // Debug log
+        
+        datasets.push({
+          data: predictionValues,
+          labels: predictionLabels,
+          color: (opacity = 1) => `rgba(255,165,0,${opacity})`, // Orange
+          strokeWidth: 2,
+          strokeDashArray: [5, 5], // Dotted line (if supported)
+          label: 'Dự đoán'
+        });
+        
+        // Add only the selected prediction data to table
+        const predictionTableData = [{
+          ageInDays: closestPredictionPoint.ageInDays,
+          month: Math.round(closestPredictionPoint.ageInDays / 30.44),
+          value: closestPredictionPoint[predictionField],
+          status: 'Dự đoán',
+          measurementDate: closestPredictionPoint.predictedDate,
+          isPrediction: true
+        }];
+        
+        tableData = [...tableData, ...predictionTableData];
+      }
     }
 
     // Standard data (pink line) - chỉ lấy 2 điểm dựa vào ngày thực tế gần nhất
@@ -305,9 +439,11 @@ const ChartScreen = ({ navigation }) => {
   // Ẩn legend mặc định
   chartKitData.legend = [];
 
+  // Get actual data for prediction calculations
+  const actualData = childGrowthData?.data?.[selectedTab] || [];
+  const validActualData = actualData.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
+
   // Get screen width to make chart responsive (subtracting container padding)
-  const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
   const chartWidth = screenWidth - 32; // 16 padding on each side
   const chartHeight = Math.max(250, Math.min(350, screenHeight * 0.4)); // Responsive height
 
@@ -320,39 +456,373 @@ const ChartScreen = ({ navigation }) => {
     return () => clearTimeout(timer);
   }, [tooltip.visible]);
 
+  // Generate responsive styles
+  const styles = React.useMemo(() => StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: '#fff',
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Math.max(12, screenWidth * 0.03),
+    },
+    childInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+    },
+    profileImage: {
+      width: Math.max(48, screenWidth * 0.12),
+      height: Math.max(48, screenWidth * 0.12),
+      borderRadius: Math.max(24, screenWidth * 0.06),
+      marginRight: Math.max(8, screenWidth * 0.025),
+    },
+    childName: {
+      fontSize: Math.max(16, screenWidth * 0.045),
+      fontWeight: 'bold',
+    },
+    childAge: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      color: '#555',
+    },
+    tabBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginBottom: Math.max(16, screenHeight * 0.02),
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+    },
+    tabButton: {
+      paddingVertical: Math.max(8, screenHeight * 0.012),
+      paddingHorizontal: Math.max(12, screenWidth * 0.03),
+    },
+    selectedTabButton: {
+      borderBottomWidth: 2,
+      borderBottomColor: '#007bff',
+    },
+    tabText: {
+      fontSize: Math.max(14, screenWidth * 0.038),
+      color: '#555',
+    },
+    selectedTabText: {
+      color: '#007bff',
+      fontWeight: 'bold',
+    },
+    chartArea: {
+      marginBottom: Math.max(16, screenHeight * 0.02),
+    },
+    chartAreaContent: {
+      alignItems: 'center',
+    },
+    chartTitle: {
+      fontSize: Math.max(16, screenWidth * 0.045),
+      fontWeight: 'bold',
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    infoIcon: {
+      position: 'absolute',
+      top: 0,
+      right: 0,
+    },
+    dataTableContainer: {
+      borderWidth: 1,
+      borderColor: '#eee',
+      padding: Math.max(8, screenWidth * 0.025),
+      marginBottom: Math.max(16, screenHeight * 0.02),
+      borderRadius: Math.max(4, screenWidth * 0.012),
+    },
+    tableTitle: {
+      fontSize: Math.max(14, screenWidth * 0.038),
+      fontWeight: 'bold',
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    tableHeader: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: '#ccc',
+      paddingBottom: Math.max(4, screenHeight * 0.006),
+      marginBottom: Math.max(4, screenHeight * 0.006),
+    },
+    tableHeaderCell: {
+      fontWeight: 'bold',
+      fontSize: Math.max(12, screenWidth * 0.032),
+      color: '#555',
+    },
+    tableBodyScroll: {
+      maxHeight: Math.max(150, screenHeight * 0.25),
+    },
+    tableRow: {
+      flexDirection: 'row',
+      borderBottomColor: '#eee',
+    },
+    tableCell: {
+      fontSize: Math.max(12, screenWidth * 0.032),
+    },
+    statusText: {
+      fontSize: Math.max(12, screenWidth * 0.032),
+    },
+    statusNormal: {
+      color: 'green',
+    },
+    statusMildIncrease: {
+      color: 'orange',
+    },
+    statusPredicted: {
+      color: '#888',
+      fontStyle: 'italic',
+    },
+    noDataText: {
+      textAlign: 'center',
+      marginTop: Math.max(8, screenHeight * 0.012),
+      color: '#555',
+    },
+    dropdownContainer: {
+      backgroundColor: '#fff',
+      borderRadius: Math.max(5, screenWidth * 0.01),
+      borderWidth: 1,
+      borderColor: '#ccc',
+      zIndex: 1,
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+      marginHorizontal: Math.max(10, screenWidth * 0.04),
+      marginBottom: Math.max(8, screenHeight * 0.01),
+      marginTop: -5,
+    },
+    dropdownScroll: {
+      maxHeight: Math.max(120, screenHeight * 0.18),
+    },
+    dropdownItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: Math.max(8, screenHeight * 0.012),
+      paddingHorizontal: Math.max(12, screenWidth * 0.04),
+      borderBottomWidth: 1,
+      borderBottomColor: '#eee',
+    },
+    dropdownItemImage: {
+      width: Math.max(28, screenWidth * 0.08),
+      height: Math.max(28, screenWidth * 0.08),
+      borderRadius: Math.max(14, screenWidth * 0.04),
+      marginRight: Math.max(8, screenWidth * 0.025),
+    },
+    dropdownItemTextContainer: {
+      flex: 1,
+    },
+    dropdownItemName: {
+      fontSize: Math.max(14, screenWidth * 0.04),
+      fontWeight: 'bold',
+    },
+    dropdownItemAge: {
+      fontSize: Math.max(11, screenWidth * 0.03),
+      color: '#555',
+    },
+    selectedIcon: {
+      color: 'green',
+      fontSize: Math.max(14, screenWidth * 0.04),
+    },
+    assessmentContainer: {
+      marginTop: Math.max(4, screenHeight * 0.01),
+      borderTopWidth: 2,
+      borderTopColor: '#007bff',
+      paddingTop: Math.max(12, screenHeight * 0.018),
+      backgroundColor: '#f8f9fa',
+      borderRadius: Math.max(10, screenWidth * 0.03),
+      padding: Math.max(14, screenWidth * 0.04),
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 3,
+    },
+    assessmentHeader: {
+      borderBottomWidth: 1,
+      borderBottomColor: '#007bff',
+      paddingBottom: Math.max(6, screenHeight * 0.01),
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    assessmentTitle: {
+      fontSize: Math.max(15, screenWidth * 0.042),
+      fontWeight: 'bold',
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    assessmentRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: Math.max(5, screenHeight * 0.008),
+      backgroundColor: '#fff',
+      borderRadius: 4,
+      paddingHorizontal: Math.max(6, screenWidth * 0.02),
+      marginVertical: 2,
+    },
+    assessmentLabel: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      color: '#007bff',
+      fontWeight: '600',
+    },
+    assessmentValue: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      fontWeight: 'bold',
+      color: '#000',
+    },
+    recommendationsContainer: {
+      backgroundColor: '#fff',
+      borderRadius: 4,
+      borderLeftWidth: 3,
+      borderLeftColor: '#007bff',
+      padding: Math.max(10, screenWidth * 0.03),
+      marginTop: Math.max(6, screenHeight * 0.01),
+    },
+    recommendationItem: {
+      flexDirection: 'row',
+      marginBottom: Math.max(6, screenHeight * 0.01),
+      alignItems: 'flex-start',
+    },
+    recommendationBullet: {
+      fontSize: Math.max(14, screenWidth * 0.04),
+      fontWeight: 'bold',
+      color: '#007bff',
+      marginRight: Math.max(6, screenWidth * 0.02),
+      marginTop: 2,
+    },
+    recommendationsText: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      lineHeight: Math.max(20, screenWidth * 0.055),
+      color: '#0056b3',
+      flex: 1,
+      flexWrap: 'wrap',
+    },
+    noRecommendationsText: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      color: '#666',
+      fontStyle: 'italic',
+      textAlign: 'center',
+      padding: Math.max(10, screenWidth * 0.03),
+    },
+    predictionContainer: {
+      marginTop: Math.max(16, screenHeight * 0.025),
+      marginBottom: 20,
+      borderTopWidth: 2,
+      borderTopColor: '#ffa500',
+      paddingTop: Math.max(12, screenHeight * 0.018),
+      backgroundColor: '#fff8f0',
+      borderRadius: Math.max(6, screenWidth * 0.02),
+      padding: Math.max(10, screenWidth * 0.03),
+    },
+    predictionHeader: {
+      borderBottomWidth: 1,
+      borderBottomColor: '#ffa500',
+      paddingBottom: Math.max(6, screenHeight * 0.01),
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    predictionTitle: {
+      fontSize: Math.max(15, screenWidth * 0.042),
+      fontWeight: 'bold',
+      color: '#ff6b00',
+      marginBottom: Math.max(8, screenHeight * 0.012),
+    },
+    predictionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: Math.max(5, screenHeight * 0.008),
+      backgroundColor: '#fff',
+      borderRadius: 4,
+      paddingHorizontal: Math.max(6, screenWidth * 0.02),
+      marginVertical: 2,
+    },
+    predictionLabel: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      color: '#ff6b00',
+      fontWeight: '600',
+    },
+    predictionValue: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      fontWeight: 'bold',
+      color: '#ff6b00',
+      fontStyle: 'italic',
+    },
+    predictionRecommendationsText: {
+      fontSize: Math.max(13, screenWidth * 0.035),
+      lineHeight: Math.max(18, screenWidth * 0.05),
+      color: '#d2691e',
+      backgroundColor: '#fff',
+      padding: Math.max(6, screenWidth * 0.02),
+      borderRadius: 4,
+      borderLeftWidth: 3,
+      borderLeftColor: '#ffa500',
+    },
+  }), [screenWidth, screenHeight]);
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, { padding: Math.max(12, screenWidth * 0.03) }]}>
       {/* 1. Header Hồ sơ Trẻ */}
-      <View style={{...styles.header, marginTop: 20}}>
+      <View style={{
+        ...styles.header, 
+        marginBottom: Math.max(15, screenWidth * 0.04),
+        marginTop: Math.max(10, screenWidth * 0.025)
+      }}>
         {/* Back button - Adjust navigation target if needed */}
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
+          <FontAwesomeIcon icon={faArrowLeft} size={Math.max(20, Math.min(25, screenWidth / 15))} color="black" />
         </TouchableOpacity>
         {/* Corrected header title */}
-        <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Biểu đồ tăng trưởng</Text>
+        <Text style={{ 
+          fontSize: Math.max(18, Math.min(24, screenWidth / 15)), 
+          fontWeight: 'bold', 
+          textAlign: 'center', 
+          flex: 1 
+        }}>
+          Biểu đồ tăng trưởng
+        </Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-  <View style={styles.childInfo}>
+      <View style={{ 
+        flexDirection: 'row', 
+        alignItems: 'center',
+        paddingHorizontal: Math.max(8, screenWidth * 0.02)
+      }}>
+  <View style={[styles.childInfo, {
+    marginLeft: Math.max(10, screenWidth * 0.025),
+    marginVertical: Math.max(8, screenWidth * 0.02)
+  }]}>
     {/* Display profile image of the first selected child */}
     {/* Use selectedChildId as we are back to single select in display */}
     {selectedChildId && (
       <Image
         source={children.find(child => child.childId === selectedChildId)?.image || require('../../assets/vnvc.jpg')}
-        style={styles.profileImage}
+        style={[styles.profileImage, {
+          width: Math.max(35, Math.min(40, screenWidth * 0.1)),
+          height: Math.max(35, Math.min(40, screenWidth * 0.1)),
+          borderRadius: Math.max(17.5, Math.min(20, screenWidth * 0.05))
+        }]}
       />
     )}
     <View>
       {/* Display name of the first selected child */}
       {/* Use selectedChildId as we are back to single select in display */}
       {selectedChildId && (
-        <Text style={styles.childName}>
+        <Text style={[styles.childName, {
+          fontSize: Math.max(16, Math.min(18, screenWidth / 20))
+        }]}>
           {children.find(child => child.childId === selectedChildId)?.fullName}
         </Text>
       )}
       {/* Display age of the first selected child */}
       {/* Use selectedChildId as we are back to single select in display */}
       {selectedChildId && (
-        <Text style={styles.childAge}>
+        <Text style={[styles.childAge, {
+          fontSize: Math.max(12, Math.min(14, screenWidth / 26))
+        }]}>
           {calculateAge(children.find(child => child.childId === selectedChildId)?.dateOfBirth)}
         </Text>
       )}
@@ -362,31 +832,49 @@ const ChartScreen = ({ navigation }) => {
   {/* Dropdown icon nằm bên phải */}
   {/* Add onPress handler */}
   <TouchableOpacity style={{ marginLeft: 'auto' }} onPress={handleSelectChildPress}>
-    <FontAwesomeIcon icon={faChevronDown} size={20} color="black" />
+    <FontAwesomeIcon icon={faChevronDown} size={Math.max(18, Math.min(20, screenWidth / 18))} color="black" />
   </TouchableOpacity>
 </View>
 
 {/* Child Selection Dropdown */}
 {isDropdownVisible && (
-  <View style={styles.dropdownContainer}>
+  <View style={[styles.dropdownContainer, {
+    marginHorizontal: Math.max(12, screenWidth * 0.03),
+    maxHeight: Math.max(120, screenHeight * 0.25)
+  }]}>
     <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
       {children.map(child => (
         <TouchableOpacity
           key={child.childId}
-          style={styles.dropdownItem}
+          style={[styles.dropdownItem, {
+            paddingVertical: Math.max(8, screenWidth * 0.02),
+            paddingHorizontal: Math.max(12, screenWidth * 0.03)
+          }]}
           onPress={() => handleSelectChild(child.childId)}
         >
           {/* Add child image */}
           <Image
             source={child.image || require('../../assets/vnvc.jpg')}
-            style={styles.dropdownItemImage}
+            style={[styles.dropdownItemImage, {
+              width: Math.max(25, Math.min(30, screenWidth * 0.08)),
+              height: Math.max(25, Math.min(30, screenWidth * 0.08)),
+              borderRadius: Math.max(12.5, Math.min(15, screenWidth * 0.04))
+            }]}
           />
           <View style={styles.dropdownItemTextContainer}>
-            <Text style={styles.dropdownItemName}>{child.fullName}</Text>
-            <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>
+            <Text style={[styles.dropdownItemName, {
+              fontSize: Math.max(14, Math.min(16, screenWidth / 23))
+            }]}>{child.fullName}</Text>
+            <Text style={[styles.dropdownItemAge, {
+              fontSize: Math.max(10, Math.min(12, screenWidth / 30))
+            }]}>{calculateAge(child.dateOfBirth)}</Text>
           </View>
           {/* Indicate selected child */}
-          {selectedChildId === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
+          {selectedChildId === child.childId && (
+            <Text style={[styles.selectedIcon, {
+              fontSize: Math.max(14, Math.min(16, screenWidth / 23))
+            }]}> ✅</Text>
+          )}
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -397,48 +885,101 @@ const ChartScreen = ({ navigation }) => {
       {/* 2. Tab phân loại biểu đồ */}
       <TabBar selectedTab={selectedTab} onSelectTab={setSelectedTab} />
 
-<ScrollView style={{ paddingHorizontal: 16 }}>
-  <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
+<ScrollView style={{ paddingHorizontal: Math.max(12, screenWidth * 0.03) }}>
+  <Text style={{ 
+    fontSize: Math.max(16, Math.min(18, screenWidth / 20)), 
+    fontWeight: 'bold', 
+    marginBottom: Math.max(6, screenWidth * 0.02)
+  }}>
     Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
   {/* Chart Legend */}
-  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 20, marginBottom: 4 }}>
+  <View style={{ 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginBottom: Math.max(6, screenWidth * 0.02), 
+    justifyContent: 'center', 
+    flexWrap: 'wrap',
+    paddingHorizontal: Math.max(4, screenWidth * 0.01)
+  }}>
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      marginRight: Math.max(15, screenWidth * 0.04), 
+      marginBottom: 4 
+    }}>
       <View style={{ 
-        width: Math.max(14, screenWidth * 0.04), 
-        height: 4, 
+        width: Math.max(12, screenWidth * 0.035), 
+        height: Math.max(3, screenWidth * 0.01), 
         backgroundColor: '#007bff', 
         borderRadius: 2, 
-        marginRight: 4 
+        marginRight: Math.max(3, screenWidth * 0.01)
       }} />
       <Text style={{ 
         color: '#007bff', 
         fontWeight: 'bold',
-        fontSize: Math.max(12, Math.min(14, screenWidth / 25))
+        fontSize: Math.max(11, Math.min(13, screenWidth / 28))
       }}>
         Thực tế
       </Text>
     </View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+    {/* Prediction legend - only show if we have prediction data */}
+    {predictionData && predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && (
       <View style={{ 
-        width: Math.max(14, screenWidth * 0.04), 
-        height: 4, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        marginRight: Math.max(15, screenWidth * 0.04), 
+        marginBottom: 4 
+      }}>
+        <View style={{ 
+          width: Math.max(12, screenWidth * 0.035), 
+          height: Math.max(3, screenWidth * 0.01), 
+          backgroundColor: '#FFA500', 
+          borderRadius: 2, 
+          marginRight: Math.max(3, screenWidth * 0.01),
+          borderStyle: 'dashed',
+          borderWidth: 1,
+          borderColor: '#FFA500'
+        }} />
+        <Text style={{ 
+          color: '#FFA500', 
+          fontWeight: 'bold',
+          fontSize: Math.max(11, Math.min(13, screenWidth / 28))
+        }}>
+          Dự đoán 📈
+        </Text>
+      </View>
+    )}
+    <View style={{ 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      marginBottom: 4 
+    }}>
+      <View style={{ 
+        width: Math.max(12, screenWidth * 0.035), 
+        height: Math.max(3, screenWidth * 0.01), 
         backgroundColor: '#ff6384', 
         borderRadius: 2, 
-        marginRight: 4 
+        marginRight: Math.max(3, screenWidth * 0.01)
       }} />
       <Text style={{ 
         color: '#ff6384', 
         fontWeight: 'bold',
-        fontSize: Math.max(12, Math.min(14, screenWidth / 25))
+        fontSize: Math.max(11, Math.min(13, screenWidth / 28))
       }}>
         Tiêu chuẩn
       </Text>
     </View>
   </View>
 
-  <View style={{ minHeight: chartHeight + 40, justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
+  <View style={{ 
+    minHeight: chartHeight + Math.max(30, screenWidth * 0.08), 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    position: 'relative',
+    marginVertical: Math.max(8, screenWidth * 0.02)
+  }}>
     {chartKitData.datasets[0].data.length > 0 && (
       <>
         {/* Y-axis label (at the top-left of Y-axis) */}
@@ -506,8 +1047,11 @@ const ChartScreen = ({ navigation }) => {
             let label = '';
             let labelUnit = '';
             
-            // Determine if this is actual or standard data based on datasetIndex
-            const isActualData = datasetIndex === 0;
+            // Determine data type based on datasetIndex and dataset label
+            const currentDataset = chartKitData.datasets[datasetIndex];
+            const isPredictionData = currentDataset?.label === 'Dự đoán';
+            const isStandardData = currentDataset?.label === 'Tiêu chuẩn';
+            const isActualData = currentDataset?.label === 'Thực tế';
             
             if (isActualData) {
               // Biểu đồ thực tế - hiển thị ngày
@@ -515,18 +1059,36 @@ const ChartScreen = ({ navigation }) => {
                 label = '0';
                 labelUnit = 'ngày';
               } else {
-                const dataPoint = tableData[index - 1];
-                label = dataPoint?.ageInDays || '';
-                labelUnit = 'ngày';
+                const dataPoint = tableData.find(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
+                if (dataPoint) {
+                  label = dataPoint.ageInDays || '';
+                  labelUnit = 'ngày';
+                }
               }
-            } else {
+            } else if (isPredictionData) {
+              // Biểu đồ dự đoán - hiển thị ngày dự đoán
+              if (index === 0) {
+                // First point is last actual point
+                const lastActualPoint = tableData.find(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
+                if (lastActualPoint) {
+                  label = lastActualPoint.ageInDays || '';
+                  labelUnit = 'ngày';
+                }
+              } else {
+                // Prediction point (chỉ có 1 điểm dự đoán)
+                const predictionPoint = tableData.find(item => item.isPrediction);
+                if (predictionPoint) {
+                  label = predictionPoint.ageInDays || '';
+                  labelUnit = 'ngày (dự đoán)';
+                }
+              }
+            } else if (isStandardData) {
               // Biểu đồ tiêu chuẩn - lấy ngày từ labels thật sự của dataset
               if (index === 0) {
                 label = '0';
                 labelUnit = 'ngày';
               } else {
                 // Lấy label thực từ dataset labels
-                const currentDataset = chartKitData.datasets.find(d => d.label === 'Tiêu chuẩn');
                 if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
                   label = currentDataset.labels[index];
                   labelUnit = 'ngày';
@@ -544,7 +1106,7 @@ const ChartScreen = ({ navigation }) => {
               y,
               value: `${value} ${unit}`,
               label: `${label} ${labelUnit}`,
-              isPrediction: false
+              isPrediction: isPredictionData
             });
           }}
           style={{ borderRadius: 16 }}
@@ -553,32 +1115,45 @@ const ChartScreen = ({ navigation }) => {
         {tooltip.visible && (
           <View style={{
             position: 'absolute',
-            left: Math.min((tooltip.x || 0) + 8, screenWidth - 120), // Đảm bảo tooltip không bị cắt
-            top: Math.max((tooltip.y || 0) + 8, 20), // Đảm bảo tooltip không bị cắt
-            backgroundColor: 'white',
-            borderRadius: 6,
-            padding: 8,
+            left: Math.min(
+              Math.max((tooltip.x || 0) - 40, 10), // Tránh bị cắt bên trái
+              screenWidth - Math.max(140, screenWidth * 0.4) - 10 // Tránh bị cắt bên phải với width động
+            ),
+            top: Math.max(
+              Math.min((tooltip.y || 0) - 60, chartHeight - 80), // Tránh bị cắt bên dưới
+              20 // Tránh bị cắt bên trên
+            ),
+            backgroundColor: tooltip.isPrediction ? '#fff8e1' : '#f0f8ff',
+            borderRadius: Math.max(6, screenWidth * 0.015),
+            padding: Math.max(8, screenWidth * 0.02),
             borderWidth: 1,
-            borderColor: '#007bff',
+            borderColor: tooltip.isPrediction ? '#FFA500' : '#007bff',
             zIndex: 10,
             elevation: 10,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2,
             shadowRadius: 2,
-            minWidth: 60,
-            maxWidth: screenWidth * 0.3
+            minWidth: Math.max(80, screenWidth * 0.2),
+            maxWidth: Math.max(160, screenWidth * 0.45), // Tăng maxWidth để hiển thị đủ text
+            alignSelf: 'flex-start'
           }}>
             <Text style={{ 
               fontWeight: 'bold', 
-              color: '#007bff', 
-              fontSize: Math.max(12, Math.min(14, screenWidth / 25))
+              color: tooltip.isPrediction ? '#FFA500' : '#007bff', 
+              fontSize: Math.max(11, Math.min(13, screenWidth / 28)),
+              textAlign: 'center',
+              marginBottom: 2
             }}>
+              {tooltip.isPrediction && '📈 '}
               {tooltip.value}
             </Text>
             <Text style={{ 
-              fontSize: Math.max(10, Math.min(12, screenWidth / 30)), 
-              color: '#333' 
+              fontSize: Math.max(9, Math.min(11, screenWidth / 32)), 
+              color: tooltip.isPrediction ? '#ff6b00' : '#333',
+              fontStyle: tooltip.isPrediction ? 'italic' : 'normal',
+              textAlign: 'center',
+              flexWrap: 'wrap' // Cho phép text wrap nếu cần
             }}>
               {tooltip.label}
             </Text>
@@ -673,6 +1248,70 @@ const ChartScreen = ({ navigation }) => {
       )}
     </View>
   )}
+
+  {/* Prediction section */}
+  {predictionData && (
+    <View style={styles.predictionContainer}>
+      <View style={styles.predictionHeader}>
+        <Text style={styles.predictionTitle}>📈 Dự đoán tăng trưởng</Text>
+        <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
+          Phương pháp: {predictionData.predictionMethod}
+        </Text>
+        <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
+          Sử dụng {predictionData.dataPointsUsed} điểm dữ liệu
+        </Text>
+      </View>
+      
+      {/* Prediction points */}
+      {predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0 && (
+        <View style={{ marginBottom: 15 }}>
+          {(() => {
+            // Tìm prediction point được chọn (cách 30 ngày từ điểm thực tế cuối)
+            const lastActualPoint = validActualData[validActualData.length - 1];
+            const targetPredictionDay = lastActualPoint.ageInDays + 30;
+            const selectedPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
+              const currentDiff = Math.abs(current.ageInDays - targetPredictionDay);
+              const closestDiff = Math.abs(closest.ageInDays - targetPredictionDay);
+              return currentDiff < closestDiff ? current : closest;
+            });
+            
+            return (
+              <>
+                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#ff6b00', marginBottom: 8 }}>
+                  Dự đoán sau {Math.round((selectedPredictionPoint.ageInDays - lastActualPoint.ageInDays))} ngày:
+                </Text>
+                <View style={styles.predictionRow}>
+                  <Text style={styles.predictionLabel}>Chiều cao:</Text>
+                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeight} cm</Text>
+                </View>
+                <View style={styles.predictionRow}>
+                  <Text style={styles.predictionLabel}>Cân nặng:</Text>
+                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedWeight} kg</Text>
+                </View>
+                <View style={styles.predictionRow}>
+                  <Text style={styles.predictionLabel}>BMI:</Text>
+                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedBMI}</Text>
+                </View>
+                <View style={styles.predictionRow}>
+                  <Text style={styles.predictionLabel}>Vòng đầu:</Text>
+                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeadCircumference} cm</Text>
+                </View>
+              </>
+            );
+          })()}
+        </View>
+      )}
+
+      {/* Prediction recommendations */}
+      {predictionData.recommendations && (
+        <View style={{ backgroundColor: '#fff', borderRadius: 4, padding: 8 }}>
+          <Text style={styles.predictionRecommendationsText}>
+            {predictionData.recommendations}
+          </Text>
+        </View>
+      )}
+    </View>
+  )}
 </ScrollView>
 
 
@@ -682,322 +1321,5 @@ const ChartScreen = ({ navigation }) => {
     </ScrollView>
   );
 };
-
-// Combine all styles
-const combinedStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 16,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  childInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1, // Allows child info to take available space
-    marginLeft: 15,
-    marginTop: 10,
-    marginBottom: 10, // Space between back button and child info
-  },
-  profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 10,
-  },
-  childName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  childAge: {
-    fontSize: 14,
-    color: '#555',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  tabButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-  },
-  selectedTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#007bff', // Blue underline
-  },
-  tabText: {
-    fontSize: 16,
-    color: '#555',
-  },
-  selectedTabText: {
-    color: '#007bff', // Blue text for selected tab
-    fontWeight: 'bold',
-  },
-  chartArea: {
-    marginBottom: 20,
-  },
-  chartAreaContent: {
-    alignItems: 'center', // Center the chart horizontally when using ScrollView
-  },
-  chartTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  infoIcon: {
-    position: 'absolute',
-    top: 0, // Adjust position as needed
-    right: 0, // Adjust position as needed
-  },
-  dataTableContainer: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    padding: 10,
-    marginBottom: 20, // Add some space below the table
-    borderRadius: 5, // Optional: add rounded corners
-  },
-  tableTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    paddingBottom: 5,
-    marginBottom: 5,
-  },
-  tableHeaderCell: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#555',
-  },
-  tableBodyScroll: {
-    maxHeight: 200, // Limit height for scrollability if table is long
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomColor: '#eee',
-  },
-  tableCell: {
-    fontSize: 14,
-  },
-  statusText: {
-    // Base style for status text
-    fontSize: 14,
-  },
-  statusNormal: {
-    color: 'green', // Green for 'Bình thường'
-  },
-  statusMildIncrease: {
-    color: 'orange', // Orange for 'Tăng nhẹ'
-  },
-  statusPredicted: {
-    color: '#888', // Gray for 'Dự đoán'
-    fontStyle: 'italic', // Optional: make predicted text italic
-  },
-  noDataText: {
-    textAlign: 'center',
-    marginTop: 10,
-    color: '#555',
-  },
-  dropdownContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    zIndex: 1, // Ensure the dropdown appears above other content
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    marginHorizontal: 16, // Add horizontal margin to align with container
-    marginBottom: 10, // Space between dropdown and tabs
-    marginTop: -5, // Adjust to slightly overlap the child info area for visual connection
-  },
-  dropdownScroll: {
-    maxHeight: 150, // Limit height for scrollability if there are many children
-  },
-   dropdownItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 15, // Add horizontal padding
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  dropdownItemImage: {
-    width: 30, // Adjust size as needed
-    height: 30, // Adjust size as needed
-    borderRadius: 15, // Make it round
-    marginRight: 10, // Space between image and text
-  },
-  dropdownItemTextContainer: {
-    flex: 1, // Allows text to take available space
-  },
-  dropdownItemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  dropdownItemAge: {
-    fontSize: 12,
-    color: '#555',
-  },
-  selectedIcon: {
-    color: 'green',
-    fontSize: 16,
-  },
-  assessmentContainer: {
-    marginTop: 20,
-    borderTopWidth: 2,
-    borderTopColor: '#007bff', // Blue border to distinguish from prediction
-    paddingTop: 15,
-    backgroundColor: '#f8f9fa', // Light gray-blue background
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  assessmentHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#007bff',
-    paddingBottom: 8,
-    marginBottom: 10,
-  },
-  assessmentTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  assessmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    marginVertical: 2,
-  },
-  assessmentLabel: {
-    fontSize: 14,
-    color: '#007bff',
-    fontWeight: '600',
-  },
-  assessmentValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  recommendationsContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: '#007bff',
-    padding: 12,
-    marginTop: 8,
-  },
-  recommendationItem: {
-    flexDirection: 'row',
-    marginBottom: 8,
-    alignItems: 'flex-start',
-  },
-  recommendationBullet: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007bff',
-    marginRight: 8,
-    marginTop: 2,
-  },
-  recommendationsText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#0056b3',
-    flex: 1,
-    flexWrap: 'wrap',
-  },
-  noRecommendationsText: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    padding: 12,
-  },
-  // Prediction styles - khác biệt với assessment
-  predictionContainer: {
-    marginTop: 20,
-    borderTopWidth: 2,
-    borderTopColor: '#ffa500', // Orange border to distinguish from assessment
-    paddingTop: 15,
-    backgroundColor: '#fff8f0', // Light orange background
-    borderRadius: 8,
-    padding: 12,
-  },
-  predictionHeader: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ffa500',
-    paddingBottom: 8,
-    marginBottom: 10,
-  },
-  predictionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ff6b00', // Orange text
-    marginBottom: 10,
-  },
-  predictionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 6,
-    backgroundColor: '#fff',
-    borderRadius: 4,
-    paddingHorizontal: 8,
-    marginVertical: 2,
-  },
-  predictionLabel: {
-    fontSize: 14,
-    color: '#ff6b00',
-    fontWeight: '600',
-  },
-  predictionValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#ff6b00',
-    fontStyle: 'italic', // Make prediction values italic
-  },
-  predictionRecommendationsText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#d2691e', // Darker orange for recommendations
-    backgroundColor: '#fff',
-    padding: 8,
-    borderRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ffa500',
-  },
-});
-
-// Replace the original styles object with the combined styles
-const styles = combinedStyles;
 
 export default ChartScreen;

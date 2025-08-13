@@ -190,6 +190,7 @@ const CustomLineChart = ({
                   stroke={color}
                   strokeWidth={strokeWidth}
                   fill="none"
+                  strokeDasharray={dataset.strokeDashArray ? dataset.strokeDashArray.join(',') : undefined}
                 />
                 
                 {/* Data points - sử dụng giá trị X riêng cho dataset này */}
