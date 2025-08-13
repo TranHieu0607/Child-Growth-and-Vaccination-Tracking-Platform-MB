@@ -34,9 +34,29 @@ export async function createPayment(accountId, membershipId, token) {
   };
 }
 
+/**
+ * Kiểm tra trạng thái thanh toán
+ * @param {string} orderId
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function checkPaymentStatus(orderId, token) {
+  const res = await axiosClient.get(
+    `/Payment/check-status/${orderId}`,
+    {
+      headers: {
+        'accept': '*/*',
+        'Authorization': token,
+      },
+    }
+  );
+  return res.data;
+}
+
 const membershipApi = {
   getActiveMemberships,
   createPayment,
+  checkPaymentStatus,
 };
 
 export default membershipApi; 

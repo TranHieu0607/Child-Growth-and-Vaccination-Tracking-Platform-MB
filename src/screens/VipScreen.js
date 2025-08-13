@@ -32,20 +32,48 @@ const VipScreen = ({ navigation }) => {
     fetchVip();
   }, []);
 
-  const handlePaymentSuccess = (orderId) => {
-    Alert.alert(
-      'Thanh toán thành công!',
-      `Bạn đã đăng ký gói VIP thành công. Mã đơn hàng: ${orderId || 'N/A'}`,
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Có thể refresh lại dữ liệu VIP hoặc navigate về màn hình khác
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+  const handlePaymentSuccess = async (orderId) => {
+    if (!orderId) {
+      Alert.alert(
+        'Lỗi thanh toán',
+        'Không thể xác thực giao dịch. Vui lòng thử lại.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      // Gọi API kiểm tra trạng thái thanh toán
+      const paymentStatus = await membershipApi.checkPaymentStatus(orderId, token);
+      
+      if (paymentStatus.success && paymentStatus.data.status === 'PAID') {
+        Alert.alert(
+          'Thanh toán thành công!',
+          `Bạn đã đăng ký gói VIP thành công.\nMã đơn hàng: ${orderId}\nSố tiền: ${paymentStatus.data.amount}đ\nThời gian: ${new Date(paymentStatus.data.paidAt).toLocaleString('vi-VN')}`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh lại dữ liệu VIP hoặc navigate về màn hình khác
+                navigation.goBack();
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Lỗi thanh toán',
+          'Trạng thái thanh toán không hợp lệ. Vui lòng liên hệ hỗ trợ.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Lỗi kiểm tra thanh toán',
+        'Không thể xác minh trạng thái thanh toán. Vui lòng liên hệ hỗ trợ.',
+        [{ text: 'OK' }]
+      );
+    }
   };
 
   const handlePaymentCancel = () => {

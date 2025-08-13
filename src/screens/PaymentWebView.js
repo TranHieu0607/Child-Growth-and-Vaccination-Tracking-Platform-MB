@@ -13,9 +13,18 @@ const PaymentWebView = ({ visible, paymentUrl, onClose, onSuccess, onCancel }) =
       const orderIdMatch = url.match(/orderId=([^&]+)/);
       const orderId = orderIdMatch ? orderIdMatch[1] : null;
       
+      // Kiểm tra status=PAID và cancel=false
+      const statusMatch = url.match(/status=([^&]+)/);
+      const cancelMatch = url.match(/cancel=([^&]+)/);
+      const status = statusMatch ? statusMatch[1] : null;
+      const isCancel = cancelMatch ? cancelMatch[1] === 'true' : false;
+      
       onClose();
-      if (onSuccess) {
+      
+      if (status === 'PAID' && !isCancel && onSuccess) {
         onSuccess(orderId);
+      } else if (isCancel && onCancel) {
+        onCancel();
       }
       return;
     }
