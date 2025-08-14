@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../store/authSlice';
 import { loginUser } from '../store/api/authApi';
@@ -11,12 +11,28 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
   const { loading, error, user } = useSelector((state) => state.auth);
 
   const handleContinue = async () => {
-    if (!input || !password) return;
+    if (!input || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ số điện thoại/email và mật khẩu');
+      return;
+    }
+    
     try {
       await loginUser({ accountName: input, password });
-      onLoginSuccess();
+      Alert.alert(
+        'Đăng nhập thành công!', 
+        'Chào mừng bạn đến với KidCare',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => onLoginSuccess()
+          }
+        ]
+      );
     } catch (error) {
-      // Xử lý lỗi nếu cần
+      Alert.alert(
+        'Đăng nhập thất bại', 
+        error.message || 'Vui lòng kiểm tra lại thông tin đăng nhập'
+      );
     }
   };
 
@@ -26,8 +42,8 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
 
   return (
     <View style={styles.container}>
-      <Image source={require('../../assets/icon.png')} style={styles.avatar} />
-      <Text style={styles.title}>Kid</Text>
+      <Image source={require('../../assets/logo.png')} style={styles.avatar} />
+      <Text style={styles.title}>KidCare</Text>
       <Text style={styles.welcome}>Chào mừng bạn đến với KidCare</Text>
       <Text style={styles.subtitle}>Theo dõi tiêm chủng và phát triển của bé</Text>
       <View style={styles.inputContainer}>

@@ -316,24 +316,6 @@ const UpdateVaccHiss = ({ navigation }) => {
         )}
       </View>
 
-      {/* Cơ sở tiêm */}
-      <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Cơ sở tiêm</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderColor: 'gray', borderWidth: 1, marginBottom: 24, paddingHorizontal: 10, borderRadius: 5, backgroundColor: '#f9f9f9' }}>
-          <View style={{paddingHorizontal: 10}}><FontAwesomeIcon icon={faMapMarkerAlt} size={20} color="gray" /></View>
-          <Controller
-            control={control}
-            name="vaccinationFacility"
-            render={({ field: { onChange, onBlur, value } }) => (
-              <TextInput
-                style={{ height: 50, flex: 1, paddingHorizontal: 10 }}
-                placeholder="Nhập tên cơ sở tiêm chủng"
-                onBlur={onBlur}
-                onChangeText={onChange}
-                value={value}
-              />
-            )}
-          />
-      </View>
 
       {/* Số mũi tiêm */}
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 5 }}>Số mũi tiêm</Text>

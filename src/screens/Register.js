@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native'; // Adjusted imports assuming React Native based on UI style
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'; // Adjusted imports assuming React Native based on UI style
 import { CheckBox } from 'react-native-elements';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -39,10 +39,21 @@ const Register = ({ navigation }) => {
         growthNote: data.growthNote,
       };
       const response = await registerChildWithGrowth(payload);
-      alert(response.message || 'Tạo trẻ thành công!');
-      navigation.navigate('Home');
+      Alert.alert(
+        'Đăng ký thành công!', 
+        response.message || 'Thông tin bé đã được lưu thành công!',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('Home')
+          }
+        ]
+      );
     } catch (error) {
-      alert(error.response?.data?.message || 'Tạo trẻ thất bại!');
+      Alert.alert(
+        'Đăng ký thất bại', 
+        error.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin bé. Vui lòng thử lại!'
+      );
     }
   };
 

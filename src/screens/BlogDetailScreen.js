@@ -178,44 +178,6 @@ const BlogDetailScreen = ({ navigation, route }) => {
 
           {/* Title */}
           <Text style={styles.title}>{blog.title}</Text>
-
-          {/* Meta Info */}
-          <View style={styles.metaInfo}>
-            <Text style={styles.publishDate}>📅 {formatDate(blog.createdAt)}</Text>
-            <Text style={styles.readTime}>⏱️ 5 phút đọc</Text>
-          </View>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity 
-              style={[styles.actionButton, isLiked && styles.actionButtonActive]}
-              onPress={handleLike}
-            >
-              <FontAwesomeIcon 
-                icon={faHeart} 
-                size={16} 
-                color={isLiked ? '#ff4757' : '#666'} 
-              />
-              <Text style={[styles.actionButtonText, isLiked && styles.actionButtonTextActive]}>
-                Yêu thích
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.actionButton, isBookmarked && styles.actionButtonActive]}
-              onPress={handleBookmark}
-            >
-              <FontAwesomeIcon 
-                icon={faBookmark} 
-                size={16} 
-                color={isBookmarked ? '#007bff' : '#666'} 
-              />
-              <Text style={[styles.actionButtonText, isBookmarked && styles.actionButtonTextActive]}>
-                Lưu
-              </Text>
-            </TouchableOpacity>
-          </View>
-
           {/* Divider */}
           <View style={styles.divider} />
 

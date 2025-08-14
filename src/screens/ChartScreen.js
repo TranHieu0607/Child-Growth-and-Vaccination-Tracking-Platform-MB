@@ -1059,10 +1059,18 @@ const ChartScreen = ({ navigation }) => {
                 label = '0';
                 labelUnit = 'ngày';
               } else {
-                const dataPoint = tableData.find(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
-                if (dataPoint) {
-                  label = dataPoint.ageInDays || '';
+                // Lấy label từ dataset labels của actual data
+                if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
+                  label = currentDataset.labels[index];
                   labelUnit = 'ngày';
+                } else {
+                  // Fallback: tìm điểm dữ liệu thực tế tương ứng với index
+                  const actualDataPoints = tableData.filter(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
+                  const dataPoint = actualDataPoints[index - 1]; // index - 1 vì index 0 là điểm gốc
+                  if (dataPoint) {
+                    label = dataPoint.ageInDays || '';
+                    labelUnit = 'ngày';
+                  }
                 }
               }
             } else if (isPredictionData) {
