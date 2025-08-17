@@ -382,6 +382,29 @@ const Booking = ({ navigation, route }) => {
     }
   };
 
+  // Function to calculate age from date of birth
+  const calculateAge = (dateOfBirth) => {
+    if (!dateOfBirth) return 'Chưa có thông tin tuổi';
+    
+    const today = dayjs();
+    const birthDate = dayjs(dateOfBirth);
+    
+    const years = today.diff(birthDate, 'year');
+    const months = today.diff(birthDate.add(years, 'year'), 'month');
+    
+    if (years > 0) {
+      if (months > 0) {
+        return `${years} tuổi ${months} tháng`;
+      }
+      return `${years} tuổi`;
+    } else if (months > 0) {
+      return `${months} tháng tuổi`;
+    } else {
+      const days = today.diff(birthDate, 'day');
+      return `${days} ngày tuổi`;
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
       {/* Header */}
@@ -419,7 +442,10 @@ const Booking = ({ navigation, route }) => {
           <View>
             {/* Display name of the first selected child */}
             {selectedChildren.length > 0 && (
-              <Text style={styles.childName}>{selectedChild?.fullName}</Text>
+              <>
+                <Text style={styles.childName}>{selectedChild?.fullName}</Text>
+                <Text style={styles.childAge}>{calculateAge(selectedChild?.birthDate)}</Text>
+              </>
             )}
           </View>
         </View>
@@ -446,6 +472,7 @@ const Booking = ({ navigation, route }) => {
                 />
                 <View style={styles.dropdownItemTextContainer}>
                   <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                  <Text style={styles.dropdownItemAge}>{calculateAge(child.birthDate)}</Text>
                 </View>
                 {selectedChildren[0] === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
               </TouchableOpacity>
@@ -1156,6 +1183,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
+  childAge: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
   dropdownToggle: {
     padding: 5,
   },
@@ -1200,6 +1232,11 @@ const styles = StyleSheet.create({
   dropdownItemName: {
     fontSize: 15,
     color: '#333',
+  },
+  dropdownItemAge: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
   },
   selectedIcon: {
     marginLeft: 5,
@@ -1559,4 +1596,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Booking; 
+export default Booking;
