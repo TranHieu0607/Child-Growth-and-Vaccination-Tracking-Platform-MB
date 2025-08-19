@@ -39,99 +39,90 @@ export async function getFullGrowthData(childId, gender) {
       status: 'Bình thường',
     })).filter(item => typeof item.value === 'number' && isFinite(item.value));
 
-  // Tạo danh sách các ngày cần lấy dữ liệu tiêu chuẩn (đủ để hiển thị từ 30 đến 4320 ngày)
-  const generateStandardDays = () => {
-    const days = [];
-    // Tạo các mốc 30 ngày từ 30 đến 4320 (144 điểm: 30, 60, 90, ..., 4320)
-    for (let i = 1; i <= 144; i++) { // 4320 / 30 = 144
-      days.push(i * 30);
+  // OPTIMIZE: Chỉ tạo các mốc cần thiết dựa trên dữ liệu thực tế
+  const generateOptimizedStandardDays = (actualRecords) => {
+    const days = new Set();
+    
+    if (actualRecords.length === 0) {
+      // Nếu không có dữ liệu thực tế, chỉ load một số mốc cơ bản
+      return [30, 60, 90, 180, 360, 720, 1080, 1440, 1800, 2160];
     }
-    return days;
+    
+    const latestDay = Math.max(...actualRecords.map(r => r.ageInDays));
+    
+    if (latestDay <= 720) {
+      // Logic cho ≤ 720 ngày: mỗi 30 ngày
+      const start = Math.max(30, latestDay - 60);
+      const end = latestDay + 60;
+      for (let day = start; day <= end; day += 30) {
+        days.add(day);
+      }
+    } else {
+      // Logic cho > 720 ngày: chỉ load 2 mốc 360*x gần nhất
+      const x = latestDay / 360;
+      const lowerX = Math.floor(x);
+      const upperX = Math.ceil(x);
+      
+      if (lowerX === upperX) {
+        days.add(360 * Math.max(1, lowerX - 1));
+        days.add(360 * lowerX);
+      } else {
+        days.add(360 * lowerX);
+        days.add(360 * upperX);
+      }
+      
+      // Thêm một số mốc gần để backup
+      const backup = latestDay - 360;
+      if (backup > 0) days.add(Math.round(backup / 30) * 30);
+      const backup2 = latestDay + 360;
+      days.add(Math.round(backup2 / 30) * 30);
+    }
+    
+    return Array.from(days).sort((a, b) => a - b);
   };
 
-  const allStandardDays = generateStandardDays();
+  const actualData = processRecords('height'); // Dùng height để estimate
+  const optimizedStandardDays = generateOptimizedStandardDays(records);
+  
+  console.log('Optimized standard days:', optimizedStandardDays); // Debug log
 
-  // Fetch chuẩn song song cho tất cả các ngày
+  // OPTIMIZE: Fetch song song nhưng ít API calls hơn
   const [resultsHeight, resultsWeight, resultsHead, resultsBMI] = await Promise.all([
-    Promise.all(allStandardDays.map(days => childrenApi.getHeightStandard(gender, days))),
-    Promise.all(allStandardDays.map(days => childrenApi.getWeightStandard(gender, days))),
-    Promise.all(allStandardDays.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
-    Promise.all(allStandardDays.map(days => childrenApi.getBMIStandard(gender, days))),
+    Promise.all(optimizedStandardDays.map(days => childrenApi.getHeightStandard(gender, days))),
+    Promise.all(optimizedStandardDays.map(days => childrenApi.getWeightStandard(gender, days))),
+    Promise.all(optimizedStandardDays.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
+    Promise.all(optimizedStandardDays.map(days => childrenApi.getBMIStandard(gender, days))),
   ]);
 
-  const standardDataHeight = resultsHeight.map((res, idx) => {
-    const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 
-      ? { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: arr[0].median 
-        } 
-      : { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: null 
-        };
-  }).filter(item => item.median !== null); // Lọc bỏ các điểm không có dữ liệu
+  const createStandardData = (results, days) => {
+    return results.map((res, idx) => {
+      const arr = Array.isArray(res.data) ? res.data : [];
+      return arr.length > 0 
+        ? { 
+            ageInDays: days[idx], 
+            ageInMonths: Math.round(days[idx] / 30.44), 
+            median: arr[0].median 
+          } 
+        : null;
+    }).filter(item => item !== null && item.median !== null);
+  };
 
-  const standardDataWeight = resultsWeight.map((res, idx) => {
-    const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 
-      ? { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: arr[0].median 
-        } 
-      : { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: null 
-        };
-  }).filter(item => item.median !== null);
-
-  const standardDataHead = resultsHead.map((res, idx) => {
-    const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 
-      ? { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: arr[0].median 
-        } 
-      : { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: null 
-        };
-  }).filter(item => item.median !== null);
-
-  const standardDataBMI = resultsBMI.map((res, idx) => {
-    const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 
-      ? { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: arr[0].median 
-        } 
-      : { 
-          ageInDays: allStandardDays[idx], 
-          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
-          median: null 
-        };
-  }).filter(item => item.median !== null);
+  const standardDataHeight = createStandardData(resultsHeight, optimizedStandardDays);
+  const standardDataWeight = createStandardData(resultsWeight, optimizedStandardDays);
+  const standardDataHead = createStandardData(resultsHead, optimizedStandardDays);
+  const standardDataBMI = createStandardData(resultsBMI, optimizedStandardDays);
 
   const actualHeightData = processRecords('height');
   const actualWeightData = processRecords('weight');
   const actualHeadData = processRecords('headCircumference');
   const actualBMIData = processRecords('bmi');
 
-  // Fetch prediction data
+  // OPTIMIZE: Load prediction data sau, không block UI
   let predictionData = null;
-  try {
-    const predictionResponse = await growthPredictionApi.getGrowthPrediction(childId, 30);
-    predictionData = predictionResponse.data;
-  } catch (err) {
-    predictionData = null;
-  }
+  // Không await prediction để không block UI chính
+  growthPredictionApi.getGrowthPrediction(childId, 30)
+    .then(response => predictionData = response.data)
+    .catch(() => predictionData = null);
 
   return {
     growthData: {
@@ -149,4 +140,16 @@ export async function getFullGrowthData(childId, gender) {
     bmiStandardData: standardDataBMI,
     predictionData: predictionData,
   };
+}
+
+/**
+ * Load prediction data riêng biệt
+ */
+export async function getPredictionData(childId) {
+  try {
+    const response = await growthPredictionApi.getGrowthPrediction(childId, 30);
+    return response.data;
+  } catch (err) {
+    return null;
+  }
 }

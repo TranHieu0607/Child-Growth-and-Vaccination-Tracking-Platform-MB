@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import CustomLineChart from '../components/CustomLineChart';
 import childrenApi from '../store/api/childrenApi';
-import { getFullGrowthData } from '../store/api/growthApi';
+import { getFullGrowthData, getPredictionData } from '../store/api/growthApi';
 
 // Placeholder components
 const TabBar = ({ selectedTab, onSelectTab }) => {
@@ -162,6 +162,13 @@ const ChartScreen = ({ navigation }) => {
   // Tooltip state
   const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, value: '', label: '', isPrediction: false });
 
+  // Thêm loading states
+  const [isLoading, setIsLoading] = useState(true);
+  const [isPredictionLoading, setIsPredictionLoading] = useState(false);
+
+  // Cache để tránh reload không cần thiết
+  const [dataCache, setDataCache] = useState({});
+
   useEffect(() => {
     const fetchChildren = async () => {
       try {
@@ -186,27 +193,72 @@ const ChartScreen = ({ navigation }) => {
         setBMIStandardData([]);
         setAssessmentData(null);
         setPredictionData(null);
+        setIsLoading(false);
         return;
       }
-      // Lấy gender từ danh sách children
+
+      // Check cache first
+      const cacheKey = `${selectedChildId}-${children.find(child => child.childId === selectedChildId)?.gender || 'male'}`;
+      if (dataCache[cacheKey]) {
+        console.log('Using cached data');
+        const cached = dataCache[cacheKey];
+        setChildGrowthData(cached.growthData);
+        setHeightStandardData(cached.heightStandardData);
+        setWeightStandardData(cached.weightStandardData);
+        setHeadCircumferenceStandardData(cached.headCircumferenceStandardData);
+        setBMIStandardData(cached.bmiStandardData);
+        setAssessmentData(cached.assessmentData);
+        setPredictionData(cached.predictionData);
+        setIsLoading(false);
+        
+        // Load prediction data in background if not cached
+        if (!cached.predictionData) {
+          loadPredictionDataAsync(selectedChildId);
+        }
+        return;
+      }
+
+      setIsLoading(true);
       const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
+      
       try {
-        // Fetch growth data and assessment in parallel
+        // Load main data first (fast)
         const [growthResult, assessmentResult] = await Promise.all([
           getFullGrowthData(selectedChildId, gender),
           childrenApi.getLatestGrowthAssessment(selectedChildId)
         ]);
 
-        // Set growth data
+        // Set main data immediately
         setChildGrowthData(growthResult.growthData);
         setHeightStandardData(growthResult.heightStandardData);
         setWeightStandardData(growthResult.weightStandardData);
         setHeadCircumferenceStandardData(growthResult.headCircumferenceStandardData);
         setBMIStandardData(growthResult.bmiStandardData);
-        setPredictionData(growthResult.predictionData);
-
-        // Set assessment data
         setAssessmentData(assessmentResult.data);
+        
+        // Cache the data
+        setDataCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            growthData: growthResult.growthData,
+            heightStandardData: growthResult.heightStandardData,
+            weightStandardData: growthResult.weightStandardData,
+            headCircumferenceStandardData: growthResult.headCircumferenceStandardData,
+            bmiStandardData: growthResult.bmiStandardData,
+            assessmentData: assessmentResult.data,
+            predictionData: growthResult.predictionData
+          }
+        }));
+
+        setIsLoading(false);
+
+        // Load prediction data async if not available
+        if (!growthResult.predictionData) {
+          loadPredictionDataAsync(selectedChildId);
+        } else {
+          setPredictionData(growthResult.predictionData);
+        }
+
       } catch (err) {
         console.error('Error fetching data:', err);
         setChildGrowthData(null);
@@ -216,11 +268,36 @@ const ChartScreen = ({ navigation }) => {
         setBMIStandardData([]);
         setAssessmentData(null);
         setPredictionData(null);
+        setIsLoading(false);
       }
     };
+    
     fetchAllDataForChild();
   }, [selectedChildId, children]);
 
+  // Load prediction data separately
+  const loadPredictionDataAsync = async (childId) => {
+    setIsPredictionLoading(true);
+    try {
+      const prediction = await getPredictionData(childId);
+      setPredictionData(prediction);
+      
+      // Update cache
+      const gender = children.find(child => child.childId === childId)?.gender || 'male';
+      const cacheKey = `${childId}-${gender}`;
+      setDataCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          ...prev[cacheKey],
+          predictionData: prediction
+        }
+      }));
+    } catch (error) {
+      console.error('Error loading prediction data:', error);
+    } finally {
+      setIsPredictionLoading(false);
+    }
+  };
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
@@ -872,6 +949,15 @@ const ChartScreen = ({ navigation }) => {
     },
   }), [screenWidth, screenHeight]);
 
+  // Show loading indicator
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 16, color: '#666' }}>Đang tải dữ liệu...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={[styles.container, { padding: Math.max(12, screenWidth * 0.03) }]}>
       {/* 1. Header Hồ sơ Trẻ */}
@@ -1365,67 +1451,81 @@ const ChartScreen = ({ navigation }) => {
     </View>
   )}
 
-  {/* Prediction section */}
-  {predictionData && (
+  {/* Prediction section with loading indicator */}
+  {(predictionData || isPredictionLoading) && (
     <View style={styles.predictionContainer}>
       <View style={styles.predictionHeader}>
-        <Text style={styles.predictionTitle}>📈 Dự đoán tăng trưởng</Text>
-        <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
-          Phương pháp: {predictionData.predictionMethod}
+        <Text style={styles.predictionTitle}>
+          📈 Dự đoán tăng trưởng {isPredictionLoading && '(Đang tải...)'}
         </Text>
-        <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
-          Sử dụng {predictionData.dataPointsUsed} điểm dữ liệu
-        </Text>
+        {predictionData && (
+          <>
+            <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
+              Phương pháp: {predictionData.predictionMethod}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
+              Sử dụng {predictionData.dataPointsUsed} điểm dữ liệu
+            </Text>
+          </>
+        )}
       </View>
       
-      {/* Prediction points */}
-      {predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0 && (
-        <View style={{ marginBottom: 15 }}>
-          {(() => {
-            // Tìm prediction point được chọn (cách 30 ngày từ điểm thực tế cuối)
-            const lastActualPoint = validActualData[validActualData.length - 1];
-            const targetPredictionDay = lastActualPoint.ageInDays + 30;
-            const selectedPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
-              const currentDiff = Math.abs(current.ageInDays - targetPredictionDay);
-              const closestDiff = Math.abs(closest.ageInDays - targetPredictionDay);
-              return currentDiff < closestDiff ? current : closest;
-            });
-            
-            return (
-              <>
-                <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#ff6b00', marginBottom: 8 }}>
-                  Dự đoán sau {Math.round((selectedPredictionPoint.ageInDays - lastActualPoint.ageInDays))} ngày:
-                </Text>
-                <View style={styles.predictionRow}>
-                  <Text style={styles.predictionLabel}>Chiều cao:</Text>
-                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeight} cm</Text>
-                </View>
-                <View style={styles.predictionRow}>
-                  <Text style={styles.predictionLabel}>Cân nặng:</Text>
-                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedWeight} kg</Text>
-                </View>
-                <View style={styles.predictionRow}>
-                  <Text style={styles.predictionLabel}>BMI:</Text>
-                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedBMI}</Text>
-                </View>
-                <View style={styles.predictionRow}>
-                  <Text style={styles.predictionLabel}>Vòng đầu:</Text>
-                  <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeadCircumference} cm</Text>
-                </View>
-              </>
-            );
-          })()}
-        </View>
-      )}
+      {isPredictionLoading ? (
+        <Text style={{ color: '#ff6b00', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>
+          Đang tính toán dự đoán...
+        </Text>
+      ) : predictionData ? (
+        <>
+          {/* Prediction points */}
+          {predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0 && (
+            <View style={{ marginBottom: 15 }}>
+              {(() => {
+                // Tìm prediction point được chọn (cách 30 ngày từ điểm thực tế cuối)
+                const lastActualPoint = validActualData[validActualData.length - 1];
+                const targetPredictionDay = lastActualPoint.ageInDays + 30;
+                const selectedPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
+                  const currentDiff = Math.abs(current.ageInDays - targetPredictionDay);
+                  const closestDiff = Math.abs(closest.ageInDays - targetPredictionDay);
+                  return currentDiff < closestDiff ? current : closest;
+                });
+                
+                return (
+                  <>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#ff6b00', marginBottom: 8 }}>
+                      Dự đoán sau {Math.round((selectedPredictionPoint.ageInDays - lastActualPoint.ageInDays))} ngày:
+                    </Text>
+                    <View style={styles.predictionRow}>
+                      <Text style={styles.predictionLabel}>Chiều cao:</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeight} cm</Text>
+                    </View>
+                    <View style={styles.predictionRow}>
+                      <Text style={styles.predictionLabel}>Cân nặng:</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedWeight} kg</Text>
+                    </View>
+                    <View style={styles.predictionRow}>
+                      <Text style={styles.predictionLabel}>BMI:</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedBMI}</Text>
+                    </View>
+                    <View style={styles.predictionRow}>
+                      <Text style={styles.predictionLabel}>Vòng đầu:</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeadCircumference} cm</Text>
+                    </View>
+                  </>
+                );
+              })()}
+            </View>
+          )}
 
-      {/* Prediction recommendations */}
-      {predictionData.recommendations && (
-        <View style={{ backgroundColor: '#fff', borderRadius: 4, padding: 8 }}>
-          <Text style={styles.predictionRecommendationsText}>
-            {predictionData.recommendations}
-          </Text>
-        </View>
-      )}
+          {/* Prediction recommendations */}
+          {predictionData.recommendations && (
+            <View style={{ backgroundColor: '#fff', borderRadius: 4, padding: 8 }}>
+              <Text style={styles.predictionRecommendationsText}>
+                {predictionData.recommendations}
+              </Text>
+            </View>
+          )}
+        </>
+      ) : null}
     </View>
   )}
 </ScrollView>
