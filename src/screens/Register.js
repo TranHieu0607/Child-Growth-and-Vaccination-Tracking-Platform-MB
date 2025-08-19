@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native'; // Adjusted imports assuming React Native based on UI style
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Modal, FlatList } from 'react-native'; // Adjusted imports assuming React Native based on UI style
 import { CheckBox } from 'react-native-elements';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -12,6 +12,10 @@ import DateTimePickerModal from 'react-native-modal-datetime-picker';
 
 const Register = ({ navigation }) => {
   const dispatch = useDispatch();
+  const [showBloodTypePicker, setShowBloodTypePicker] = useState(false);
+  
+  const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+  
   const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm({
     defaultValues: {
       fullName: '',
@@ -69,6 +73,8 @@ const Register = ({ navigation }) => {
       {/* Thông Tin Bé */}
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 20 }}>Thông Tin Bé</Text>
       <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#ccc', alignSelf: 'center', marginVertical: 20 }} />
+      
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Họ và tên bé</Text>
       <Controller
         control={control}
         name="fullName"
@@ -86,6 +92,8 @@ const Register = ({ navigation }) => {
         )}
       />
       {errors.fullName && <Text style={{ color: 'red' }}>{errors.fullName.message}</Text>}
+      
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Ngày sinh</Text>
       <Controller
         control={control}
         name="birthDate"
@@ -118,8 +126,9 @@ const Register = ({ navigation }) => {
         }}
       />
       {errors.birthDate && <Text style={{ color: 'red' }}>{errors.birthDate.message}</Text>}
+      
       {/* Giới tính */}
-      <Text style={{ marginBottom: 10 }}>Giới tính</Text>
+      <Text style={{ fontSize: 16, marginBottom: 10, fontWeight: '500' }}>Giới tính</Text>
       <Controller
         control={control}
         name="gender"
@@ -188,25 +197,90 @@ const Register = ({ navigation }) => {
           </View>
         )}
       />
+      
       {/* Nhóm máu */}
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Nhóm máu</Text>
       <Controller
         control={control}
         name="bloodType"
-        rules={{ required: 'Vui lòng nhập nhóm máu (ví dụ: O-, A+,...)' }}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Nhóm máu (ví dụ: O-, A+,...)"
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value}
-            autoCapitalize="none"
-            importantForAutofill="no"
-          />
+        rules={{ required: 'Vui lòng chọn nhóm máu' }}
+        render={({ field: { onChange, value } }) => (
+          <View style={{ position: 'relative', zIndex: 1000 }}>
+            <TouchableOpacity
+              onPress={() => setShowBloodTypePicker(!showBloodTypePicker)}
+              style={{ 
+                height: 50, 
+                borderColor: 'gray', 
+                borderWidth: 1, 
+                marginBottom: showBloodTypePicker ? 0 : 10, 
+                paddingHorizontal: 10, 
+                borderRadius: showBloodTypePicker ? 5 : 5, 
+                borderBottomLeftRadius: showBloodTypePicker ? 0 : 5,
+                borderBottomRightRadius: showBloodTypePicker ? 0 : 5,
+                justifyContent: 'space-between',
+                flexDirection: 'row',
+                alignItems: 'center'
+              }}
+            >
+              <Text style={{ color: value ? 'black' : '#aaa' }}>
+                {value ? value : 'Chọn nhóm máu'}
+              </Text>
+              <Text style={{ color: '#666', fontSize: 16 }}>
+                {showBloodTypePicker ? '▲' : '▼'}
+              </Text>
+            </TouchableOpacity>
+            
+            {showBloodTypePicker && (
+              <View style={{ 
+                borderWidth: 1, 
+                borderColor: 'gray', 
+                borderTopWidth: 0,
+                borderBottomLeftRadius: 5,
+                borderBottomRightRadius: 5,
+                backgroundColor: 'white',
+                marginBottom: 10,
+                height: 144, // 3 items * 48px per item
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+              }}>
+                <ScrollView nestedScrollEnabled={true}>
+                  {bloodTypes.map((type, index) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={{ 
+                        padding: 12, 
+                        height: 48,
+                        justifyContent: 'center',
+                        borderBottomWidth: index < bloodTypes.length - 1 ? 1 : 0, 
+                        borderBottomColor: '#eee',
+                        backgroundColor: value === type ? '#f0f8ff' : 'white'
+                      }}
+                      onPress={() => {
+                        onChange(type);
+                        setShowBloodTypePicker(false);
+                      }}
+                    >
+                      <Text style={{ 
+                        fontSize: 16, 
+                        color: value === type ? '#007bff' : '#333'
+                      }}>
+                        {type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+          </View>
         )}
       />
       {errors.bloodType && <Text style={{ color: 'red' }}>{errors.bloodType.message}</Text>}
+      
       {/* Dị ứng */}
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Ghi chú dị ứng</Text>
       <Controller
         control={control}
         name="allergiesNotes"
@@ -222,7 +296,9 @@ const Register = ({ navigation }) => {
           />
         )}
       />
+      
       {/* Tiền sử bệnh */}
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Tiền sử bệnh</Text>
       <Controller
         control={control}
         name="medicalHistory"
@@ -238,8 +314,11 @@ const Register = ({ navigation }) => {
           />
         )}
       />
+      
       {/* Chỉ số tăng trưởng */}
       <Text style={{ fontSize: 18, fontWeight: 'bold', marginTop: 10, marginBottom: 10 }}>Chỉ Số Tăng Trưởng</Text>
+      
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Cân nặng</Text>
       <Controller
         control={control}
         name="weight"
@@ -257,6 +336,8 @@ const Register = ({ navigation }) => {
         )}
       />
       {errors.weight && <Text style={{ color: 'red' }}>{errors.weight.message}</Text>}
+      
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Chiều cao</Text>
       <Controller
         control={control}
         name="height"
@@ -274,6 +355,8 @@ const Register = ({ navigation }) => {
         )}
       />
       {errors.height && <Text style={{ color: 'red' }}>{errors.height.message}</Text>}
+      
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Vòng đầu</Text>
       <Controller
         control={control}
         name="headCircumference"
@@ -289,7 +372,9 @@ const Register = ({ navigation }) => {
           />
         )}
       />
+      
       {/* Ghi chú tăng trưởng */}
+      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Ghi chú tăng trưởng</Text>
       <Controller
         control={control}
         name="growthNote"
@@ -324,4 +409,4 @@ const Register = ({ navigation }) => {
   );
 };
 
-export default Register; 
+export default Register;
