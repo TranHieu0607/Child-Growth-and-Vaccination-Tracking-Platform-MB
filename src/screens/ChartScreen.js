@@ -276,8 +276,6 @@ const ChartScreen = ({ navigation }) => {
       const actualValues = [0, ...last3ActualData.map(item => item.value)];
       const actualLabels = ['0', ...last3ActualData.map(item => item.ageInDays.toString())];
       
-      console.log('Actual Labels:', actualLabels); // Debug log
-      
       datasets.push({
         data: actualValues,
         labels: actualLabels, // Labels riêng cho dataset này
@@ -316,9 +314,6 @@ const ChartScreen = ({ navigation }) => {
         const predictionValues = [lastActualPoint.value, closestPredictionPoint[predictionField]];
         const predictionLabels = [lastActualPoint.ageInDays.toString(), closestPredictionPoint.ageInDays.toString()];
         
-        console.log('Prediction Labels:', predictionLabels); // Debug log
-        console.log(`Target: ${targetPredictionDay}, Selected: ${closestPredictionPoint.ageInDays}`); // Debug log
-        
         datasets.push({
           data: predictionValues,
           labels: predictionLabels,
@@ -342,71 +337,184 @@ const ChartScreen = ({ navigation }) => {
       }
     }
 
-    // Standard data (pink line) - chỉ lấy 2 điểm dựa vào ngày thực tế gần nhất
+    // Standard data (pink line) - chỉ cải thiện phần > 720 ngày
     if (standardData.length > 0) {
       let filteredStandardData = standardData;
       
-      // Nếu có dữ liệu thực tế, lọc dữ liệu tiêu chuẩn dựa vào ngày gần nhất
+      // Nếu có dữ liệu thực tế, lọc dữ liệu tiêu chuẩn
       if (validActualData.length > 0) {
         const latestActualDay = validActualData[validActualData.length - 1].ageInDays;
         
-        // Luôn sử dụng mốc chuẩn 30 ngày (30, 60, 90, 120, 150...)
-        const standardDays = standardData.map((item, index) => ({
-          ...item,
-          standardDay: (index + 1) * 30 // Luôn sử dụng mốc chuẩn
-        }));
+        console.log(`Latest actual day: ${latestActualDay}`); // Debug log
         
-        console.log('Standard data with standard days:', standardDays.map(item => ({ day: item.standardDay, median: item.median })));
-        
-        // Tìm điểm tiêu chuẩn nhỏ hơn và lớn hơn gần nhất với ngày thực tế
-        const beforePoint = standardDays.filter(item => item.standardDay <= latestActualDay).slice(-1)[0]; // Điểm gần nhất nhỏ hơn hoặc bằng
-        const afterPoint = standardDays.find(item => item.standardDay > latestActualDay); // Điểm đầu tiên lớn hơn
-        
-        // Lấy 2 điểm: trước và sau ngày thực tế
-        filteredStandardData = [];
-        if (beforePoint) filteredStandardData.push(beforePoint);
-        if (afterPoint) filteredStandardData.push(afterPoint);
-        
-        // Nếu không có điểm trước, lấy 2 điểm đầu
-        // Nếu không có điểm sau, lấy 2 điểm cuối
-        if (filteredStandardData.length < 2) {
-          if (!beforePoint) {
-            filteredStandardData = standardDays.slice(0, 2);
-          } else if (!afterPoint) {
-            filteredStandardData = standardDays.slice(-2);
+        if (latestActualDay <= 720) {
+          // Logic cũ GIỮ NGUYÊN: ≤ 720 ngày, sử dụng hệ thống 30 ngày
+          const standardDays = standardData.map((item, index) => ({
+            ...item,
+            standardDay: (index + 1) * 30 // 30, 60, 90, 120, 150...
+          }));
+          
+          const rangeStart = Math.max(30, latestActualDay - 30);
+          const rangeEnd = latestActualDay + 30;
+          
+          filteredStandardData = standardDays.filter(item => 
+            item.standardDay >= rangeStart && item.standardDay <= rangeEnd
+          );
+          
+          // Đảm bảo có ít nhất 2 điểm
+          if (filteredStandardData.length < 2) {
+            const expandedStart = Math.max(30, rangeStart - 60);
+            const expandedEnd = rangeEnd + 60;
+            filteredStandardData = standardDays.filter(item => 
+              item.standardDay >= expandedStart && item.standardDay <= expandedEnd
+            );
+          }
+          
+          console.log(`Using 30-day system. Range: ${rangeStart}-${rangeEnd}`); // Debug log
+        } else {
+          // Logic mới CẢI THIỆN CHO > 720 ngày: sử dụng hệ thống 360*x với ageInDays có sẵn
+          
+          // Tìm 2 mốc 360*x gần nhất với latestActualDay
+          const x = latestActualDay / 360; // Ví dụ: 1826/360 = 5.07
+          const lowerX = Math.floor(x); // 5
+          const upperX = Math.ceil(x); // 6 (hoặc 5 nếu x là số nguyên)
+          
+          // Đảm bảo có 2 mốc khác nhau
+          let targetMultipliers;
+          if (lowerX === upperX) {
+            // Nếu latestActualDay chính xác là bội số của 360
+            targetMultipliers = [Math.max(1, lowerX - 1), lowerX];
+          } else {
+            targetMultipliers = [lowerX, upperX];
+          }
+          
+          const target1 = 360 * targetMultipliers[0]; // Ví dụ: 360*5 = 1800
+          const target2 = 360 * targetMultipliers[1]; // Ví dụ: 360*6 = 2160
+          
+          console.log(`Using 360-day system. x=${x.toFixed(2)}, lowerX=${lowerX}, upperX=${upperX}`); // Debug log
+          console.log(`Target days: ${target1}, ${target2}`); // Debug log
+          
+          // Tìm 2 điểm gần nhất với target1 và target2 trong standardData
+          // SỬA: sử dụng ageInDays có sẵn từ API thay vì tính (index + 1) * 30
+          const findClosestStandardPoint = (targetDay) => {
+            let closestPoint = null;
+            let minDistance = Infinity;
+            
+            standardData.forEach((item, index) => {
+              const currentDay = item.ageInDays; // SỬA: dùng ageInDays có sẵn
+              const distance = Math.abs(currentDay - targetDay);
+              
+              if (distance < minDistance) {
+                minDistance = distance;
+                closestPoint = { ...item, index, standardDay: currentDay, distance };
+              }
+            });
+            
+            return closestPoint;
+          };
+          
+          const point1 = findClosestStandardPoint(target1);
+          const point2 = findClosestStandardPoint(target2);
+          
+          console.log(`Found points:`, { 
+            point1: point1 ? `day ${point1.standardDay} (target: ${target1}, distance: ${point1.distance})` : 'null',
+            point2: point2 ? `day ${point2.standardDay} (target: ${target2}, distance: ${point2.distance})` : 'null'
+          }); // Debug log
+          
+          // Loại bỏ điểm trùng lặp nếu có và kiểm tra null
+          const uniquePoints = [];
+          if (point1 && point1.standardDay) uniquePoints.push(point1);
+          if (point2 && point2.standardDay && (!point1 || point2.standardDay !== point1.standardDay)) {
+            uniquePoints.push(point2);
+          }
+          
+          filteredStandardData = uniquePoints;
+          
+          // Nếu vẫn chỉ có 1 điểm hoặc 2 điểm quá gần nhau (< 180 ngày), tìm thêm điểm
+          if (filteredStandardData.length < 2 || 
+              (filteredStandardData.length === 2 && 
+               filteredStandardData[0] && filteredStandardData[1] && 
+               Math.abs(filteredStandardData[0].standardDay - filteredStandardData[1].standardDay) < 180)) {
+            
+            console.log('Need to find additional points'); // Debug log
+            
+            // Tìm tất cả các điểm trong khoảng hợp lý và sắp xếp theo khoảng cách
+            // SỬA: sử dụng ageInDays có sẵn thay vì tính (index + 1) * 30
+            const allCandidates = standardData
+              .map((item, index) => ({ ...item, index, standardDay: item.ageInDays })) // SỬA: dùng ageInDays
+              .filter(item => item && typeof item.standardDay === 'number') // Lọc bỏ các item null/undefined
+              .map(item => ({
+                ...item,
+                distance: Math.abs(item.standardDay - latestActualDay)
+              }))
+              .filter(item => Math.abs(item.standardDay - latestActualDay) <= 720) // Trong phạm vi ±720 ngày
+              .sort((a, b) => a.distance - b.distance);
+            
+            console.log(`Found ${allCandidates.length} candidates within ±720 days range`); // Debug log
+            
+            if (allCandidates.length > 0) {
+              // Chọn 2 điểm có khoảng cách hợp lý (ít nhất 180 ngày)
+              filteredStandardData = [allCandidates[0]]; // Điểm gần nhất
+              
+              for (let i = 1; i < allCandidates.length; i++) {
+                const candidate = allCandidates[i];
+                const isDistantEnough = filteredStandardData.every(existing => 
+                  existing && candidate && 
+                  Math.abs(candidate.standardDay - existing.standardDay) >= 180
+                );
+                
+                if (isDistantEnough) {
+                  filteredStandardData.push(candidate);
+                  break;
+                }
+              }
+              
+              // Nếu vẫn chỉ có 1 điểm, thêm điểm gần thứ 2
+              if (filteredStandardData.length < 2 && allCandidates.length > 1) {
+                filteredStandardData.push(allCandidates[1]);
+              }
+            }
           }
         }
         
-        console.log(`Latest actual day: ${latestActualDay}, Selected standard points: ${filteredStandardData.map(item => `${item.standardDay}(${item.median})`).join(', ')}`);
+        // Sắp xếp theo ageInDays tăng dần và lọc bỏ các điểm null/undefined
+        filteredStandardData = filteredStandardData
+          .filter(item => item && typeof item.standardDay === 'number')
+          .sort((a, b) => a.standardDay - b.standardDay);
+        
+        console.log(`Final filtered standard data:`, filteredStandardData.map(d => d ? `day ${d.standardDay}` : 'null')); // Debug log
       }
       
-      const medianValues = [0, ...filteredStandardData.map(item => item.median)];
-      const standardLabels = ['0', ...filteredStandardData.map(item => item.standardDay.toString())];
-      
-      console.log('Standard Labels:', standardLabels); // Debug log
-      
-      datasets.push({
-        data: medianValues,
-        labels: standardLabels, // Labels riêng cho dataset này
-        color: (opacity = 1) => `rgba(255,99,132,${opacity})`, // Pink
-        strokeWidth: 2,
-        label: 'Tiêu chuẩn'
-      });
-      
-      // Use standard labels if no actual data, otherwise keep actual labels
-      if (labels.length === 0) {
-        labels = standardLabels;
-      }
-      
-      // Add standard data to table if no actual data
-      if (tableData.length === 0) {
-        tableData = filteredStandardData.map(item => ({
-          ageInDays: item.standardDay,
-          ageInMonths: item.ageInMonths,
-          value: item.median,
-          status: 'Chuẩn',
-          measurementDate: null
-        }));
+      // Kiểm tra an toàn trước khi tạo datasets
+      if (filteredStandardData.length > 0) {
+        const medianValues = [0, ...filteredStandardData.map(item => item && item.median ? item.median : 0)];
+        const standardLabels = ['0', ...filteredStandardData.map(item => item && item.standardDay ? item.standardDay.toString() : '0')];
+        
+        datasets.push({
+          data: medianValues,
+          labels: standardLabels,
+          color: (opacity = 1) => `rgba(255,99,132,${opacity})`, // Pink
+          strokeWidth: 2,
+          label: 'Tiêu chuẩn'
+        });
+        
+        // Use standard labels if no actual data, otherwise keep actual labels
+        if (labels.length === 0) {
+          labels = standardLabels;
+        }
+        
+        // Add standard data to table if no actual data
+        if (tableData.length === 0) {
+          tableData = filteredStandardData
+            .filter(item => item && item.standardDay && item.median)
+            .map(item => ({
+              ageInDays: item.standardDay,
+              ageInMonths: item.ageInMonths || Math.round(item.standardDay / 30.44),
+              value: item.median,
+              status: 'Chuẩn',
+              measurementDate: null
+            }));
+        }
       }
     }
 

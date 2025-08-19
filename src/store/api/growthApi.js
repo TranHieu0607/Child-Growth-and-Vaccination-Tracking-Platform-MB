@@ -39,64 +39,85 @@ export async function getFullGrowthData(childId, gender) {
       status: 'Bình thường',
     })).filter(item => typeof item.value === 'number' && isFinite(item.value));
 
-  // Chuẩn bị các ngày cần lấy chuẩn
-  const daysHeight = processRecords('height').map(item => item.ageInDays);
-  let allDaysHeight = [];
-  if (daysHeight.length > 0) {
-    const maxDays = Math.max(...daysHeight);
-    for (let i = 0; i < 4; i++) {
-      allDaysHeight.push(maxDays + (i * 30)); // Thêm mỗi 30 ngày
+  // Tạo danh sách các ngày cần lấy dữ liệu tiêu chuẩn (đủ để hiển thị từ 30 đến 4320 ngày)
+  const generateStandardDays = () => {
+    const days = [];
+    // Tạo các mốc 30 ngày từ 30 đến 4320 (144 điểm: 30, 60, 90, ..., 4320)
+    for (let i = 1; i <= 144; i++) { // 4320 / 30 = 144
+      days.push(i * 30);
     }
-  }
-  const daysWeight = processRecords('weight').map(item => item.ageInDays);
-  let allDaysWeight = [];
-  if (daysWeight.length > 0) {
-    const maxDays = Math.max(...daysWeight);
-    for (let i = 0; i < 4; i++) {
-      allDaysWeight.push(maxDays + (i * 30));
-    }
-  }
-  const daysHead = processRecords('headCircumference').map(item => item.ageInDays);
-  let allDaysHead = [];
-  if (daysHead.length > 0) {
-    const maxDays = Math.max(...daysHead);
-    for (let i = 0; i < 4; i++) {
-      allDaysHead.push(maxDays + (i * 30));
-    }
-  }
-  const daysBMI = processRecords('bmi').map(item => item.ageInDays);
-  let allDaysBMI = [];
-  if (daysBMI.length > 0) {
-    const maxDays = Math.max(...daysBMI);
-    for (let i = 0; i < 4; i++) {
-      allDaysBMI.push(maxDays + (i * 30));
-    }
-  }
+    return days;
+  };
 
-  // Fetch chuẩn song song
+  const allStandardDays = generateStandardDays();
+
+  // Fetch chuẩn song song cho tất cả các ngày
   const [resultsHeight, resultsWeight, resultsHead, resultsBMI] = await Promise.all([
-    Promise.all(allDaysHeight.map(days => childrenApi.getHeightStandard(gender, days))),
-    Promise.all(allDaysWeight.map(days => childrenApi.getWeightStandard(gender, days))),
-    Promise.all(allDaysHead.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
-    Promise.all(allDaysBMI.map(days => childrenApi.getBMIStandard(gender, days))),
+    Promise.all(allStandardDays.map(days => childrenApi.getHeightStandard(gender, days))),
+    Promise.all(allStandardDays.map(days => childrenApi.getWeightStandard(gender, days))),
+    Promise.all(allStandardDays.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
+    Promise.all(allStandardDays.map(days => childrenApi.getBMIStandard(gender, days))),
   ]);
 
   const standardDataHeight = resultsHeight.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { ageInDays: allDaysHeight[idx], month: Math.round(allDaysHeight[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysHeight[idx], month: Math.round(allDaysHeight[idx] / 30.44), median: null };
-  });
+    return arr.length > 0 
+      ? { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: arr[0].median 
+        } 
+      : { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: null 
+        };
+  }).filter(item => item.median !== null); // Lọc bỏ các điểm không có dữ liệu
+
   const standardDataWeight = resultsWeight.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { ageInDays: allDaysWeight[idx], month: Math.round(allDaysWeight[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysWeight[idx], month: Math.round(allDaysWeight[idx] / 30.44), median: null };
-  });
+    return arr.length > 0 
+      ? { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: arr[0].median 
+        } 
+      : { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: null 
+        };
+  }).filter(item => item.median !== null);
+
   const standardDataHead = resultsHead.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { ageInDays: allDaysHead[idx], month: Math.round(allDaysHead[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysHead[idx], month: Math.round(allDaysHead[idx] / 30.44), median: null };
-  });
+    return arr.length > 0 
+      ? { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: arr[0].median 
+        } 
+      : { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: null 
+        };
+  }).filter(item => item.median !== null);
+
   const standardDataBMI = resultsBMI.map((res, idx) => {
     const arr = Array.isArray(res.data) ? res.data : [];
-    return arr.length > 0 ? { ageInDays: allDaysBMI[idx], month: Math.round(allDaysBMI[idx] / 30.44), median: arr[0].median } : { ageInDays: allDaysBMI[idx], month: Math.round(allDaysBMI[idx] / 30.44), median: null };
-  });
+    return arr.length > 0 
+      ? { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: arr[0].median 
+        } 
+      : { 
+          ageInDays: allStandardDays[idx], 
+          ageInMonths: Math.round(allStandardDays[idx] / 30.44), 
+          median: null 
+        };
+  }).filter(item => item.median !== null);
 
   const actualHeightData = processRecords('height');
   const actualWeightData = processRecords('weight');
@@ -109,7 +130,6 @@ export async function getFullGrowthData(childId, gender) {
     const predictionResponse = await growthPredictionApi.getGrowthPrediction(childId, 30);
     predictionData = predictionResponse.data;
   } catch (err) {
-    console.log('Không thể lấy dữ liệu dự đoán:', err);
     predictionData = null;
   }
 
@@ -129,4 +149,4 @@ export async function getFullGrowthData(childId, gender) {
     bmiStandardData: standardDataBMI,
     predictionData: predictionData,
   };
-} 
+}
