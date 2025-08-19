@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 const axiosClient = axios.create({
-  baseURL: 'https://kidtrackingapi20250811180547-e5d6e9b0e9ddaaf2.southeastasia-01.azurewebsites.net/api',
+  baseURL: 'https://kid.autopass.blog/api',
   headers: {
     'Content-Type': 'application/json',
     Accept: 'text/plain',

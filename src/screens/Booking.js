@@ -137,16 +137,28 @@ const Booking = ({ navigation, route }) => {
         // Lọc theo facilityId
         const facilityPackages = allPackages.filter(pkg => pkg.facilityId === selectedFacility.facilityId);
         // Lọc package có ít nhất 1 vaccine liên quan đến disease đã chọn
-        const matchedPackages = facilityPackages.filter(pkg =>
+        let matchedPackages = facilityPackages.filter(pkg =>
           pkg.packageVaccines && pkg.packageVaccines.some(pv => pv.diseaseId === selectedDisease.diseaseId)
         );
+        
+        // Lọc theo độ tuổi phù hợp nếu đã chọn trẻ
+        if (selectedChildren.length > 0) {
+          const selectedChild = children.find(child => child.childId === selectedChildren[0]);
+          if (selectedChild && selectedChild.birthDate) {
+            const childAgeInMonths = calculateAgeInMonths(selectedChild.birthDate);
+            matchedPackages = matchedPackages.filter(pkg => 
+              isPackageAgeAppropriate(pkg, childAgeInMonths)
+            );
+          }
+        }
+        
         setFilteredPackages(matchedPackages);
       } catch (e) {
         setFilteredPackages([]);
       }
     };
     fetchPackages();
-  }, [selectedFacility, selectedDisease]);
+  }, [selectedFacility, selectedDisease, selectedChildren, children]);
 
   // Lấy slot lịch tiêm khi chọn cơ sở, ngày, token
   useEffect(() => {
@@ -183,11 +195,24 @@ const Booking = ({ navigation, route }) => {
         const res = await vaccinesApi.getFacilityVaccines(selectedFacility.facilityId, token);
         const allVaccines = res.data?.data || [];
         setFacilityVaccines(allVaccines);
+        
         // Lọc vaccine liên quan đến disease đã chọn
-        const filtered = allVaccines.filter(fv =>
+        let filtered = allVaccines.filter(fv =>
           fv.vaccine && fv.vaccine.diseases &&
           fv.vaccine.diseases.some(d => String(d.diseaseId) === String(selectedDisease.diseaseId))
         );
+        
+        // Lọc theo độ tuổi phù hợp nếu đã chọn trẻ
+        if (selectedChildren.length > 0) {
+          const selectedChild = children.find(child => child.childId === selectedChildren[0]);
+          if (selectedChild && selectedChild.birthDate) {
+            const childAgeInMonths = calculateAgeInMonths(selectedChild.birthDate);
+            filtered = filtered.filter(fv => 
+              isVaccineAgeAppropriate(fv.vaccine, childAgeInMonths)
+            );
+          }
+        }
+        
         setFilteredFacilityVaccines(filtered);
       } catch (e) {
         setFacilityVaccines([]);
@@ -195,7 +220,7 @@ const Booking = ({ navigation, route }) => {
       }
     };
     fetchFacilityVaccines();
-  }, [selectedFacility, selectedDisease, token]);
+  }, [selectedFacility, selectedDisease, token, selectedChildren, children]);
 
   // Function to normalize Vietnamese text for search
   const normalizeVietnameseText = (text) => {
@@ -240,6 +265,89 @@ const Booking = ({ navigation, route }) => {
     setFilteredFacilities(filtered);
   };
 
+  // Function to calculate age in months from date of birth
+  const calculateAgeInMonths = (dateOfBirth) => {
+    if (!dateOfBirth) return 0;
+    const today = dayjs();
+    const birthDate = dayjs(dateOfBirth);
+    return today.diff(birthDate, 'month');
+  };
+
+  // Function to parse age group string and return minimum age in months
+  const parseAgeGroup = (ageGroup) => {
+    if (!ageGroup) return 0;
+    
+    const ageStr = ageGroup.toLowerCase().trim();
+    
+    // Handle "từ x tháng", "x tháng trở lên", "x tháng+"
+    const monthMatch = ageStr.match(/(\d+)\s*tháng/);
+    if (monthMatch) {
+      return parseInt(monthMatch[1]);
+    }
+    
+    // Handle "từ x tuổi", "x tuổi trở lên", "x tuổi+"
+    const yearMatch = ageStr.match(/(\d+)\s*tuổi/);
+    if (yearMatch) {
+      return parseInt(yearMatch[1]) * 12; // Convert years to months
+    }
+    
+    // Handle "từ x năm", "x năm trở lên"
+    const ageInYearMatch = ageStr.match(/(\d+)\s*năm/);
+    if (ageInYearMatch) {
+      return parseInt(ageInYearMatch[1]) * 12; // Convert years to months
+    }
+    
+    // Handle special cases like "sơ sinh", "từ sinh"
+    if (ageStr.includes('sơ sinh') || ageStr.includes('từ sinh')) {
+      return 0;
+    }
+    
+    return 0; // Default to 0 if can't parse
+  };
+
+  // Function to check if vaccine is age-appropriate for child
+  const isVaccineAgeAppropriate = (vaccine, childAgeInMonths) => {
+    if (!vaccine || !vaccine.ageGroup) return true; // If no age group specified, assume appropriate
+    
+    const minAgeInMonths = parseAgeGroup(vaccine.ageGroup);
+    return childAgeInMonths >= minAgeInMonths;
+  };
+
+  // Function to get minimum age group from package vaccines
+  const getPackageMinimumAge = (packageVaccines) => {
+    if (!packageVaccines || packageVaccines.length === 0) return 0;
+    
+    let minAge = Infinity;
+    packageVaccines.forEach(pv => {
+      if (pv.facilityVaccine?.vaccine?.ageGroup) {
+        const ageInMonths = parseAgeGroup(pv.facilityVaccine.vaccine.ageGroup);
+        if (ageInMonths < minAge) {
+          minAge = ageInMonths;
+        }
+      }
+    });
+    
+    return minAge === Infinity ? 0 : minAge;
+  };
+
+  // Function to check if package is age-appropriate for child
+  const isPackageAgeAppropriate = (packageItem, childAgeInMonths) => {
+    if (!packageItem.packageVaccines || packageItem.packageVaccines.length === 0) return true;
+    
+    const minRequiredAge = getPackageMinimumAge(packageItem.packageVaccines);
+    return childAgeInMonths >= minRequiredAge;
+  };
+
+  // Function to format age group for display
+  const formatAgeGroup = (ageInMonths) => {
+    if (ageInMonths === 0) return "Từ sơ sinh";
+    if (ageInMonths < 12) return `Từ ${ageInMonths} tháng tuổi`;
+    const years = Math.floor(ageInMonths / 12);
+    const months = ageInMonths % 12;
+    if (months === 0) return `Từ ${years} tuổi`;
+    return `Từ ${years} tuổi ${months} tháng`;
+  };
+
   // Function to handle disease selection
   const handleSelectDisease = (disease) => {
     setSelectedDisease(disease);
@@ -269,6 +377,8 @@ const Booking = ({ navigation, route }) => {
   const handleSelectChild = (childId) => {
     setSelectedChildren([childId]);
     setIsDropdownVisible(false);
+    // Reset vaccine lẻ được chọn khi thay đổi trẻ
+    setSelectedSingleVaccine(null);
   };
 
   const selectedChild = children.find(child => child.childId === selectedChildren[0]);
@@ -648,6 +758,12 @@ const Booking = ({ navigation, route }) => {
             const isInCart = cartItems.some(item => item.packageId === pkg.packageId);
             const isDisabled = selectedSingleVaccine && !isInCart;
             
+            // Get package minimum age info for display
+            const packageMinAge = getPackageMinimumAge(pkg.packageVaccines);
+            const selectedChild = children.find(child => child.childId === selectedChildren[0]);
+            const childAgeInMonths = selectedChild ? calculateAgeInMonths(selectedChild.birthDate) : 0;
+            const isPackageAgeOk = isPackageAgeAppropriate(pkg, childAgeInMonths);
+            
             const packageCartObj = {
               packageId: pkg.packageId,
               name: pkg.name,
@@ -681,6 +797,16 @@ const Booking = ({ navigation, route }) => {
                       isInCart && styles.packageTextInCart,
                       isDisabled && styles.packageTextDisabled
                     ]}>{pkg.price?.toLocaleString('vi-VN')}đ</Text>
+                    {packageMinAge !== undefined && (
+                      <Text style={[
+                        styles.ageGroupText,
+                        isInCart && styles.packageTextInCart,
+                        isDisabled && styles.packageTextDisabled
+                      ]}>
+                        {formatAgeGroup(packageMinAge)}
+                        {isPackageAgeOk ? ' ✅' : ' ⚠️'}
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity
                     style={[
@@ -715,10 +841,19 @@ const Booking = ({ navigation, route }) => {
                           <Text style={{ fontSize: 12, color: '#888' }}>  Số lượng: {pv.quantity}</Text>
                           <Text style={{ fontSize: 12, color: '#888' }}>  Phác đồ: {pv.facilityVaccine?.vaccine?.numberOfDoses || 1} liều</Text>
                           <Text style={{ fontSize: 12, color: '#888' }}>  Hạn dùng: {pv.facilityVaccine?.expiryDate}</Text>
+                          {pv.facilityVaccine?.vaccine?.ageGroup && (
+                            <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {pv.facilityVaccine.vaccine.ageGroup}</Text>
+                          )}
                         </View>
                       ))
                     ) : (
                       <Text style={{ fontSize: 13, color: '#888' }}>Không có vaccine</Text>
+                    )}
+                    {packageMinAge !== undefined && (
+                      <Text style={{ fontSize: 12, color: isPackageAgeOk ? '#28a745' : '#dc3545', marginTop: 5 }}>
+                        Độ tuổi tối thiểu cho gói: {formatAgeGroup(packageMinAge)} 
+                        {isPackageAgeOk ? ' (Phù hợp với bé)' : ' (Chưa phù hợp với bé)'}
+                      </Text>
                     )}
                   </View>
                 )}
@@ -737,6 +872,12 @@ const Booking = ({ navigation, route }) => {
               }
             };
             const isExpanded = expandedFacilityVaccineId === fv.facilityVaccineId;
+            
+            // Get child age info for display
+            const selectedChild = children.find(child => child.childId === selectedChildren[0]);
+            const childAgeInMonths = selectedChild ? calculateAgeInMonths(selectedChild.birthDate) : 0;
+            const isAgeAppropriate = isVaccineAgeAppropriate(fv.vaccine, childAgeInMonths);
+            
             return (
               <View key={fv.facilityVaccineId} style={[
                 styles.packageItem, 
@@ -759,6 +900,16 @@ const Booking = ({ navigation, route }) => {
                       isSelected && styles.packageTextSelected,
                       isDisabled && styles.packageTextDisabled
                     ]}>{fv.price?.toLocaleString('vi-VN')}đ</Text>
+                    {fv.vaccine?.ageGroup && (
+                      <Text style={[
+                        styles.ageGroupText,
+                        isSelected && styles.packageTextSelected,
+                        isDisabled && styles.packageTextDisabled
+                      ]}>
+                        Độ tuổi: {fv.vaccine.ageGroup}
+                        {isAgeAppropriate ? ' ✅' : ' ⚠️'}
+                      </Text>
+                    )}
                   </View>
                   <TouchableOpacity
                     style={[
@@ -793,6 +944,13 @@ const Booking = ({ navigation, route }) => {
                     <Text style={{ fontSize: 12, color: '#888' }}>Số lượng còn: {fv.availableQuantity}</Text>
                     <Text style={{ fontSize: 12, color: '#888' }}>Hạn dùng: {fv.expiryDate}</Text>
                     <Text style={{ fontSize: 12, color: '#888' }}>Phác đồ: {fv.vaccine?.numberOfDoses || 1} liều</Text>
+                    {fv.vaccine?.ageGroup && (
+                      <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {fv.facilityVaccine.vaccine.ageGroup}</Text>
+                    )}
+                    <Text style={{ fontSize: 12, color: isAgeAppropriate ? '#28a745' : '#dc3545' }}>
+                      Độ tuổi phù hợp: {fv.vaccine.ageGroup} 
+                      {isAgeAppropriate ? ' (Phù hợp với bé)' : ' (Chưa phù hợp với bé)'}
+                    </Text>
                   </View>
                 )}
               </View>
@@ -1561,9 +1719,6 @@ const styles = StyleSheet.create({
   packageTextSelected: {
     color: '#007bff',
   },
-  packageTextDisabled: {
-    color: '#999',
-  },
   addToCartButton: {
     backgroundColor: '#007bff',
     paddingHorizontal: 15,
@@ -1593,6 +1748,12 @@ const styles = StyleSheet.create({
   },
   addToCartTextDisabled: {
     color: '#666',
+  },
+  ageGroupText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+    fontStyle: 'italic',
   },
 });
 
