@@ -2,10 +2,10 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 const axiosClient = axios.create({
-  baseURL: 'https://kid.autopass.blog/api',
+  baseURL: 'https://api.kidditrack.site/api',
   headers: {
     'Content-Type': 'application/json',
-    Accept: 'text/plain',
+    Accept: '*/*',
   },
 });
 
@@ -14,7 +14,7 @@ axiosClient.interceptors.request.use(async (config) => {
   try {
     const token = await SecureStore.getItemAsync('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.Authorization = token; // Sử dụng token trực tiếp như trong curl
     }
   } catch (e) {
     // Không có token
@@ -22,4 +22,4 @@ axiosClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-export default axiosClient; 
+export default axiosClient;

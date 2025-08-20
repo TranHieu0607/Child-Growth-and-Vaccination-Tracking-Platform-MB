@@ -1458,16 +1458,6 @@ const ChartScreen = ({ navigation }) => {
         <Text style={styles.predictionTitle}>
           📈 Dự đoán tăng trưởng {isPredictionLoading && '(Đang tải...)'}
         </Text>
-        {predictionData && (
-          <>
-            <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
-              Phương pháp: {predictionData.predictionMethod}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#ff6b00', marginBottom: 5 }}>
-              Sử dụng {predictionData.dataPointsUsed} điểm dữ liệu
-            </Text>
-          </>
-        )}
       </View>
       
       {isPredictionLoading ? (
@@ -1476,11 +1466,36 @@ const ChartScreen = ({ navigation }) => {
         </Text>
       ) : predictionData ? (
         <>
+          {/* Medical Disclaimer - hiển thị đầu tiên */}
+          {predictionData.medicalDisclaimer && (
+            <View style={{ 
+              backgroundColor: '#fff3cd', 
+              borderColor: '#856404',
+              borderWidth: 1,
+              borderRadius: 8,
+              padding: Math.max(12, screenWidth * 0.03),
+              marginBottom: 15,
+              borderLeftWidth: 4,
+              borderLeftColor: '#dc3545'
+            }}>
+              <Text style={{ 
+                fontSize: Math.max(13, screenWidth * 0.035),
+                color: '#856404',
+                fontWeight: 'bold',
+                lineHeight: Math.max(20, screenWidth * 0.055),
+                textAlign: 'center'
+              }}>
+                {predictionData.medicalDisclaimer}
+              </Text>
+            </View>
+          )}
+
+
           {/* Prediction points */}
           {predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0 && (
             <View style={{ marginBottom: 15 }}>
               {(() => {
-                // Tìm prediction point được chọn (cách 30 ngày từ điểm thực tế cuối)
+                // Giữ nguyên logic tìm prediction point (như code cũ)
                 const lastActualPoint = validActualData[validActualData.length - 1];
                 const targetPredictionDay = lastActualPoint.ageInDays + 30;
                 const selectedPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
@@ -1496,19 +1511,19 @@ const ChartScreen = ({ navigation }) => {
                     </Text>
                     <View style={styles.predictionRow}>
                       <Text style={styles.predictionLabel}>Chiều cao:</Text>
-                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeight} cm</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeight.toFixed(1)} cm</Text>
                     </View>
                     <View style={styles.predictionRow}>
                       <Text style={styles.predictionLabel}>Cân nặng:</Text>
-                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedWeight} kg</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedWeight.toFixed(1)} kg</Text>
                     </View>
                     <View style={styles.predictionRow}>
                       <Text style={styles.predictionLabel}>BMI:</Text>
-                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedBMI}</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedBMI.toFixed(1)}</Text>
                     </View>
                     <View style={styles.predictionRow}>
                       <Text style={styles.predictionLabel}>Vòng đầu:</Text>
-                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeadCircumference} cm</Text>
+                      <Text style={styles.predictionValue}>{selectedPredictionPoint.predictedHeadCircumference.toFixed(1)} cm</Text>
                     </View>
                   </>
                 );
@@ -1518,18 +1533,43 @@ const ChartScreen = ({ navigation }) => {
 
           {/* Prediction recommendations */}
           {predictionData.recommendations && (
-            <View style={{ backgroundColor: '#fff', borderRadius: 4, padding: 8 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 4, padding: 8, marginBottom: 15 }}>
               <Text style={styles.predictionRecommendationsText}>
                 {predictionData.recommendations}
               </Text>
+            </View>
+          )}
+
+          {/* Data limitations */}
+          {predictionData.dataLimitations && predictionData.dataLimitations.length > 0 && (
+            <View style={{ 
+              backgroundColor: '#f8f9fa', 
+              borderColor: '#6c757d',
+              borderWidth: 1,
+              borderRadius: 4,
+              padding: 8
+            }}>
+              <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#6c757d', marginBottom: 5 }}>
+                📋 Giới hạn dữ liệu:
+              </Text>
+              {predictionData.dataLimitations.map((limitation, index) => (
+                <Text key={index} style={{ 
+                  fontSize: 12, 
+                  color: '#6c757d',
+                  marginBottom: 3,
+                  lineHeight: 16
+                }}>
+                  {limitation}
+                </Text>
+              ))}
             </View>
           )}
         </>
       ) : null}
     </View>
   )}
-</ScrollView>
 
+</ScrollView>
 
       {/* 4. Bảng dữ liệu chi tiết */}
       {/* <DataTable data={tableData} selectedTab={selectedTab} /> */}

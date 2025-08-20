@@ -55,6 +55,10 @@ export default function AccountScreen({ navigation, onLogout }) {
     );
   };
 
+  const handleChildPress = (childId) => {
+    navigation.navigate('ChildDetail', { childId });
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       fetchChildren();
@@ -84,14 +88,19 @@ export default function AccountScreen({ navigation, onLogout }) {
             keyExtractor={item => item.childId.toString()}
             renderItem={({ item }) => (
               <View style={styles.childItem}>
-                <Image source={require('../../assets/icon.png')} style={styles.childAvatar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.childName}>{item.fullName}</Text>
-                  <Text style={styles.childAge}>
-                    Ngày sinh: {item.birthDate ? item.birthDate.split('T')[0] : ''}
-                  </Text>
-                </View>
-                <TouchableOpacity onPress={() => handleDeleteChild(item.childId)} style={{ marginLeft: 10, padding: 8 }}>
+                <TouchableOpacity 
+                  style={styles.childInfoContainer}
+                  onPress={() => handleChildPress(item.childId)}
+                >
+                  <Image source={require('../../assets/icon.png')} style={styles.childAvatar} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.childName}>{item.fullName}</Text>
+                    <Text style={styles.childAge}>
+                      Ngày sinh: {item.birthDate ? item.birthDate.split('T')[0] : ''}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteChild(item.childId)} style={styles.deleteButton}>
                   <FontAwesomeIcon icon={faTrash} size={20} color="#EA4335" />
                 </TouchableOpacity>
               </View>
@@ -161,6 +170,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
   },
+  childInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   childAvatar: {
     width: 40,
     height: 40,
@@ -175,6 +189,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
   },
+  deleteButton: {
+    marginLeft: 10,
+    padding: 8,
+  },
   logoutButton: {
     backgroundColor: '#EA4335',
     paddingVertical: 12,
@@ -187,4 +205,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-}); 
+});
