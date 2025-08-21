@@ -73,7 +73,10 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
       </View>
       {error && <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>}
       <TouchableOpacity style={styles.button} onPress={handleContinue} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Đang đăng nhập...' : 'Tiếp tục'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'Đang đăng nhập...' : 'Đăng nhập'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={{ marginBottom: 12 }}>
+        <Text style={{ color: '#2196F3' }}>Quên mật khẩu?</Text>
       </TouchableOpacity>
       <View style={styles.registerContainer}>
         <Text style={styles.registerText}>Chưa có tài khoản? </Text>

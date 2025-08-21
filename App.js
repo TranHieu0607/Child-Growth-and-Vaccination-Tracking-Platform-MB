@@ -20,6 +20,9 @@ import HistoryVacc from './src/screens/HistoryVacc';
 import ContinueInjectScreen from './src/screens/ContinueInjectScreen';
 import VaccBook from './src/screens/VaccBook';  
 import Register from './src/screens/RegisterScreen';
+import OtpVerificationScreen from './src/screens/OtpVerificationScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import AccountScreen from './src/screens/AccountScreen'; 
 import DailyRecordScreen from './src/screens/DailyRecordScreen';
 import CartScreen from './src/screens/CartScreen';
@@ -55,6 +58,9 @@ export default function App() {
                 )}
               </Stack.Screen>
               <Stack.Screen name="Register" component={Register} />
+              <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
             </>
           ) : (
             <>
@@ -70,6 +76,9 @@ export default function App() {
               <Stack.Screen name="News" component={NewsScreen} />
               <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
               <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
               <Stack.Screen name="Booking" component={Booking} />
               <Stack.Screen name="Chart" component={ChartScreen} />
               <Stack.Screen name="UpdateGrowth" component={UpdateGrowth} />   

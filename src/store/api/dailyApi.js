@@ -19,3 +19,24 @@ export async function createDailyRecord(payload) {
   const res = await childrenApi.createDailyRecord(payload);
   return res.data;
 } 
+
+/**
+ * Cập nhật nhật ký hằng ngày theo id
+ * @param {number|string} dailyRecordId
+ * @param {object} payload
+ * @returns {Promise<any>}
+ */
+export async function updateDailyRecord(dailyRecordId, payload) {
+  const res = await childrenApi.updateDailyRecord(dailyRecordId, payload);
+  return res.data;
+}
+
+/**
+ * Xóa nhật ký hằng ngày theo id
+ * @param {number|string} dailyRecordId
+ * @returns {Promise<any>}
+ */
+export async function deleteDailyRecord(dailyRecordId) {
+  const res = await childrenApi.deleteDailyRecord(dailyRecordId);
+  return res.data;
+}

@@ -17,6 +17,8 @@ const childrenApi = {
   getBMIStandard: (gender, ageInDays) => axiosClient.get(`/GrowthStandard/bmi?gender=${gender}&ageInDays=${ageInDays}`),
   getDailyRecordsByChildId: (childId) => axiosClient.get(`/DailyRecords/child/${childId}`),
   createDailyRecord: (data) => axiosClient.post('/DailyRecords', data),
+  updateDailyRecord: (dailyRecordId, data) => axiosClient.put(`/DailyRecords/${dailyRecordId}`, data),
+  deleteDailyRecord: (dailyRecordId) => axiosClient.delete(`/DailyRecords/${dailyRecordId}`),
   getGrowthPrediction: (childId, period = '1week') => axiosClient.get(`/GrowthAssessment/child/${childId}/prediction?period=${period}`),
   updateChild: (childId, data) => axiosClient.put(`/Children/${childId}`, data),
 };

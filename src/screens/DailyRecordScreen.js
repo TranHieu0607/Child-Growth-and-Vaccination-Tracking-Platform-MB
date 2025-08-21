@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faChevronLeft, faChevronRight, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../store/api/childrenApi';
-import { getDailyRecordsByChildId } from '../store/api/dailyApi';
+import { getDailyRecordsByChildId, updateDailyRecord, deleteDailyRecord } from '../store/api/dailyApi';
 
 const PAGE_SIZE = 3;
 
@@ -14,6 +14,17 @@ const DailyRecordScreen = ({ navigation }) => {
   const [records, setRecords] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [editVisible, setEditVisible] = useState(false);
+  const [editingRecord, setEditingRecord] = useState(null);
+  const [editForm, setEditForm] = useState({
+    recordDate: '',
+    milkAmount: '',
+    feedingTimes: '',
+    diaperChanges: '',
+    sleepHours: '',
+    note: '',
+  });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -48,6 +59,42 @@ const DailyRecordScreen = ({ navigation }) => {
   const totalPages = Math.ceil(records.length / PAGE_SIZE);
 
   const selectedChild = children.find(child => child.childId === selectedChildId);
+
+  const openEdit = (record) => {
+    setEditingRecord(record);
+    setEditForm({
+      recordDate: record.recordDate,
+      milkAmount: String(record.milkAmount ?? ''),
+      feedingTimes: String(record.feedingTimes ?? ''),
+      diaperChanges: String(record.diaperChanges ?? ''),
+      sleepHours: String(record.sleepHours ?? ''),
+      note: record.note ?? '',
+    });
+    setEditVisible(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingRecord) return;
+    setSaving(true);
+    try {
+      const payload = {
+        recordDate: editForm.recordDate,
+        milkAmount: Number(editForm.milkAmount),
+        feedingTimes: Number(editForm.feedingTimes),
+        diaperChanges: Number(editForm.diaperChanges),
+        sleepHours: Number(editForm.sleepHours),
+        note: editForm.note,
+      };
+      const updated = await updateDailyRecord(editingRecord.dailyRecordId, payload);
+      setRecords(prev => prev.map(r => r.dailyRecordId === updated.dailyRecordId ? updated : r));
+      setEditVisible(false);
+      setEditingRecord(null);
+    } catch (e) {
+      // có thể hiển thị lỗi nếu cần
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -105,6 +152,34 @@ const DailyRecordScreen = ({ navigation }) => {
       ) : (
         paginatedRecords.map(record => (
           <View key={record.dailyRecordId} style={styles.recordCard}>
+            <View style={styles.actions}>
+              <TouchableOpacity
+                accessibilityLabel="Xóa nhật ký"
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                style={styles.actionBtn}
+                onPress={() => {
+                  Alert.alert('Xóa nhật ký', 'Bạn có chắc muốn xóa bản ghi này?', [
+                    { text: 'Hủy', style: 'cancel' },
+                    { text: 'Xóa', style: 'destructive', onPress: async () => {
+                      try {
+                        await deleteDailyRecord(record.dailyRecordId);
+                        setRecords(prev => prev.filter(r => r.dailyRecordId !== record.dailyRecordId));
+                      } catch (e) {}
+                    }}
+                  ]);
+                }}
+              >
+                <FontAwesomeIcon icon={faTrash} size={20} color="#E53935" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityLabel="Sửa nhật ký"
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                style={styles.actionBtn}
+                onPress={() => openEdit(record)}
+              >
+                <FontAwesomeIcon icon={faPen} size={20} color="#007BFF" />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.recordDate}>Ngày: {record.recordDate}</Text>
             <Text>Sữa: {record.milkAmount} ml</Text>
             <Text>Số lần bú: {record.feedingTimes}</Text>
@@ -134,6 +209,62 @@ const DailyRecordScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       )}
+      <Modal visible={editVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Cập nhật nhật ký</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ngày (YYYY-MM-DD)"
+              value={editForm.recordDate}
+              onChangeText={(v) => setEditForm({ ...editForm, recordDate: v })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Sữa (ml)"
+              keyboardType="numeric"
+              value={editForm.milkAmount}
+              onChangeText={(v) => setEditForm({ ...editForm, milkAmount: v })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Số lần bú"
+              keyboardType="numeric"
+              value={editForm.feedingTimes}
+              onChangeText={(v) => setEditForm({ ...editForm, feedingTimes: v })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Thay tã (lần)"
+              keyboardType="numeric"
+              value={editForm.diaperChanges}
+              onChangeText={(v) => setEditForm({ ...editForm, diaperChanges: v })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Ngủ (giờ)"
+              keyboardType="numeric"
+              value={editForm.sleepHours}
+              onChangeText={(v) => setEditForm({ ...editForm, sleepHours: v })}
+            />
+            <TextInput
+              style={[styles.input, { height: 80 }]}
+              placeholder="Ghi chú"
+              value={editForm.note}
+              onChangeText={(v) => setEditForm({ ...editForm, note: v })}
+              multiline
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#ccc' }]} onPress={() => setEditVisible(false)}>
+                <Text>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#2196F3' }]} onPress={handleSaveEdit} disabled={saving}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{saving ? 'Đang lưu...' : 'Lưu'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -155,10 +286,17 @@ const styles = StyleSheet.create({
   dropdownItemName: { fontSize: 16, fontWeight: 'bold' },
   selectedIcon: { color: 'green', fontSize: 16, marginLeft: 10 },
   recordCard: { backgroundColor: '#f9f9f9', borderRadius: 8, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: '#eee' },
+  actions: { position: 'absolute', right: 8, top: 8, flexDirection: 'row' },
+  actionBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   recordDate: { fontWeight: 'bold', marginBottom: 5 },
   pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 10 },
   pageBtn: { padding: 10 },
   pageText: { marginHorizontal: 15, fontWeight: 'bold' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 20 },
+  modalCard: { backgroundColor: '#fff', borderRadius: 8, padding: 16 },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingHorizontal: 12, height: 44, marginBottom: 10 },
+  modalBtn: { paddingVertical: 12, paddingHorizontal: 18, borderRadius: 8 },
 });
 
 export default DailyRecordScreen; 
