@@ -819,7 +819,7 @@ const ChartScreen = ({ navigation }) => {
       borderTopWidth: 2,
       borderTopColor: '#007bff',
       paddingTop: Math.max(12, screenHeight * 0.018),
-      backgroundColor: '#f8f9fa',
+      backgroundColor: '#fff',
       borderRadius: Math.max(10, screenWidth * 0.03),
       padding: Math.max(14, screenWidth * 0.04),
       shadowColor: '#000',
@@ -1543,7 +1543,7 @@ const ChartScreen = ({ navigation }) => {
           {/* Data limitations */}
           {predictionData.dataLimitations && predictionData.dataLimitations.length > 0 && (
             <View style={{ 
-              backgroundColor: '#f8f9fa', 
+              backgroundColor: '#fff', 
               borderColor: '#6c757d',
               borderWidth: 1,
               borderRadius: 4,

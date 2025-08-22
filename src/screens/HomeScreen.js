@@ -140,7 +140,7 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   list: {
     flex: 1, 
-    backgroundColor: '#f7fafd', 
+    backgroundColor: '#fff', 
   },
   listContent: {
     paddingBottom: 20, // Thêm padding cuối để nội dung không bị Footer che

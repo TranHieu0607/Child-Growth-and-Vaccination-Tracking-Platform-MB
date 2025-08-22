@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   childInfoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,

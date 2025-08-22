@@ -133,10 +133,10 @@ const ContinueInjectScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8f8f8',
-    },
+      container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
     header: {
         flexDirection: 'row',
         alignItems: 'center',

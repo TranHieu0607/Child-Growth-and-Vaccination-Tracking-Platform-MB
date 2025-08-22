@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, FlatList, Image, Alert } from 'react-native';
+import { useSelector } from 'react-redux';
 
 import { getMyChildren } from '../store/api/growthRecordApi';
 import orderApi from '../store/api/orderApi';
@@ -11,6 +12,9 @@ const hours = ['08:00', '09:00', '10:00', '14:00', '15:00', '16:00'];
 
 
 const ReOrderScreen = ({ navigation }) => {
+	// Lấy token từ Redux store
+	const { token } = useSelector((state) => state.auth);
+	
 	const [children, setChildren] = useState([]);
 	const [selectedChildId, setSelectedChildId] = useState(null);
 	const [isDropdownVisible, setIsDropdownVisible] = useState(false);
@@ -43,7 +47,7 @@ const ReOrderScreen = ({ navigation }) => {
 	    }
 	};
 
-	// Token demo, thực tế lấy từ redux hoặc context
+
 
 	// Lấy slot lịch tiêm khi đã chọn cơ sở, ngày, token (giống Booking)
 	useEffect(() => {
@@ -534,7 +538,7 @@ const styles = StyleSheet.create({
 	label: { fontWeight: 'bold', marginTop: 16, marginBottom: 6, fontSize: 15 },
 	dropdown: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 },
 	dropdownList: { flexDirection: 'row', marginTop: 4 },
-	suggestionBox: { backgroundColor: '#f2f7ff', borderRadius: 8, padding: 10, marginBottom: 8 },
+	suggestionBox: { backgroundColor: '#fff', borderRadius: 8, padding: 10, marginBottom: 8 },
 	suggestionTitle: { color: '#1976d2', fontWeight: 'bold', marginBottom: 2 },
 	suggestionItem: { color: '#1976d2', fontSize: 13 },
 	diseaseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
@@ -551,13 +555,13 @@ const styles = StyleSheet.create({
 	facilityInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
 	facilityRating: { color: '#fbc02d', fontWeight: 'bold' },
 	facilityDistance: { color: '#1976d2', fontWeight: 'bold' },
-	packageBox: { backgroundColor: '#f7f7f7', borderRadius: 8, padding: 10, marginBottom: 8 },
+	packageBox: { backgroundColor: '#fff', borderRadius: 8, padding: 10, marginBottom: 8 },
 	packageItem: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8, backgroundColor: '#fff' },
 	packageItemActive: { borderColor: '#1976d2', backgroundColor: '#e3f0ff' },
 	packageName: { fontWeight: 'bold', fontSize: 15 },
 	packagePrice: { color: '#1976d2', fontWeight: 'bold' },
 	packageDesc: { color: '#666', fontSize: 13 },
-	dateBox: { backgroundColor: '#f7f7f7', borderRadius: 8, padding: 10, marginBottom: 8 },
+	dateBox: { backgroundColor: '#fff', borderRadius: 8, padding: 10, marginBottom: 8 },
 	calendarRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
 	calendarMonth: { fontWeight: 'bold', fontSize: 15 },
 	calendarDays: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 },

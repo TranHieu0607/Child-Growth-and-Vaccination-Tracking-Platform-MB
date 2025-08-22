@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#fff',
   },
   childrenSection: {
     marginBottom: 24,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 10,
   },

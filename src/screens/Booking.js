@@ -1075,7 +1075,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 15, // Keep padding consistent
-    backgroundColor: '#f4f7f9', // Slightly brighter background grey
+    backgroundColor: '#fff', // White background
   },
   headerContainer: {
     flexDirection: 'row',
@@ -1697,7 +1697,7 @@ const styles = StyleSheet.create({
   },
   packageItemInCart: {
     borderColor: '#28a745',
-    backgroundColor: '#f8fff9',
+    backgroundColor: '#fff',
   },
   packageItemSelected: {
     borderColor: '#007bff',
@@ -1710,7 +1710,7 @@ const styles = StyleSheet.create({
   },
   packageItemDisabled: {
     borderColor: '#ddd',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
     opacity: 0.6,
   },
   packageTextInCart: {

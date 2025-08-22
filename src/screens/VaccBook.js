@@ -328,7 +328,7 @@ const VaccBook = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f0f2f5',
+    backgroundColor: '#fff',
   },
   scrollViewContent: {
     paddingBottom: 20,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 8,
     fontWeight: 'bold',
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     color: '#000',
     textAlign: 'center',
   },

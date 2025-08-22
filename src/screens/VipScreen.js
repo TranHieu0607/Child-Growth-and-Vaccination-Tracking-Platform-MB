@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   banner: { alignItems: 'center', marginBottom: 20 },
   bannerText: { fontSize: 18, fontWeight: 'bold', color: '#1565C0', textAlign: 'center', lineHeight: 28 },
   scrollContent: { paddingBottom: 32 },
-  compareBox: { backgroundColor: '#f8fafd', borderRadius: 16, padding: 16, marginBottom: 20 },
+  compareBox: { backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 20 },
   compareTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12, color: '#222' },
   compareRow: { flexDirection: 'row', justifyContent: 'space-between' },
   compareCol: { flex: 1, alignItems: 'center' },

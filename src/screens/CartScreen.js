@@ -279,7 +279,7 @@ const CartScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f7f9',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -488,7 +488,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   packageDiseaseBlock: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,

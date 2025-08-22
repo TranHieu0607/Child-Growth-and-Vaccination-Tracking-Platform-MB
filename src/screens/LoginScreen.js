@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     borderColor: '#ddd',
     borderRadius: 8,
     paddingHorizontal: 12,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#fff',
   },
   inputIcon: {
     fontSize: 18,

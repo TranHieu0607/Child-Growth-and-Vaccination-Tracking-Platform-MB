@@ -407,7 +407,7 @@ const HistoryVacc = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#fff',
     paddingTop: 50, // Adjust for status bar
   },
   header: {
@@ -719,7 +719,7 @@ const styles = StyleSheet.create({
   },
   subTabs: {
     flexDirection: 'row',
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#fff',
     marginHorizontal: 15,
     marginBottom: 15,
     borderRadius: 8,

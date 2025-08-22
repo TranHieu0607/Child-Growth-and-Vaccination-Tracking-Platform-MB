@@ -204,7 +204,7 @@ const BlogDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
   header: {
     flexDirection: 'row',
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     marginRight: 12,
     borderWidth: 1,
     borderColor: '#e9ecef',

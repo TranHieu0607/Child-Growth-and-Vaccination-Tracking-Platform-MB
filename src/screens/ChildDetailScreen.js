@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
   },
   avatar: {
     width: 100,
