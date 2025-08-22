@@ -35,7 +35,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
             style={styles.iconCircle}
             onPress={() => {
               if (item.key === 'add_baby') {
-                navigation.navigate('Register');
+                navigation.navigate('ChildRegister');
               } else if (item.key === 'news') {
                 navigation.navigate('News');
               } else if (item.key === 'vaccination_schedule') {

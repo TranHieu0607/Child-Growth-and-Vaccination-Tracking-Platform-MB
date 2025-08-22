@@ -69,3 +69,13 @@ export async function resetPassword(payload) {
   const response = await axiosClient.post('/auth/reset-password', payload);
   return response.data;
 }
+
+/**
+ * Cập nhật hồ sơ thành viên (yêu cầu Authorization token)
+ * @param {{ fullName?: string, phoneNumber?: string, address?: string }} payload
+ * @returns {Promise<any>}
+ */
+export async function updateMemberProfile(payload) {
+  const response = await axiosClient.put('/auth/update-member-profile', payload);
+  return response.data;
+}

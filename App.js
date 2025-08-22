@@ -57,7 +57,7 @@ export default function App() {
                   <LoginScreen {...props} onLoginSuccess={handleLoginSuccess} />
                 )}
               </Stack.Screen>
-              <Stack.Screen name="Register" component={Register} />
+              <Stack.Screen name="AccountRegister" component={Register} />
               <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
               <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
               <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
@@ -75,7 +75,7 @@ export default function App() {
               </Stack.Screen>
               <Stack.Screen name="News" component={NewsScreen} />
               <Stack.Screen name="BlogDetail" component={BlogDetailScreen} />
-              <Stack.Screen name="Register" component={RegisterScreen} />
+              <Stack.Screen name="ChildRegister" component={RegisterScreen} />
               <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
               <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
               <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />

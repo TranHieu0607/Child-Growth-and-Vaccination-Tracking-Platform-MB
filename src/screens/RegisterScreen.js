@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import { register } from '../store/authSlice';
+import { useDispatch } from 'react-redux';
 import { requestRegistrationOtp } from '../store/api/authApi';
 
 export default function RegisterScreen({ onRegister, navigation }) {
@@ -14,13 +13,16 @@ export default function RegisterScreen({ onRegister, navigation }) {
     address: '',
   });
   const dispatch = useDispatch();
-  const { loading, error, user } = useSelector((state) => state.auth);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const handleChange = (key, value) => {
     setForm({ ...form, [key]: value });
   };
 
   const handleRegister = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await requestRegistrationOtp(form);
       if (res?.requiresVerification) {
@@ -28,15 +30,21 @@ export default function RegisterScreen({ onRegister, navigation }) {
       } else {
         navigation.navigate('Login');
       }
-    } catch (error) {
-      // Xử lý lỗi nếu cần
+    } catch (err) {
+      const apiMessage = err?.response?.data?.message
+        || err?.response?.data?.title
+        || (typeof err === 'string' ? err : null)
+        || 'Đăng ký thất bại';
+      setSubmitError(apiMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Image source={require('../../assets/icon.png')} style={styles.avatar} />
-      <Text style={styles.title}>KidCare</Text>
+      <Text style={styles.title}>KidTrack</Text>
       <Text style={styles.welcome}>Tạo tài khoản mới</Text>
       <Text style={styles.subtitle}>Đăng ký để theo dõi tiêm chủng và phát triển của bé</Text>
       <View style={styles.inputContainer}>
@@ -100,17 +108,13 @@ export default function RegisterScreen({ onRegister, navigation }) {
           />
         </View>
       </View>
-      {error && (
+      {(submitError) && (
         <Text style={{ color: 'red', marginBottom: 8 }}>
-          {typeof error === 'string'
-            ? error
-            : error.title
-              ? error.title
-              : JSON.stringify(error)}
+          {submitError}
         </Text>
       )}
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-        <Text style={styles.buttonText}>{loading ? 'Đang đăng ký...' : 'Đăng ký'}</Text>
+      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={submitting}>
+        <Text style={styles.buttonText}>{submitting ? 'Đang đăng ký...' : 'Đăng ký'}</Text>
       </TouchableOpacity>
       <Text style={styles.loginText}>
         Đã có tài khoản?{' '}

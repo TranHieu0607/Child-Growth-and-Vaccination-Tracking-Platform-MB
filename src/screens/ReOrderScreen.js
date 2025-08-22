@@ -44,7 +44,7 @@ const ReOrderScreen = ({ navigation }) => {
 	};
 
 	// Token demo, thực tế lấy từ redux hoặc context
-	const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjUwIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZSI6InZ1YWxpZG9uIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoiZmdoZHNAZ21haWwuY29tIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiTWVtYmVyIiwiQWNjb3VudElkIjoiNTAiLCJleHAiOjE3NTQ2NTI2NjksImlzcyI6IkhlYWx0aENoaWxkVHJhY2tlckFQSSIsImF1ZCI6IkhlYWx0aENoaWxkVHJhY2tlckNsaWVudCJ9.YRQYk-bg9Tq9E-mizHKjWv215dibke_IgCCDkH3LR80';
+
 	// Lấy slot lịch tiêm khi đã chọn cơ sở, ngày, token (giống Booking)
 	useEffect(() => {
 		const fetchSlots = async () => {

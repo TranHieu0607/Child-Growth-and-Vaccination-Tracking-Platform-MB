@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Alert, TextInput } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout } from '../store/authSlice';
+import { logout, updateProfile } from '../store/authSlice';
 import childrenApi from '../store/api/childrenApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faTrash, faPen } from '@fortawesome/free-solid-svg-icons';
 
 export default function AccountScreen({ navigation, onLogout }) {
   const dispatch = useDispatch();
@@ -13,6 +13,12 @@ export default function AccountScreen({ navigation, onLogout }) {
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({
+    fullName: '',
+    phoneNumber: '',
+    address: '',
+  });
   const handleLogout = async () => {
     await dispatch(logout());
     if (onLogout) onLogout();
@@ -29,6 +35,14 @@ export default function AccountScreen({ navigation, onLogout }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setProfileDraft({
+      fullName: user?.fullName || '',
+      phoneNumber: user?.phone || user?.phoneNumber || '',
+      address: user?.address || '',
+    });
+  }, [user]);
 
   const handleDeleteChild = (childId) => {
     Alert.alert(
@@ -67,15 +81,88 @@ export default function AccountScreen({ navigation, onLogout }) {
 
   return (
     <View style={styles.container}>
+      {!editing && (
+        <View style={styles.editFabContainer}>
+          <TouchableOpacity onPress={() => setEditing(true)} style={styles.editFab}>
+            <FontAwesomeIcon icon={faPen} size={16} color="#2196F3" />
+          </TouchableOpacity>
+        </View>
+      )}
       <View style={styles.profileSection}>
         <Image source={require('../../assets/icon.png')} style={styles.avatar} />
-        <Text style={styles.name}>{user?.fullName || 'Chưa cập nhật'}</Text>
+        {!editing ? (
+          <Text style={styles.name}>{user?.fullName || 'Chưa cập nhật'}</Text>
+        ) : (
+          <TextInput
+            style={[styles.name, { borderBottomWidth: 1, borderColor: '#ddd', paddingBottom: 4 }]}
+            value={profileDraft.fullName}
+            onChangeText={(v) => setProfileDraft((p) => ({ ...p, fullName: v }))}
+            placeholder="Họ và tên"
+          />
+        )}
       </View>
       <View style={styles.infoSection}>
         <Text style={styles.label}>Email: <Text style={styles.value}>{user?.email || 'Chưa cập nhật'}</Text></Text>
-        <Text style={styles.label}>Số điện thoại: <Text style={styles.value}>{user?.phone || 'Chưa cập nhật'}</Text></Text>
-        <Text style={styles.label}>Địa chỉ: <Text style={styles.value}>{user?.address || 'Chưa cập nhật'}</Text></Text>
+        {!editing ? (
+          <Text style={styles.label}>Số điện thoại: <Text style={styles.value}>{user?.phone || user?.phoneNumber || 'Chưa cập nhật'}</Text></Text>
+        ) : (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={[styles.label, { marginBottom: 4 }]}>Số điện thoại</Text>
+            <TextInput
+              style={styles.input}
+              value={profileDraft.phoneNumber}
+              onChangeText={(v) => setProfileDraft((p) => ({ ...p, phoneNumber: v }))}
+              placeholder="Số điện thoại"
+              keyboardType="phone-pad"
+            />
+          </View>
+        )}
+        {!editing ? (
+          <Text style={styles.label}>Địa chỉ: <Text style={styles.value}>{user?.address || 'Chưa cập nhật'}</Text></Text>
+        ) : (
+          <View style={{ marginBottom: 8 }}>
+            <Text style={[styles.label, { marginBottom: 4 }]}>Địa chỉ</Text>
+            <TextInput
+              style={styles.input}
+              value={profileDraft.address}
+              onChangeText={(v) => setProfileDraft((p) => ({ ...p, address: v }))}
+              placeholder="Địa chỉ"
+            />
+          </View>
+        )}
       </View>
+      {editing && (
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <>
+            <TouchableOpacity onPress={() => setEditing(false)} style={[styles.editBtn, { backgroundColor: '#9e9e9e', marginRight: 8 }]}>
+              <Text style={styles.editBtnText}>Huỷ</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  setLoading(true);
+                  const payload = {
+                    fullName: profileDraft.fullName?.trim(),
+                    phoneNumber: profileDraft.phoneNumber?.trim(),
+                    address: profileDraft.address?.trim(),
+                  };
+                  const result = await dispatch(updateProfile(payload)).unwrap();
+                  Alert.alert('Thành công', 'Cập nhật hồ sơ thành công');
+                  setEditing(false);
+                } catch (e) {
+                  const msg = e?.message || e || 'Cập nhật hồ sơ thất bại';
+                  Alert.alert('Lỗi', msg.toString());
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              style={[styles.editBtn, { backgroundColor: '#2196F3' }]}
+            >
+              <Text style={styles.editBtnText}>Lưu</Text>
+            </TouchableOpacity>
+          </>
+        </View>
+      )}
       <View style={styles.childrenSection}>
         <Text style={styles.sectionTitle}>Các bé đang theo dõi</Text>
         {loading ? (
@@ -121,6 +208,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 24,
   },
+  editFabContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 16,
+    zIndex: 10,
+  },
+  editFab: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#2196F3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
   profileSection: {
     alignItems: 'center',
     marginBottom: 20,
@@ -152,6 +260,14 @@ const styles = StyleSheet.create({
   value: {
     color: '#555',
     fontWeight: '600',
+  },
+  input: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#fafafa',
   },
   childrenSection: {
     marginBottom: 24,
@@ -203,6 +319,16 @@ const styles = StyleSheet.create({
   logoutText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  editBtn: {
+    backgroundColor: '#1976d2',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+  },
+  editBtnText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
 });

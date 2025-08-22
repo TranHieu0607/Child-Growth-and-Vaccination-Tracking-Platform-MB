@@ -80,7 +80,7 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
       </TouchableOpacity>
       <View style={styles.registerContainer}>
         <Text style={styles.registerText}>Chưa có tài khoản? </Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+        <TouchableOpacity onPress={() => navigation.navigate('AccountRegister')}>
           <Text style={styles.registerLink}>Đăng ký ngay</Text>
         </TouchableOpacity>
       </View>
