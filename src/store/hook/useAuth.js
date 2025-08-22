@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { loginUser, registerUser } from '../api/authApi';
+import { useDispatch } from 'react-redux';
+import { login as loginThunk, register as registerThunk } from '../authSlice';
 
 export default function useAuth() {
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
@@ -10,7 +12,7 @@ export default function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      const data = await loginUser(payload);
+      const data = await dispatch(loginThunk(payload)).unwrap();
       setUser(data);
       return data;
     } catch (err) {
@@ -25,7 +27,7 @@ export default function useAuth() {
     setLoading(true);
     setError(null);
     try {
-      const data = await registerUser(payload);
+      const data = await dispatch(registerThunk(payload)).unwrap();
       setUser(data);
       return data;
     } catch (err) {

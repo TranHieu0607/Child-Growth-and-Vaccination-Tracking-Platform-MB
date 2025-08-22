@@ -945,7 +945,7 @@ const Booking = ({ navigation, route }) => {
                     <Text style={{ fontSize: 12, color: '#888' }}>Hạn dùng: {fv.expiryDate}</Text>
                     <Text style={{ fontSize: 12, color: '#888' }}>Phác đồ: {fv.vaccine?.numberOfDoses || 1} liều</Text>
                     {fv.vaccine?.ageGroup && (
-                      <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {fv.facilityVaccine.vaccine.ageGroup}</Text>
+                      <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {fv.vaccine.ageGroup}</Text>
                     )}
                     <Text style={{ fontSize: 12, color: isAgeAppropriate ? '#28a745' : '#dc3545' }}>
                       Độ tuổi phù hợp: {fv.vaccine.ageGroup} 

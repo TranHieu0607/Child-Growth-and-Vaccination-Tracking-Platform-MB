@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../store/authSlice';
-import { loginUser } from '../store/api/authApi';
 
 export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');
@@ -17,7 +16,7 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
     }
     
     try {
-      await loginUser({ accountName: input, password });
+      await dispatch(login({ accountName: input, password })).unwrap();
       Alert.alert(
         'Đăng nhập thành công!', 
         'Chào mừng bạn đến với KidCare',
@@ -31,7 +30,7 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
     } catch (error) {
       Alert.alert(
         'Đăng nhập thất bại', 
-        error.message || 'Vui lòng kiểm tra lại thông tin đăng nhập'
+        error?.message || 'Vui lòng kiểm tra lại thông tin đăng nhập'
       );
     }
   };
@@ -43,8 +42,8 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
   return (
     <View style={styles.container}>
       <Image source={require('../../assets/logo.png')} style={styles.avatar} />
-      <Text style={styles.title}>KidCare</Text>
-      <Text style={styles.welcome}>Chào mừng bạn đến với KidCare</Text>
+      <Text style={styles.title}>KidTrack</Text>
+      <Text style={styles.welcome}>Chào mừng bạn đến với KidTrack</Text>
       <Text style={styles.subtitle}>Theo dõi tiêm chủng và phát triển của bé</Text>
       <View style={styles.inputContainer}>
         <Text style={styles.inputLabel}>Số điện thoại hoặc email</Text>

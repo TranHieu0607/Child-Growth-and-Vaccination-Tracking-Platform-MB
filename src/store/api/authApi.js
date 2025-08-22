@@ -1,5 +1,3 @@
-import { register, login } from '../authSlice';
-import store from '../store';
 import axiosClient from './axiosClient';
 
 /**
@@ -7,13 +5,10 @@ import axiosClient from './axiosClient';
  * @param {object} payload
  * @returns {Promise<any>}
  */
+// NOTE: Keep API layer pure. Thunks should dispatch in UI layer, not here.
 export async function registerUser(payload) {
-  const resultAction = await store.dispatch(register(payload));
-  if (register.fulfilled.match(resultAction)) {
-    return resultAction.payload;
-  } else {
-    throw resultAction.payload || resultAction.error;
-  }
+  const response = await axiosClient.post('/auth/register', payload);
+  return response.data;
 }
 
 /**
@@ -22,13 +17,9 @@ export async function registerUser(payload) {
  * @returns {Promise<any>}
  */
 export async function loginUser(payload) {
-  const resultAction = await store.dispatch(login(payload));
-  if (login.fulfilled.match(resultAction)) {
-    return resultAction.payload;
-  } else {
-    throw resultAction.payload || resultAction.error;
-  }
-} 
+  const response = await axiosClient.post('/auth/login', payload);
+  return response.data;
+}
 
 /**
  * Gửi OTP đăng ký đến email (không lưu token)
