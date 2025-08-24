@@ -15,7 +15,7 @@ const features = [
   { key: 'health_record', label: 'Nhập lịch sử tiêm', icon: <FontAwesomeIcon icon={faFileMedical} size={32} color="#1565C0" /> },
   { key: 'payment_history', label: 'Đặt lại lịch tiêm', icon: <FontAwesomeIcon icon={faSyringe} size={32} color="#1565C0" /> },
   { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
-  { key: 'rating', label: 'Sổ tiêm chủng', icon: <FontAwesomeIcon icon={faBookMedical} size={32} color="#1565C0" /> },
+  { key: 'rating', label: 'Phản hồi từ bác sĩ', icon: <FontAwesomeIcon icon={faBookMedical} size={32} color="#1565C0" /> },
 ];
 
 const newsTabs = [
@@ -50,7 +50,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
                 navigation.navigate('ReOrder');
               }  
               else if (item.key === 'rating') {
-                navigation.navigate('VaccBook');
+                navigation.navigate('DoctorFeedback');
               } 
               else if (item.key === 'vaccine_spot') {
                 navigation.navigate('CreateDaily');

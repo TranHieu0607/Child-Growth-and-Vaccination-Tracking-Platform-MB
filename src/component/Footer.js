@@ -2,13 +2,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faClipboardList } from '@fortawesome/free-solid-svg-icons';
+import { faClipboardList, faBookMedical } from '@fortawesome/free-solid-svg-icons';
 
 const tabs = [
   { key: 'home', label: 'Trang chủ', icon: <Ionicons name="home-outline" size={24} color="#1565C0" /> },
   { key: 'add_vaccine', label: 'Nhập chỉ số', icon: <MaterialIcons name="edit" size={24} color="#1565C0" /> },
   { key: 'schedule', label: 'Đặt lịch', icon: <Ionicons name="calendar-outline" size={24} color="#1565C0" /> },
   { key: 'contact', label: 'Hàng ngày', icon: <FontAwesomeIcon icon={faClipboardList} size={24} color="#1565C0" /> },
+  { key: 'vaccbook', label: 'Sổ tiêm chủng', icon: <FontAwesomeIcon icon={faBookMedical} size={24} color="#1565C0" /> },
   { key: 'account', label: 'Tài khoản', icon: <Ionicons name="person-outline" size={24} color="#1565C0" /> },
 ];
 
@@ -21,6 +22,7 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
       else if (tabKey === 'contact') navigation.navigate('DailyRecord');
       else if (tabKey === 'add_vaccine') navigation.navigate('UpdateGrowth');
       else if (tabKey === 'schedule') navigation.navigate('Booking');
+      else if (tabKey === 'vaccbook') navigation.navigate('VaccBook');
       // Thêm các tab khác nếu muốn điều hướng
     }
   };
@@ -39,22 +41,26 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
 const styles = StyleSheet.create({
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#eee',
     paddingVertical: 8,
     height: 64,
+    paddingHorizontal: 5,
   },
   tab: {
-    alignItems: 'center',
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
   },
   label: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#1565C0',
-    marginTop: 2,
+    marginTop: 4,
+    textAlign: 'center',
+    lineHeight: 12,
+    fontWeight: '400',
   },
   activeLabel: {
     fontWeight: 'bold',
