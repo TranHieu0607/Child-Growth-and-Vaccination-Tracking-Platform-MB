@@ -21,6 +21,7 @@ const ReOrderScreen = ({ navigation }) => {
 	const [orders, setOrders] = useState([]); // Danh sách order đã mua
 	const [selectedPackage, setSelectedPackage] = useState(null); // Gói đã mua (order)
 	const [selectedDiseaseId, setSelectedDiseaseId] = useState(null); // Bệnh được chọn
+	const [selectedVaccineId, setSelectedVaccineId] = useState(null); // Vaccine được chọn
 	const [facilitySearch, setFacilitySearch] = useState('');
 	const [note, setNote] = useState('');
 	const [filter, setFilter] = useState('Gần nhất');
@@ -33,8 +34,17 @@ const ReOrderScreen = ({ navigation }) => {
 
 	// Log khi chọn gói
 	const handleSelectPackage = (pkg) => {
+	    // Nếu đang chọn gói này rồi thì bỏ chọn
+	    if (selectedPackage?.id === pkg.id) {
+	        setSelectedPackage(null);
+	        setSelectedDiseaseId(null);
+	        setSelectedVaccineId(null);
+	        return;
+	    }
+	    
 	    setSelectedPackage(pkg);
 	    setSelectedDiseaseId(null);
+	    setSelectedVaccineId(null);
 	    
 	    // Kiểm tra tất cả facilityId trong orderDetails
 	    const facilityIds = pkg?.order?.orderDetails?.map(od => od.facilityVaccine?.facilityId).filter(id => id);
@@ -49,19 +59,19 @@ const ReOrderScreen = ({ navigation }) => {
 
 
 
-	// Lấy slot lịch tiêm khi đã chọn cơ sở, ngày, token (giống Booking)
+	// Lấy slot lịch tiêm khi đã chọn vaccine, ngày, token
 	useEffect(() => {
 		const fetchSlots = async () => {
-			// Lấy facilityId từ orderDetails[0].facilityVaccine.facilityId
-			const facilityId = selectedPackage?.order?.orderDetails?.[0]?.facilityVaccine?.facilityId;
+			// Lấy facilityId từ selectedVaccine
+			const facilityId = selectedVaccine?.facilityId;
 			
-			if (!selectedPackage || !selectedDate || !token) {
+			if (!selectedPackage || !selectedVaccineId || !selectedDate || !token) {
 				setAvailableSlots([]);
 				setSelectedSlot(null);
 				return;
 			}
 			if (!facilityId) {
-				console.warn('❌ Không có facilityId từ selectedPackage');
+				console.warn('❌ Không có facilityId từ selectedVaccine');
 				setAvailableSlots([]);
 				setSelectedSlot(null);
 				return;
@@ -82,7 +92,7 @@ const ReOrderScreen = ({ navigation }) => {
 			}
 		};
 		fetchSlots();
-	}, [selectedPackage, selectedDate, token]);
+	}, [selectedPackage, selectedVaccineId, selectedDate, token]);
 
 	useEffect(() => {
 		const fetchChildren = async () => {
@@ -140,32 +150,38 @@ const ReOrderScreen = ({ navigation }) => {
 		order,
 	})) : [];
 
-	// Khi chọn gói, lấy ra các bệnh còn mũi tiêm
-	const diseases = selectedPackage
+	// Khi chọn gói, lấy ra tất cả vaccine còn mũi tiêm (gộp các vaccine trùng lặp)
+	const availableVaccines = selectedPackage
 		? selectedPackage.order.orderDetails
 				.filter(od => od.remainingQuantity > 0)
-				.map(od => ({
-						diseaseId: od.diseaseId,
-						name: od.disease?.name || 'Chưa đặt tên',
-						remainingQuantity: od.remainingQuantity,
-						vaccineId: od.facilityVaccine?.vaccine?.vaccineId, // Thêm vaccineId
-						facilityVaccineId: od.facilityVaccineId, // Thêm facilityVaccineId nếu cần
-				}))
+				.reduce((acc, od) => {
+					const existingVaccine = acc.find(v => 
+						v.vaccineId === od.facilityVaccine?.vaccine?.vaccineId && 
+						v.diseaseId === od.diseaseId
+					);
+					if (existingVaccine) {
+						// Nếu vaccine + bệnh đã tồn tại, cộng dồn remainingQuantity
+						existingVaccine.remainingQuantity += od.remainingQuantity;
+					} else {
+						// Nếu vaccine + bệnh chưa tồn tại, thêm mới
+						acc.push({
+							vaccineId: od.facilityVaccine?.vaccine?.vaccineId,
+							vaccineName: od.facilityVaccine?.vaccine?.name || 'Chưa đặt tên',
+							diseaseId: od.diseaseId,
+							diseaseName: od.disease?.name || 'Chưa đặt tên',
+							numberOfDoses: od.facilityVaccine?.vaccine?.numberOfDoses || 0,
+							remainingQuantity: od.remainingQuantity,
+							price: od.price,
+							facilityVaccineId: od.facilityVaccineId,
+							facilityId: od.facilityVaccine?.facilityId,
+						});
+					}
+					return acc;
+				}, [])
 		: [];
 
-	// Khi chọn bệnh, lấy ra vaccine liên quan trong gói
-	const vaccines = selectedPackage && selectedDiseaseId
-		? selectedPackage.order.orderDetails
-				.filter(od => od.diseaseId === selectedDiseaseId && od.remainingQuantity > 0)
-				.map(od => ({
-						vaccineId: od.facilityVaccine?.vaccine?.vaccineId,
-						vaccineName: od.facilityVaccine?.vaccine?.name,
-						numberOfDoses: od.facilityVaccine?.vaccine?.numberOfDoses,
-						remainingQuantity: od.remainingQuantity,
-						price: od.price,
-						facilityVaccineId: od.facilityVaccineId,
-				}))
-		: [];
+	// Lấy thông tin vaccine đã chọn
+	const selectedVaccine = availableVaccines.find(v => v.vaccineId === selectedVaccineId);
 
 	// Cơ sở tiêm của gói
 	const facility = selectedPackage ? {
@@ -173,33 +189,29 @@ const ReOrderScreen = ({ navigation }) => {
 		// Có thể bổ sung thêm address nếu API trả về
 	} : null;
 
-	// Chọn bệnh
-	const handleSelectDisease = (diseaseId) => {
-		setSelectedDiseaseId(diseaseId);
-		setSelectedSlot(null); // reset slot khi đổi bệnh
+	// Chọn vaccine
+	const handleSelectVaccine = (vaccineId) => {
+		setSelectedVaccineId(vaccineId);
+		setSelectedSlot(null); // reset slot khi đổi vaccine
 		
-		// Lấy thông tin bệnh và vaccine được chọn
-		const selectedDisease = diseases.find(d => d.diseaseId === diseaseId);
-		// Lấy all vaccines liên quan đến bệnh này
-		const relatedVaccines = selectedPackage?.order.orderDetails
-			.filter(od => od.diseaseId === diseaseId && od.remainingQuantity > 0)
-			.map(od => ({
-				vaccineId: od.facilityVaccine?.vaccine?.vaccineId,
-				vaccineName: od.facilityVaccine?.vaccine?.name,
-				facilityVaccineId: od.facilityVaccineId,
-			}));
+		// Lấy thông tin vaccine được chọn
+		const selectedVaccine = availableVaccines.find(v => v.vaccineId === vaccineId);
+		if (selectedVaccine) {
+			setSelectedDiseaseId(selectedVaccine.diseaseId);
+		}
 	};
 
 	// Helper function để lấy thông tin hiện tại đã chọn
 	const getSelectedInfo = () => {
 		const info = {
-			facilityId: selectedPackage?.order?.orderDetails?.[0]?.facilityVaccine?.facilityId || null,
+			facilityId: selectedVaccine?.facilityId || null,
 			facilityName: selectedPackage?.order?.facilityName || null,
 			packageId: selectedPackage?.id || null,
 			packageName: selectedPackage?.name || null,
 			diseaseId: selectedDiseaseId || null,
-			diseaseName: diseases.find(d => d.diseaseId === selectedDiseaseId)?.name || null,
-			vaccines: vaccines || []
+			diseaseName: selectedVaccine?.diseaseName || null,
+			vaccineId: selectedVaccineId || null,
+			vaccineName: selectedVaccine?.vaccineName || null,
 		};
 		return info;
 	};
@@ -217,8 +229,8 @@ const ReOrderScreen = ({ navigation }) => {
 			return;
 		}
 
-		if (!selectedDiseaseId) {
-			Alert.alert('Thiếu thông tin', 'Vui lòng chọn bệnh cần tiêm!');
+		if (!selectedVaccineId) {
+			Alert.alert('Thiếu thông tin', 'Vui lòng chọn vaccine cần tiêm!');
 			return;
 		}
 
@@ -231,7 +243,7 @@ const ReOrderScreen = ({ navigation }) => {
 		const payload = {
 			childId: selectedChildId,
 			diseaseId: selectedDiseaseId,
-			facilityId: selectedPackage.order.orderDetails[0]?.facilityVaccine?.facilityId,
+			facilityId: selectedVaccine?.facilityId,
 			scheduleId: selectedSlot.scheduleId || selectedSlot.slotId, // Thử cả hai trường
 			note: note.trim(),
 			orderId: selectedPackage.id // Sử dụng orderId đã có thay vì tạo mới
@@ -252,6 +264,7 @@ const ReOrderScreen = ({ navigation }) => {
 							// Reset form
 							setSelectedPackage(null);
 							setSelectedDiseaseId(null);
+							setSelectedVaccineId(null);
 							setSelectedSlot(null);
 							setNote('');
 							setSelectedDate(today.format('YYYY-MM-DD'));
@@ -355,25 +368,57 @@ const ReOrderScreen = ({ navigation }) => {
 							))}
 						</View>
 
-						{/* Chọn bệnh cần tiêm trong gói */}
+						{/* Chọn vaccine cần tiêm trong gói */}
 						{selectedPackage && (
 							<>
-								<Text style={styles.label}>Chọn bệnh cần tiêm</Text>
-								<View style={styles.diseaseGrid}>
-									{diseases.length === 0 && <Text style={{ color: '#888' }}>Tất cả bệnh trong gói đã tiêm xong</Text>}
-									{diseases.map((disease) => (
+								<Text style={styles.label}>Chọn vaccine cần tiêm</Text>
+								<View style={styles.vaccineGrid}>
+									{availableVaccines.length === 0 && (
+										<View style={styles.emptyState}>
+											<Text style={styles.emptyStateText}>Tất cả vaccine trong gói đã tiêm xong</Text>
+										</View>
+									)}
+									{availableVaccines.map((vaccine) => (
 										<TouchableOpacity
-											key={disease.diseaseId}
+											key={`${vaccine.vaccineId}-${vaccine.diseaseId}`}
 											style={[
-												styles.diseaseBtn,
-												selectedDiseaseId === disease.diseaseId && styles.diseaseBtnActive,
+												styles.vaccineCard,
+												selectedVaccineId === vaccine.vaccineId && styles.vaccineCardActive,
 											]}
-											onPress={() => handleSelectDisease(disease.diseaseId)}
-											disabled={disease.remainingQuantity === 0}
+											onPress={() => handleSelectVaccine(vaccine.vaccineId)}
+											disabled={vaccine.remainingQuantity === 0}
+											activeOpacity={0.7}
 										>
-											<Text style={{ color: selectedDiseaseId === disease.diseaseId ? '#fff' : '#222' }}>
-												{disease.name} {disease.remainingQuantity === 0 ? '(Đã tiêm xong)' : ''}
+											<View style={styles.vaccineHeader}>
+												<Text style={[
+													styles.vaccineName,
+													selectedVaccineId === vaccine.vaccineId && styles.vaccineNameActive
+												]}>
+													{vaccine.vaccineName}
+												</Text>
+												<View style={[
+													styles.doseBadge,
+													selectedVaccineId === vaccine.vaccineId && styles.doseBadgeActive
+												]}>
+													<Text style={[
+														styles.doseText,
+														selectedVaccineId === vaccine.vaccineId && styles.doseTextActive
+													]}>
+														{vaccine.remainingQuantity}/{vaccine.numberOfDoses}
+													</Text>
+												</View>
+											</View>
+											<Text style={[
+												styles.diseaseName,
+												selectedVaccineId === vaccine.vaccineId && styles.diseaseNameActive
+											]}>
+												{vaccine.diseaseName}
 											</Text>
+											{vaccine.remainingQuantity === 0 && (
+												<View style={styles.completedBadge}>
+													<Text style={styles.completedText}>Đã tiêm xong</Text>
+												</View>
+											)}
 										</TouchableOpacity>
 									))}
 								</View>
@@ -387,16 +432,19 @@ const ReOrderScreen = ({ navigation }) => {
 							</View>
 						)}
 
-						{/* Vaccine liên quan đến bệnh đã chọn trong gói */}
-						{selectedPackage && selectedDiseaseId && (
+						{/* Thông tin vaccine đã chọn */}
+						{selectedPackage && selectedVaccineId && selectedVaccine && (
 							<View style={styles.suggestionBox}>
-								<Text style={styles.suggestionTitle}>Vaccine trong gói cho bệnh này</Text>
-								{vaccines.length === 0 && <Text style={{ color: '#888' }}>Không có vaccine nào hoặc đã tiêm xong</Text>}
-								{vaccines.map((v, idx) => (
-									<Text key={idx} style={styles.suggestionItem}>
-										- {v.vaccineName} (ID: {v.vaccineId}) - Còn {v.remainingQuantity}/{v.numberOfDoses} mũi
-									</Text>
-								))}
+								<Text style={styles.suggestionTitle}>Thông tin vaccine đã chọn</Text>
+								<Text style={styles.suggestionItem}>
+									- <Text style={{ fontWeight: 'bold' }}>Vaccine:</Text> {selectedVaccine.vaccineName}
+								</Text>
+								<Text style={styles.suggestionItem}>
+									- <Text style={{ fontWeight: 'bold' }}>Bệnh:</Text> {selectedVaccine.diseaseName}
+								</Text>
+								<Text style={styles.suggestionItem}>
+									- <Text style={{ fontWeight: 'bold' }}>Số mũi:</Text> {selectedVaccine.remainingQuantity}/{selectedVaccine.numberOfDoses}
+								</Text>
 							</View>
 						)}
 
@@ -441,14 +489,14 @@ const ReOrderScreen = ({ navigation }) => {
 														{/* Tên thứ */}
 														<View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
 															{['CN','T2','T3','T4','T5','T6','T7'].map((d, i) => (
-																<Text key={i} style={{ width: 32, textAlign: 'center', color: '#888', fontWeight: 'bold' }}>{d}</Text>
+																<Text key={`day-${i}`} style={{ width: 32, textAlign: 'center', color: '#888', fontWeight: 'bold' }}>{d}</Text>
 															))}
 														</View>
 														{/* Lưới ngày */}
 														<View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
 															{/* Padding đầu tháng */}
 															{Array(getFirstDayOfWeek(calendarMonth, calendarYear)).fill(0).map((_, idx) => (
-																<View key={`pad-${idx}`} style={{ width: 32, height: 32 }} />
+																<View key={`pad-${calendarMonth}-${calendarYear}-${idx}`} style={{ width: 32, height: 32 }} />
 															))}
 															{/* Ngày trong tháng */}
 															{Array(getDaysInMonth(calendarMonth, calendarYear)).fill(0).map((_, index) => {
@@ -458,7 +506,7 @@ const ReOrderScreen = ({ navigation }) => {
 																const isDisabled = isPastDate(calendarYear, calendarMonth, day);
 																return (
 																	<TouchableOpacity
-																		key={day}
+																		key={`${calendarYear}-${calendarMonth}-${day}`}
 																		disabled={isDisabled}
 																		onPress={() => {
 																			const dateStr = `${calendarYear}-${String(calendarMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -544,6 +592,96 @@ const styles = StyleSheet.create({
 	diseaseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
 	diseaseBtn: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 16, margin: 4, backgroundColor: '#fff' },
 	diseaseBtnActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+	vaccineGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+	vaccineCard: { 
+		width: '48%', 
+		borderWidth: 1, 
+		borderColor: '#e0e0e0', 
+		borderRadius: 12, 
+		padding: 16, 
+		backgroundColor: '#fff',
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.1,
+		shadowRadius: 4,
+		elevation: 3,
+		minHeight: 100,
+		justifyContent: 'space-between'
+	},
+	vaccineCardActive: { 
+		borderColor: '#1976d2', 
+		backgroundColor: '#e3f2fd',
+		shadowColor: '#1976d2',
+		shadowOpacity: 0.2,
+		elevation: 5
+	},
+	vaccineHeader: { 
+		flexDirection: 'row', 
+		justifyContent: 'space-between', 
+		alignItems: 'flex-start', 
+		marginBottom: 8 
+	},
+	vaccineName: { 
+		fontWeight: '600', 
+		fontSize: 14, 
+		color: '#333', 
+		flex: 1, 
+		marginRight: 8,
+		lineHeight: 18
+	},
+	vaccineNameActive: { color: '#1976d2' },
+	doseBadge: { 
+		backgroundColor: '#f5f5f5', 
+		paddingHorizontal: 8, 
+		paddingVertical: 4, 
+		borderRadius: 12,
+		borderWidth: 1,
+		borderColor: '#e0e0e0'
+	},
+	doseBadgeActive: { 
+		backgroundColor: '#1976d2', 
+		borderColor: '#1976d2' 
+	},
+	doseText: { 
+		fontSize: 11, 
+		fontWeight: '600', 
+		color: '#666' 
+	},
+	doseTextActive: { color: '#fff' },
+	diseaseName: { 
+		fontSize: 12, 
+		color: '#666', 
+		lineHeight: 16,
+		marginBottom: 8
+	},
+	diseaseNameActive: { color: '#1976d2' },
+	completedBadge: { 
+		backgroundColor: '#ffebee', 
+		paddingHorizontal: 8, 
+		paddingVertical: 4, 
+		borderRadius: 8,
+		alignSelf: 'flex-start'
+	},
+	completedText: { 
+		fontSize: 10, 
+		color: '#d32f2f', 
+		fontWeight: '500' 
+	},
+	emptyState: { 
+		width: '100%', 
+		padding: 20, 
+		alignItems: 'center',
+		backgroundColor: '#f8f9fa',
+		borderRadius: 8,
+		borderWidth: 1,
+		borderColor: '#e9ecef',
+		borderStyle: 'dashed'
+	},
+	emptyStateText: { 
+		color: '#6c757d', 
+		fontSize: 14,
+		textAlign: 'center'
+	},
 	input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, marginBottom: 8 },
 	filterRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
 	filterBtn: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16, backgroundColor: '#fff', marginRight: 8 },
