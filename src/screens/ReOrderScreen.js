@@ -8,9 +8,6 @@ import orderApi from '../store/api/orderApi';
 import scheduleApi from '../store/api/scheduleApi';
 import bookingApi from '../store/api/bookingApi';
 
-const hours = ['08:00', '09:00', '10:00', '14:00', '15:00', '16:00'];
-
-
 const ReOrderScreen = ({ navigation }) => {
 	// Lấy token từ Redux store
 	const { token } = useSelector((state) => state.auth);
@@ -180,8 +177,8 @@ const ReOrderScreen = ({ navigation }) => {
 				}, [])
 		: [];
 
-	// Lấy thông tin vaccine đã chọn
-	const selectedVaccine = availableVaccines.find(v => v.vaccineId === selectedVaccineId);
+	// Lấy thông tin vaccine đã chọn (ràng buộc theo cả vaccineId và diseaseId để tránh nhầm)
+	const selectedVaccine = availableVaccines.find(v => v.vaccineId === selectedVaccineId && v.diseaseId === selectedDiseaseId);
 
 	// Cơ sở tiêm của gói
 	const facility = selectedPackage ? {
@@ -190,14 +187,14 @@ const ReOrderScreen = ({ navigation }) => {
 	} : null;
 
 	// Chọn vaccine
-	const handleSelectVaccine = (vaccineId) => {
+	const handleSelectVaccine = (vaccineId, diseaseId) => {
 		setSelectedVaccineId(vaccineId);
 		setSelectedSlot(null); // reset slot khi đổi vaccine
 		
 		// Lấy thông tin vaccine được chọn
-		const selectedVaccine = availableVaccines.find(v => v.vaccineId === vaccineId);
-		if (selectedVaccine) {
-			setSelectedDiseaseId(selectedVaccine.diseaseId);
+		const found = availableVaccines.find(v => v.vaccineId === vaccineId && v.diseaseId === diseaseId);
+		if (found) {
+			setSelectedDiseaseId(found.diseaseId);
 		}
 	};
 
@@ -239,24 +236,42 @@ const ReOrderScreen = ({ navigation }) => {
 			return;
 		}
 
+		// Bắt buộc phải có scheduleId rõ ràng
+		if (!selectedSlot?.scheduleId) {
+			Alert.alert('Thiếu thông tin', 'Không tìm thấy scheduleId hợp lệ cho khung giờ đã chọn!');
+			return;
+		}
+
 		// Tạo payload theo đúng format yêu cầu
 		const payload = {
 			childId: selectedChildId,
 			diseaseId: selectedDiseaseId,
 			facilityId: selectedVaccine?.facilityId,
-			scheduleId: selectedSlot.scheduleId || selectedSlot.slotId, // Thử cả hai trường
+			scheduleId: selectedSlot.scheduleId,
 			note: note.trim(),
 			orderId: selectedPackage.id // Sử dụng orderId đã có thay vì tạo mới
 		};
 
+		// Hiển thị payload để kiểm tra
+		console.log('ReOrder booking payload:', payload);
+		Alert.alert('Payload gửi đi', JSON.stringify(payload, null, 2));
+
 		try {
 			// Gọi API đặt lịch
 			const response = await bookingApi.bookAppointment(payload, token);
-			
+			const apiStatus = response?.data?.status;
+			const apiMessage = response?.data?.message;
+
+			// Nếu API trả về status=false (kể cả 200), hiển thị message từ server
+			if (apiStatus !== true) {
+				Alert.alert('Đặt lịch thất bại', apiMessage || 'Có lỗi xảy ra khi đặt lịch. Vui lòng thử lại!');
+				return;
+			}
+
 			// Thông báo thành công
 			Alert.alert(
 				'Đặt lịch thành công!', 
-				'Lịch tiêm chủng đã được xác nhận!',
+				apiMessage || 'Lịch tiêm chủng đã được xác nhận!',
 				[
 					{ 
 						text: 'OK', 
@@ -385,7 +400,7 @@ const ReOrderScreen = ({ navigation }) => {
 												styles.vaccineCard,
 												selectedVaccineId === vaccine.vaccineId && styles.vaccineCardActive,
 											]}
-											onPress={() => handleSelectVaccine(vaccine.vaccineId)}
+											onPress={() => handleSelectVaccine(vaccine.vaccineId, vaccine.diseaseId)}
 											disabled={vaccine.remainingQuantity === 0}
 											activeOpacity={0.7}
 										>

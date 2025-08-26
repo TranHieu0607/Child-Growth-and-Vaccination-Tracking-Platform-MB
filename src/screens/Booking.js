@@ -141,24 +141,13 @@ const Booking = ({ navigation, route }) => {
           pkg.packageVaccines && pkg.packageVaccines.some(pv => pv.diseaseId === selectedDisease.diseaseId)
         );
         
-        // Lọc theo độ tuổi phù hợp nếu đã chọn trẻ
-        if (selectedChildren.length > 0) {
-          const selectedChild = children.find(child => child.childId === selectedChildren[0]);
-          if (selectedChild && selectedChild.birthDate) {
-            const childAgeInMonths = calculateAgeInMonths(selectedChild.birthDate);
-            matchedPackages = matchedPackages.filter(pkg => 
-              isPackageAgeAppropriate(pkg, childAgeInMonths)
-            );
-          }
-        }
-        
         setFilteredPackages(matchedPackages);
       } catch (e) {
         setFilteredPackages([]);
       }
     };
     fetchPackages();
-  }, [selectedFacility, selectedDisease, selectedChildren, children]);
+  }, [selectedFacility, selectedDisease]);
 
   // Lấy slot lịch tiêm khi chọn cơ sở, ngày, token
   useEffect(() => {
@@ -202,17 +191,6 @@ const Booking = ({ navigation, route }) => {
           fv.vaccine.diseases.some(d => String(d.diseaseId) === String(selectedDisease.diseaseId))
         );
         
-        // Lọc theo độ tuổi phù hợp nếu đã chọn trẻ
-        if (selectedChildren.length > 0) {
-          const selectedChild = children.find(child => child.childId === selectedChildren[0]);
-          if (selectedChild && selectedChild.birthDate) {
-            const childAgeInMonths = calculateAgeInMonths(selectedChild.birthDate);
-            filtered = filtered.filter(fv => 
-              isVaccineAgeAppropriate(fv.vaccine, childAgeInMonths)
-            );
-          }
-        }
-        
         setFilteredFacilityVaccines(filtered);
       } catch (e) {
         setFacilityVaccines([]);
@@ -220,7 +198,7 @@ const Booking = ({ navigation, route }) => {
       }
     };
     fetchFacilityVaccines();
-  }, [selectedFacility, selectedDisease, token, selectedChildren, children]);
+  }, [selectedFacility, selectedDisease, token]);
 
   // Function to normalize Vietnamese text for search
   const normalizeVietnameseText = (text) => {
@@ -478,7 +456,28 @@ const Booking = ({ navigation, route }) => {
         data.facilityVaccineIds = [selectedSingleVaccine.facilityVaccineId];
       }
 
+      // Log payload trước khi gửi API
+      console.log('=== PAYLOAD BOOKING ===');
+      console.log('Data:', data);
+      console.log('Token:', token);
+      console.log('Package Item:', packageItem);
+      console.log('Selected Single Vaccine:', selectedSingleVaccine);
+      console.log('Selected Children:', selectedChildren);
+      console.log('Selected Disease:', selectedDisease);
+      console.log('Selected Facility:', selectedFacility);
+      console.log('Selected Slot:', selectedSlot);
+      console.log('Note:', note);
+      console.log('Cart Items:', cartItems);
+      console.log('========================');
+
       const res = await bookingApi.bookAppointment(data, token);
+      
+      // Kiểm tra response từ server
+      if (res.data && res.data.status === false) {
+        // Nếu server trả về status false, hiển thị message từ server
+        Alert.alert('Đặt lịch thất bại', res.data.message || 'Vui lòng thử lại!');
+        return;
+      }
       
       // Clear cart và vaccine đã chọn
       dispatch(clearCart());
@@ -488,7 +487,18 @@ const Booking = ({ navigation, route }) => {
         { text: 'OK', onPress: () => navigation.navigate('Home') }
       ]);
     } catch (e) {
-      Alert.alert('Đặt lịch thất bại', e.message || 'Vui lòng thử lại!');
+      // Xử lý lỗi network hoặc lỗi khác
+      let errorMessage = 'Vui lòng thử lại!';
+      
+      if (e.response && e.response.data && e.response.data.message) {
+        // Lấy message từ response error
+        errorMessage = e.response.data.message;
+      } else if (e.message) {
+        // Lấy message từ error object
+        errorMessage = e.message;
+      }
+      
+      Alert.alert('Đặt lịch thất bại', errorMessage);
     }
   };
 
@@ -760,9 +770,6 @@ const Booking = ({ navigation, route }) => {
             
             // Get package minimum age info for display
             const packageMinAge = getPackageMinimumAge(pkg.packageVaccines);
-            const selectedChild = children.find(child => child.childId === selectedChildren[0]);
-            const childAgeInMonths = selectedChild ? calculateAgeInMonths(selectedChild.birthDate) : 0;
-            const isPackageAgeOk = isPackageAgeAppropriate(pkg, childAgeInMonths);
             
             const packageCartObj = {
               packageId: pkg.packageId,
@@ -804,7 +811,6 @@ const Booking = ({ navigation, route }) => {
                         isDisabled && styles.packageTextDisabled
                       ]}>
                         {formatAgeGroup(packageMinAge)}
-                        {isPackageAgeOk ? ' ✅' : ' ⚠️'}
                       </Text>
                     )}
                   </View>
@@ -850,9 +856,8 @@ const Booking = ({ navigation, route }) => {
                       <Text style={{ fontSize: 13, color: '#888' }}>Không có vaccine</Text>
                     )}
                     {packageMinAge !== undefined && (
-                      <Text style={{ fontSize: 12, color: isPackageAgeOk ? '#28a745' : '#dc3545', marginTop: 5 }}>
-                        Độ tuổi tối thiểu cho gói: {formatAgeGroup(packageMinAge)} 
-                        {isPackageAgeOk ? ' (Phù hợp với bé)' : ' (Chưa phù hợp với bé)'}
+                      <Text style={{ fontSize: 12, color: '#666', marginTop: 5 }}>
+                        Độ tuổi tối thiểu cho gói: {formatAgeGroup(packageMinAge)}
                       </Text>
                     )}
                   </View>
@@ -872,11 +877,6 @@ const Booking = ({ navigation, route }) => {
               }
             };
             const isExpanded = expandedFacilityVaccineId === fv.facilityVaccineId;
-            
-            // Get child age info for display
-            const selectedChild = children.find(child => child.childId === selectedChildren[0]);
-            const childAgeInMonths = selectedChild ? calculateAgeInMonths(selectedChild.birthDate) : 0;
-            const isAgeAppropriate = isVaccineAgeAppropriate(fv.vaccine, childAgeInMonths);
             
             return (
               <View key={fv.facilityVaccineId} style={[
@@ -907,7 +907,6 @@ const Booking = ({ navigation, route }) => {
                         isDisabled && styles.packageTextDisabled
                       ]}>
                         Độ tuổi: {fv.vaccine.ageGroup}
-                        {isAgeAppropriate ? ' ✅' : ' ⚠️'}
                       </Text>
                     )}
                   </View>
@@ -947,9 +946,8 @@ const Booking = ({ navigation, route }) => {
                     {fv.vaccine?.ageGroup && (
                       <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {fv.vaccine.ageGroup}</Text>
                     )}
-                    <Text style={{ fontSize: 12, color: isAgeAppropriate ? '#28a745' : '#dc3545' }}>
-                      Độ tuổi phù hợp: {fv.vaccine.ageGroup} 
-                      {isAgeAppropriate ? ' (Phù hợp với bé)' : ' (Chưa phù hợp với bé)'}
+                    <Text style={{ fontSize: 12, color: '#666' }}>
+                      Độ tuổi phù hợp: {fv.vaccine.ageGroup}
                     </Text>
                   </View>
                 )}

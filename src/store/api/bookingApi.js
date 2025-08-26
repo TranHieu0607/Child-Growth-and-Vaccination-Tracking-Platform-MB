@@ -8,7 +8,7 @@ const bookingApi = {
       {
         headers: {
           'accept': 'text/plain',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': token,
           'Content-Type': 'application/json',
         }
       }
