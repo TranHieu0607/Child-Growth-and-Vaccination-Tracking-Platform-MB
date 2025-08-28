@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert, Platform } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../store/authSlice';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+import Constants from 'expo-constants';
+import deviceTokenApi from '../store/api/deviceTokenApi';
+import * as SecureStore from 'expo-secure-store';
 
 export default function LoginScreen({ onLoginSuccess, navigation }) {
   const [input, setInput] = useState('');
   const [password, setPassword] = useState('');
   const dispatch = useDispatch();
-  const { loading, error, user } = useSelector((state) => state.auth);
+  const { loading, error, user, token } = useSelector((state) => state.auth);
 
   const handleContinue = async () => {
     if (!input || !password) {
@@ -17,9 +22,18 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
     
     try {
       await dispatch(login({ accountName: input, password })).unwrap();
+
+      // Đăng ký thiết bị để nhận push notification (không chặn UI)
+      registerDeviceToken().catch((e) => {
+        console.log(
+          'Register device token failed:',
+          e?.response?.data || e?.message || e
+        );
+      });
+      
       Alert.alert(
         'Đăng nhập thành công!', 
-        'Chào mừng bạn đến với KidCare',
+        'Chào mừng bạn đến với KidTrack',
         [
           { 
             text: 'OK', 
@@ -37,6 +51,73 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
 
   const handleGoogleLogin = () => {
     onLoginSuccess();
+  };
+
+  const registerDeviceToken = async () => {
+    try {
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== 'granted') {
+        throw new Error('Notification permission not granted');
+      }
+
+      // Get FCM token for Android instead of Expo push token
+      let pushToken;
+      if (Platform.OS === 'android') {
+        // For Android, we need to get FCM token
+        // This requires proper Firebase setup with google-services.json
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+        if (!projectId) {
+          throw new Error('Project ID not found for FCM token');
+        }
+        
+        // Try to get FCM token directly
+        try {
+          const fcmTokenResponse = await Notifications.getDevicePushTokenAsync();
+          pushToken = fcmTokenResponse?.data || fcmTokenResponse;
+          console.log('FCM Token obtained:', pushToken);
+        } catch (fcmError) {
+          console.log('FCM token error, falling back to Expo token:', fcmError?.message || fcmError);
+          // Fallback to Expo token if FCM fails
+          const pushTokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+          pushToken = pushTokenResponse?.data || pushTokenResponse;
+        }
+      } else {
+        // For iOS, use Expo push token
+        const projectId = Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId;
+        const pushTokenResponse = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+        pushToken = pushTokenResponse?.data || pushTokenResponse;
+      }
+
+      const deviceInfo = `${Device.modelName || 'Unknown Device'}, ${Device.osName || 'Unknown OS'} ${Device.osVersion || ''}`.trim();
+
+      // Sử dụng API mới với đầy đủ tính năng
+      const result = await deviceTokenApi.registerDeviceToken(
+        pushToken,      // string token
+        undefined,      // để nó tự xác định Android/iOS
+        deviceInfo      // info string
+      );
+      
+      
+      if (result.skipped) {
+        console.log('Device token registration skipped:', result.reason);
+      } else if (result.deduped) {
+        console.log('Device token already registered (deduped)');
+        // Lưu pushToken vào SecureStore để sử dụng khi logout
+        await SecureStore.setItemAsync('pushToken', pushToken);
+      } else {
+        console.log('Device token registered successfully');
+        // Lưu pushToken vào SecureStore để sử dụng khi logout
+        await SecureStore.setItemAsync('pushToken', pushToken);
+      }
+    } catch (err) {
+      console.log('Device token registration error:', err?.message || err);
+      console.log('Push token to register:', pushToken, typeof pushToken);
+    }
   };
 
   return (
