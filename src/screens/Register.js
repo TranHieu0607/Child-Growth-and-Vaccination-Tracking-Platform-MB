@@ -363,7 +363,7 @@ const Register = ({ navigation }) => {
         render={({ field: { onChange, onBlur, value } }) => (
           <TextInput
             style={{ height: 50, borderColor: 'gray', borderWidth: 1, marginBottom: 10, paddingHorizontal: 10, borderRadius: 5 }}
-            placeholder="Vòng đầu (cm, tuỳ chọn)"
+            placeholder="Vòng đầu (cm)"
             onBlur={onBlur}
             onChangeText={onChange}
             value={value}

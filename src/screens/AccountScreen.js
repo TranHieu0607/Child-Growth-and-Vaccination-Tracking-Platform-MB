@@ -14,6 +14,7 @@ export default function AccountScreen({ navigation, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
   const [profileDraft, setProfileDraft] = useState({
     fullName: '',
     phoneNumber: '',
@@ -89,7 +90,15 @@ export default function AccountScreen({ navigation, onLogout }) {
         </View>
       )}
       <View style={styles.profileSection}>
-        <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+        {user?.imageURL ? (
+          <Image 
+            source={{ uri: user.imageURL }} 
+            style={styles.avatar}
+            onError={() => setImageErrors(prev => ({ ...prev, user: true }))}
+          />
+        ) : (
+          <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+        )}
         {!editing ? (
           <Text style={styles.name}>{user?.fullName || 'Chưa cập nhật'}</Text>
         ) : (
@@ -166,9 +175,11 @@ export default function AccountScreen({ navigation, onLogout }) {
       <View style={styles.childrenSection}>
         <Text style={styles.sectionTitle}>Các bé đang theo dõi</Text>
         {loading ? (
-          <Text>Đang tải...</Text>
+          <Text style={styles.loadingText}>Đang tải...</Text>
         ) : error ? (
-          <Text style={{ color: 'red' }}>{error}</Text>
+          <Text style={styles.errorText}>{error}</Text>
+        ) : children.length === 0 ? (
+          <Text style={styles.emptyText}>Chưa có bé nào được đăng ký</Text>
         ) : (
           <FlatList
             data={children}
@@ -179,11 +190,25 @@ export default function AccountScreen({ navigation, onLogout }) {
                   style={styles.childInfoContainer}
                   onPress={() => handleChildPress(item.childId)}
                 >
-                  <Image source={require('../../assets/icon.png')} style={styles.childAvatar} />
+                  {item.imageURL && !imageErrors[item.childId] ? (
+                    <Image 
+                      source={{ uri: item.imageURL }} 
+                      style={styles.childAvatar}
+                      onError={() => setImageErrors(prev => ({ ...prev, [item.childId]: true }))}
+                    />
+                  ) : (
+                    <Image 
+                      source={require('../../assets/icon.png')} 
+                      style={styles.childAvatar} 
+                    />
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.childName}>{item.fullName}</Text>
                     <Text style={styles.childAge}>
                       Ngày sinh: {item.birthDate ? item.birthDate.split('T')[0] : ''}
+                    </Text>
+                    <Text style={styles.childDetails}>
+                      {item.gender?.trim()} • {item.bloodType || 'Chưa cập nhật'}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -305,6 +330,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#888',
   },
+  childDetails: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
   deleteButton: {
     marginLeft: 10,
     padding: 8,
@@ -330,5 +360,24 @@ const styles = StyleSheet.create({
   editBtnText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  loadingText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 20,
+  },
+  errorText: {
+    textAlign: 'center',
+    color: '#EA4335',
+    fontSize: 14,
+    marginTop: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 20,
+    fontStyle: 'italic',
   },
 });

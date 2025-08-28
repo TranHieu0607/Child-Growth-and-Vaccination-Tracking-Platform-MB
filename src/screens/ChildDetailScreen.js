@@ -17,6 +17,7 @@ export default function ChildDetailScreen({ route, navigation }) {
     allergiesNotes: '',
     medicalHistory: '',
   });
+  const [imageError, setImageError] = useState(false);
 
   const fetchChildDetail = async () => {
     try {
@@ -129,7 +130,18 @@ export default function ChildDetailScreen({ route, navigation }) {
         )}
       </View>
       <View style={styles.profileSection}>
-        <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+        {child.imageURL && !imageError ? (
+          <Image 
+            source={{ uri: child.imageURL }} 
+            style={styles.avatar}
+            onError={() => setImageError(true)}
+            defaultSource={require('../../assets/icon.png')}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.placeholderAvatar]}>
+            <FontAwesome name="user" size={50} color="#ccc" />
+          </View>
+        )}
         {isEditing ? (
           <TextInput
             style={[styles.name, { borderBottomWidth: 1, borderColor: '#2196F3' }]}
@@ -142,6 +154,11 @@ export default function ChildDetailScreen({ route, navigation }) {
         <Text style={styles.status}>
           {child.status ? 'Đang theo dõi' : 'Ngừng theo dõi'}
         </Text>
+        {child.imageURL && (
+          <Text style={styles.imageInfo}>
+            Ảnh được cập nhật: {formatDate(child.updateAt)}
+          </Text>
+        )}
       </View>
 
       <View style={styles.infoSection}>
@@ -313,10 +330,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#2196F3',
   },
   name: {
     fontSize: 24,
@@ -328,6 +347,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4CAF50',
     fontWeight: '600',
+  },
+  imageInfo: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  placeholderAvatar: {
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderColor: '#ddd',
   },
   infoSection: {
     padding: 24,
