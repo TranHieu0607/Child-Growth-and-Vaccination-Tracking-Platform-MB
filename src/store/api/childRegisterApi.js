@@ -1,11 +1,20 @@
-import childrenApi from './childrenApi';
+// store/api/childRegisterApi.js
+import axiosClient from './axiosClient';
 
 /**
- * Đăng ký thông tin trẻ mới cùng chỉ số tăng trưởng ban đầu
- * @param {object} payload
- * @returns {Promise<any>}
+ * Gọi API tạo trẻ + bản ghi tăng trưởng (multipart/form-data).
+ * Nhận vào FormData đã được chuẩn bị sẵn ở Register.js.
+ * Lưu ý: KHÔNG append 'Image' nếu không có ảnh.
  */
-export async function registerChildWithGrowth(payload) {
-  const res = await childrenApi.createChildWithGrowthRecord(payload);
+export async function registerChildWithGrowth(formData) {
+  const res = await axiosClient.post('/Children/with-growth-record', formData, {
+    transformRequest: [(data, headers) => data],
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      Accept: '*/*',
+    },
+  });
+
+  // axiosClient trả về object { data, status, ... }
   return res.data;
-} 
+}
