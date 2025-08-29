@@ -1,17 +1,58 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faUserMd, faChevronDown, faBaby, faFileDownload, faCalendar, faMapMarkerAlt, faCreditCard, faClock } from '@fortawesome/free-solid-svg-icons';
+import childrenApi from '../store/api/childrenApi';
+import appointmentApi from '../store/api/appointmentApi';
+import { useSelector } from 'react-redux';
+import surveyApi from '../store/api/surveyApi';
 
 export default function DoctorFeedbackScreen({ navigation }) {
-  const [selectedChild, setSelectedChild] = useState('child1');
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false); // legacy, kept but unused for global toggle
+  const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [appointments, setAppointments] = useState([]);
+  const token = useSelector(state => state.auth.token);
+  const [surveyByAppointmentId, setSurveyByAppointmentId] = useState({});
+  const [expandedSurveyIds, setExpandedSurveyIds] = useState([]); // track which appointment ids are expanded
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 3;
 
-  const children = [
-    { id: 'child1', name: 'Nguyễn Văn A', age: '2 tuổi 3 tháng' },
-    { id: 'child2', name: 'Nguyễn Thị B', age: '1 tuổi 8 tháng' },
-    { id: 'child3', name: 'Nguyễn Văn C', age: '3 tuổi 1 tháng' },
-  ];
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        const res = await childrenApi.getMyChildren();
+        const data = res.data || [];
+        setChildren(data);
+        if (data.length > 0) setSelectedChildId(data[0].childId);
+      } catch (e) {
+        setChildren([]);
+      }
+    };
+    fetchChildren();
+  }, []);
+
+  const calculateAge = (dob) => {
+    if (!dob) return '';
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let years = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      years--;
+    }
+    if (years > 0) {
+      const remainingMonths = monthDiff < 0 ? 12 + monthDiff : monthDiff;
+      return `${years} tuổi${remainingMonths > 0 ? ` ${remainingMonths} tháng` : ''}`;
+    }
+    let months = today.getMonth() - birthDate.getMonth() + (12 * (today.getFullYear() - birthDate.getFullYear()));
+    if (today.getDate() < birthDate.getDate()) {
+      months--;
+    }
+    return `${months} tháng`;
+  };
 
   const appointmentData = {
     child1: {
@@ -43,7 +84,41 @@ export default function DoctorFeedbackScreen({ navigation }) {
     }
   };
 
-  const currentChild = appointmentData[selectedChild];
+  const currentChild = appointmentData.child1;
+  const selectedChild = children.find(child => child.childId === selectedChildId);
+  const handleSelectChildPress = () => {
+    setIsDropdownVisible(!isDropdownVisible);
+  };
+  const handleSelectChild = (childId) => {
+    setSelectedChildId(childId);
+    setIsDropdownVisible(false);
+  };
+
+  useEffect(() => {
+    const loadAppointments = async () => {
+      if (!selectedChildId || !token) {
+        setAppointments([]);
+        return;
+      }
+      try {
+        const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+        const list = res.data?.appointments || [];
+        const filtered = list
+          .filter(a => ['Cancelled', 'Completed', 'Approval'].includes(a.status))
+          .sort((a, b) => {
+            const ta = new Date(a.updatedAt).getTime();
+            const tb = new Date(b.updatedAt).getTime();
+            return tb - ta; // newest first
+          });
+        setAppointments(filtered);
+        setCurrentPage(1);
+        setExpandedSurveyIds([]);
+      } catch (e) {
+        setAppointments([]);
+      }
+    };
+    loadAppointments();
+  }, [selectedChildId, token]);
 
   return (
     <View style={styles.container}>
@@ -62,86 +137,179 @@ export default function DoctorFeedbackScreen({ navigation }) {
         {/* Child Selection */}
         <View style={styles.childSelection}>
           <Text style={styles.sectionTitle}>Chọn trẻ</Text>
-          <TouchableOpacity style={styles.childRow} onPress={() => Alert.alert('Chọn trẻ', 'Danh sách trẻ')}>
-            <View style={styles.childAvatar}>
-              <FontAwesomeIcon icon={faBaby} size={24} color="#1565C0" />
-            </View>
+          <View style={styles.childInfoContainer}>
             <View style={styles.childInfo}>
-              <Text style={styles.childName}>{children.find(c => c.id === selectedChild)?.name}</Text>
-              <Text style={styles.childAge}>{children.find(c => c.id === selectedChild)?.age}</Text>
+              {selectedChildId && (
+                <Image
+                  source={selectedChild?.image || require('../../assets/vnvc.jpg')}
+                  style={styles.avatar}
+                />
+              )}
+              <View>
+                {selectedChildId && (
+                  <Text style={styles.userName}>
+                    {selectedChild?.fullName}
+                  </Text>
+                )}
+                {selectedChildId && (
+                  <Text style={styles.userAge}>
+                    {calculateAge(selectedChild?.dateOfBirth)}
+                  </Text>
+                )}
+              </View>
             </View>
-            <View style={styles.chevronContainer}>
-              <FontAwesomeIcon icon={faChevronDown} size={16} color="#666" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Appointment Information Card */}
-        <View style={styles.appointmentCard}>
-          <View style={styles.appointmentHeader}>
-            <FontAwesomeIcon icon={faFileDownload} size={24} color="#1565C0" />
-            <Text style={styles.vaccineType}>{currentChild.vaccineType}</Text>
-          </View>
-          
-          <View style={styles.appointmentDetails}>
-            <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#666" />
-              <Text style={styles.detailLabel}>Cơ sở:</Text>
-              <Text style={styles.detailValue}>{currentChild.facility}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faCalendar} size={16} color="#666" />
-              <Text style={styles.detailLabel}>Ngày:</Text>
-              <Text style={styles.detailValue}>{currentChild.date} - Giờ: {currentChild.time}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faCreditCard} size={16} color="#666" />
-              <Text style={styles.detailLabel}>Trạng thái:</Text>
-              <Text style={[styles.detailValue, styles.statusText]}>{currentChild.status}</Text>
-            </View>
-            
-            <View style={styles.detailRow}>
-              <FontAwesomeIcon icon={faCreditCard} size={16} color="#666" />
-              <Text style={styles.detailLabel}>Chi phí dự kiến:</Text>
-              <Text style={styles.detailValue}>{currentChild.estimatedCost}</Text>
-            </View>
-            
+            <TouchableOpacity style={styles.dropdownToggle} onPress={handleSelectChildPress}>
+              <MaterialIcons name="keyboard-arrow-down" size={24} color="black" />
+            </TouchableOpacity>
           </View>
 
-          {/* Toggle Button for Doctor Feedback */}
-          <TouchableOpacity 
-            style={styles.feedbackToggle}
-            onPress={() => setShowFeedback(!showFeedback)}
-          >
-            <Text style={styles.feedbackToggleText}>
-              {showFeedback ? 'Ẩn phản hồi từ bác sĩ' : 'Xem phản hồi từ bác sĩ'}
-            </Text>
-            <FontAwesomeIcon 
-              icon={faChevronDown} 
-              size={16} 
-              color="#1565C0" 
-              style={[styles.toggleIcon, showFeedback && styles.rotateIcon]}
-            />
-          </TouchableOpacity>
+          {isDropdownVisible && (
+            <View style={styles.dropdownContainer}>
+              {(children || []).map(child => (
+                <TouchableOpacity
+                  key={child.childId}
+                  style={styles.dropdownItem}
+                  onPress={() => handleSelectChild(child.childId)}
+                >
+                  <Image
+                    source={child.image || require('../../assets/vnvc.jpg')}
+                    style={styles.dropdownItemImage}
+                  />
+                  <View style={styles.dropdownItemTextContainer}>
+                    <Text style={styles.dropdownItemName}>{child.fullName}</Text>
+                    <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>
+                  </View>
+                  {selectedChildId === child.childId && <Text style={styles.selectedIcon}> ✅</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Doctor Feedback Section - Only show when toggled */}
-        {showFeedback && (
-          <View style={styles.feedbackCard}>
-            <Text style={styles.feedbackTitle}>Phản hồi từ bác sĩ</Text>
-            <Text style={styles.feedbackText}>
-              Trẻ đã được khám sàng lọc và đủ điều kiện tiêm chủng. 
-              Không có chống chỉ định nào được phát hiện.
-            </Text>
-            
-            <View style={styles.feedbackStatus}>
-              <Text style={styles.statusLabel}>Kết luận:</Text>
-              <Text style={styles.statusValue}>Đủ điều kiện tiêm</Text>
+        {/* Appointment Information Cards (from API, filtered) */}
+        {appointments.length > 0 && appointments
+          .slice((currentPage - 1) * pageSize, currentPage * pageSize)
+          .map(app => (
+          <View key={app.appointmentId} style={styles.appointmentCard}>
+            <View style={styles.appointmentHeader}>
+              <FontAwesomeIcon icon={faFileDownload} size={24} color="#1565C0" />
+              <Text style={styles.vaccineType}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm'}</Text>
             </View>
+            <View style={styles.appointmentDetails}>
+              <View style={styles.detailRow}>
+                <FontAwesomeIcon icon={faMapMarkerAlt} size={16} color="#666" />
+                <Text style={styles.detailLabel}>Cơ sở:</Text>
+                <Text style={styles.detailValue}>{app.facilityName} - {app.facilityAddress}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <FontAwesomeIcon icon={faCalendar} size={16} color="#666" />
+                <Text style={styles.detailLabel}>Ngày:</Text>
+                <Text style={styles.detailValue}>{app.appointmentDate} - Giờ: {app.appointmentTime}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <FontAwesomeIcon icon={faCreditCard} size={16} color="#666" />
+                <Text style={styles.detailLabel}>Trạng thái:</Text>
+                <Text style={[styles.detailValue, styles.statusText]}>{app.status}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <FontAwesomeIcon icon={faCreditCard} size={16} color="#666" />
+                <Text style={styles.detailLabel}>Chi phí dự kiến:</Text>
+                <Text style={styles.detailValue}>{(app.estimatedCost || 0).toLocaleString('vi-VN')}đ</Text>
+              </View>
+              {app.note ? (
+                <View style={styles.detailRow}>
+                  <FontAwesomeIcon icon={faClock} size={16} color="#666" />
+                  <Text style={styles.detailLabel}>Ghi chú:</Text>
+                  <Text style={styles.detailValue}>{app.note}</Text>
+                </View>
+              ) : null}
+            </View>
+            <TouchableOpacity 
+              style={styles.feedbackToggle}
+              onPress={async () => {
+                const isExpanded = expandedSurveyIds.includes(app.appointmentId);
+                if (isExpanded) {
+                  setExpandedSurveyIds(prev => prev.filter(id => id !== app.appointmentId));
+                  return;
+                }
+                // expand and load survey if not cached
+                setExpandedSurveyIds(prev => [...prev, app.appointmentId]);
+                if (!surveyByAppointmentId[app.appointmentId]) {
+                  try {
+                    const res = await surveyApi.getSurveyResponses(app.appointmentId, 1, 10, token);
+                    setSurveyByAppointmentId(prev => ({ ...prev, [app.appointmentId]: res.data?.data }));
+                  } catch (e) {
+                    // ignore load error
+                  }
+                }
+              }}
+            >
+              <Text style={styles.feedbackToggleText}>
+                {expandedSurveyIds.includes(app.appointmentId) ? 'Ẩn' : 'Kết quả thăm khám trước khi tiêm'}
+              </Text>
+              <FontAwesomeIcon 
+                icon={faChevronDown} 
+                size={16} 
+                color="#1565C0" 
+                style={[styles.toggleIcon, expandedSurveyIds.includes(app.appointmentId) && styles.rotateIcon]}
+              />
+            </TouchableOpacity>
+            {expandedSurveyIds.includes(app.appointmentId) && surveyByAppointmentId[app.appointmentId] && (
+              <View style={styles.feedbackCard}>
+                <Text style={styles.feedbackTitle}>Khảo sát trước tiêm - Lịch #{app.appointmentId}</Text>
+                <View style={styles.feedbackStatus}>
+                  <Text style={styles.statusLabel}>Kết luận:</Text>
+                  <Text style={styles.statusValue}>{surveyByAppointmentId[app.appointmentId].decisionNote || '—'}</Text>
+                </View>
+                <Text style={styles.feedbackText}>Nhiệt độ: {surveyByAppointmentId[app.appointmentId].temperatureC ?? '—'}°C • Mạch: {surveyByAppointmentId[app.appointmentId].heartRateBpm ?? '—'} bpm</Text>
+                <Text style={styles.feedbackText}>Huyết áp: {surveyByAppointmentId[app.appointmentId].systolicBpmmHg ?? '—'}/{surveyByAppointmentId[app.appointmentId].diastolicBpmmHg ?? '—'} mmHg • SpO2: {surveyByAppointmentId[app.appointmentId].oxygenSatPercent ?? '—'}%</Text>
+                {Array.isArray(surveyByAppointmentId[app.appointmentId].questions) && surveyByAppointmentId[app.appointmentId].questions.map(q => (
+                  <View key={q.questionId} style={{ marginTop: 8 }}>
+                    <Text style={{ fontWeight: '600', color: '#222' }}>{q.questionText}</Text>
+                    <Text style={{ color: '#444', marginTop: 2 }}>Trả lời: {q.answerText}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        ))}
+
+        {appointments.length > 0 && (
+          <View style={styles.paginationContainer}>
+            <TouchableOpacity
+              style={[styles.pageButton, currentPage === 1 && styles.pageButtonDisabled]}
+              disabled={currentPage === 1}
+              onPress={() => {
+                const next = Math.max(1, currentPage - 1);
+                setCurrentPage(next);
+                const visibleIds = appointments
+                  .slice((next - 1) * pageSize, next * pageSize)
+                  .map(a => a.appointmentId);
+                setExpandedSurveyIds(prev => prev.filter(id => visibleIds.includes(id)));
+              }}
+            >
+              <Text style={[styles.pageButtonText, currentPage === 1 && styles.pageButtonTextDisabled]}>Trước</Text>
+            </TouchableOpacity>
+            <Text style={styles.pageInfoText}>{currentPage} / {Math.max(1, Math.ceil(appointments.length / pageSize))}</Text>
+            <TouchableOpacity
+              style={[styles.pageButton, currentPage >= Math.ceil(appointments.length / pageSize) && styles.pageButtonDisabled]}
+              disabled={currentPage >= Math.ceil(appointments.length / pageSize)}
+              onPress={() => {
+                const total = Math.max(1, Math.ceil(appointments.length / pageSize));
+                const next = Math.min(total, currentPage + 1);
+                setCurrentPage(next);
+                const visibleIds = appointments
+                  .slice((next - 1) * pageSize, next * pageSize)
+                  .map(a => a.appointmentId);
+                setExpandedSurveyIds(prev => prev.filter(id => visibleIds.includes(id)));
+              }}
+            >
+              <Text style={[styles.pageButtonText, currentPage >= Math.ceil(appointments.length / pageSize) && styles.pageButtonTextDisabled]}>Sau</Text>
+            </TouchableOpacity>
           </View>
         )}
+
+        {/* Inline survey rendering handled per appointment card above */}
       </ScrollView>
     </View>
   );
@@ -372,5 +540,115 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1565C0',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  pageButton: {
+    backgroundColor: '#1565C0',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  pageButtonDisabled: {
+    backgroundColor: '#c5d9f2',
+  },
+  pageButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  pageButtonTextDisabled: {
+    color: '#fff',
+    opacity: 0.7,
+  },
+  pageInfoText: {
+    color: '#1565C0',
+    fontWeight: '600',
+  },
+  // Child selector styles copied to match HistoryVacc.js
+  childInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    justifyContent: 'space-between',
+  },
+  childInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    marginRight: 10,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  userAge: {
+    fontSize: 14,
+    color: 'gray',
+  },
+  dropdownToggle: {
+    paddingHorizontal: 10,
+  },
+  dropdownContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    marginHorizontal: 15,
+    marginBottom: 10,
+    marginTop: -15,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  dropdownItemImage: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    marginRight: 10,
+  },
+  dropdownItemTextContainer: {
+    flex: 1,
+  },
+  dropdownItemName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  dropdownItemAge: {
+    fontSize: 12,
+    color: '#555',
+  },
+  selectedIcon: {
+    color: 'green',
+    fontSize: 16,
+    marginLeft: 10,
   },
 });
