@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View } from 'react-native';
+import { View, StatusBar } from 'react-native';
 import { Provider } from 'react-redux';
 import store from './src/store/store';
 
@@ -47,6 +47,7 @@ export default function App() {
   return (
     <Provider store={store}>
       <NavigationContainer>
+        <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
         {/* 👇 Mount listener + auto-register token khi isLoggedIn = true */}
         <NotificationProvider isLoggedIn={isLoggedIn}>
           <Stack.Navigator screenOptions={{ headerShown: false }}>

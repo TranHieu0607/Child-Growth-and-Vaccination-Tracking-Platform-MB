@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    paddingTop: 50, // Adjust for status bar
+    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
