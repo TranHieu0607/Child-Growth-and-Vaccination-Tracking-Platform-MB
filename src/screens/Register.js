@@ -117,7 +117,6 @@ const Register = ({ navigation }) => {
     } else {
       Alert.alert('Chọn ảnh', 'Bạn muốn lấy ảnh từ đâu?', [
         { text: 'Thư viện', onPress: pickFromLibrary },
-        { text: 'Camera', onPress: takePhoto },
         { text: 'Hủy', style: 'cancel' },
       ]);
     }

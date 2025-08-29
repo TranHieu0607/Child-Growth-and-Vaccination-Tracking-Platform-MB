@@ -256,7 +256,7 @@ export default function DoctorFeedbackScreen({ navigation }) {
             </TouchableOpacity>
             {expandedSurveyIds.includes(app.appointmentId) && surveyByAppointmentId[app.appointmentId] && (
               <View style={styles.feedbackCard}>
-                <Text style={styles.feedbackTitle}>Khảo sát trước tiêm - Lịch #{app.appointmentId}</Text>
+                <Text style={styles.feedbackTitle}>Khảo sát trước tiêm </Text>
                 <View style={styles.feedbackStatus}>
                   <Text style={styles.statusLabel}>Kết luận:</Text>
                   <Text style={styles.statusValue}>{surveyByAppointmentId[app.appointmentId].decisionNote || '—'}</Text>
