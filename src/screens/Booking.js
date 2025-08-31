@@ -600,68 +600,6 @@ const Booking = ({ navigation, route }) => {
           </ScrollView>
         </View>
       )}
-
-      {/* Gợi ý tiêm chủng */}
-      {/* <View style={styles.suggestionBox}>
-        <Text style={styles.suggestionTitle}>Gợi ý tiêm chủng</Text>
-        <Text style={styles.suggestionText}>• Mũi 2 vắc-xin Viêm gan B</Text>
-        <Text style={styles.suggestionText}>• Mũi nhắc Sởi - Rubella</Text>
-      </View> */}
-
-      {/* Chọn Bệnh Cần Tiêm */}
-      <Text style={[styles.sectionTitle, styles.diseaseSectionTitle]}>Chọn Bệnh Cần Tiêm</Text>
-      
-      {/* Disease Selection */}
-      <View style={styles.diseaseSelectionContainer}>
-        <TouchableOpacity
-          style={styles.diseaseSelectButton}
-          onPress={() => setIsDiseaseDropdownVisible(!isDiseaseDropdownVisible)}
-        >
-          <Text style={styles.diseaseSelectText}>
-            {selectedDisease ? selectedDisease.name : 'Chọn bệnh cần tiêm phòng'}
-          </Text>
-          <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
-        </TouchableOpacity>
-
-        {/* Disease Dropdown */}
-        {isDiseaseDropdownVisible && (
-          <View style={styles.diseaseDropdownContainer}>
-            {/* Search Input */}
-            <View style={styles.diseaseSearchContainer}>
-              <FontAwesomeIcon icon={faSearch} size={16} color="#888" style={styles.diseaseSearchIcon} />
-              <TextInput
-                style={styles.diseaseSearchInput}
-                placeholder="Tìm kiếm bệnh..."
-                value={diseaseSearchText}
-                onChangeText={handleDiseaseSearch}
-                placeholderTextColor="#888"
-              />
-            </View>
-            
-            {/* Disease List */}
-            <ScrollView nestedScrollEnabled={true} style={styles.diseaseListContainer}>
-              {filteredDiseases.length === 0 ? (
-                <Text style={styles.noDiseaseText}>Không tìm thấy bệnh</Text>
-              ) : (
-                filteredDiseases.map(disease => (
-                  <TouchableOpacity
-                    key={disease.diseaseId}
-                    style={styles.diseaseItem}
-                    onPress={() => handleSelectDisease(disease)}
-                  >
-                    <Text style={styles.diseaseItemText}>{disease.name}</Text>
-                    {selectedDisease?.diseaseId === disease.diseaseId && (
-                      <Text style={styles.selectedDiseaseIcon}> ✅</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
-              )}
-            </ScrollView>
-          </View>
-        )}
-      </View>
-
-      {/* Chọn cơ sở tiêm chủng */}
       <Text style={styles.sectionTitle}>Chọn cơ sở tiêm chủng</Text>
       <View style={styles.searchMoreContainer}>
         <TouchableOpacity
@@ -751,6 +689,59 @@ const Booking = ({ navigation, route }) => {
           </TouchableOpacity>
         ))}
       </View>
+      <Text style={[styles.sectionTitle, styles.diseaseSectionTitle]}>Chọn Bệnh Cần Tiêm</Text>
+      
+      {/* Disease Selection */}
+      <View style={styles.diseaseSelectionContainer}>
+        <TouchableOpacity
+          style={styles.diseaseSelectButton}
+          onPress={() => setIsDiseaseDropdownVisible(!isDiseaseDropdownVisible)}
+        >
+          <Text style={styles.diseaseSelectText}>
+            {selectedDisease ? selectedDisease.name : 'Chọn bệnh cần tiêm phòng'}
+          </Text>
+          <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
+        </TouchableOpacity>
+
+        {/* Disease Dropdown */}
+        {isDiseaseDropdownVisible && (
+          <View style={styles.diseaseDropdownContainer}>
+            {/* Search Input */}
+            <View style={styles.diseaseSearchContainer}>
+              <FontAwesomeIcon icon={faSearch} size={16} color="#888" style={styles.diseaseSearchIcon} />
+              <TextInput
+                style={styles.diseaseSearchInput}
+                placeholder="Tìm kiếm bệnh..."
+                value={diseaseSearchText}
+                onChangeText={handleDiseaseSearch}
+                placeholderTextColor="#888"
+              />
+            </View>
+            
+            {/* Disease List */}
+            <ScrollView nestedScrollEnabled={true} style={styles.diseaseListContainer}>
+              {filteredDiseases.length === 0 ? (
+                <Text style={styles.noDiseaseText}>Không tìm thấy bệnh</Text>
+              ) : (
+                filteredDiseases.map(disease => (
+                  <TouchableOpacity
+                    key={disease.diseaseId}
+                    style={styles.diseaseItem}
+                    onPress={() => handleSelectDisease(disease)}
+                  >
+                    <Text style={styles.diseaseItemText}>{disease.name}</Text>
+                    {selectedDisease?.diseaseId === disease.diseaseId && (
+                      <Text style={styles.selectedDiseaseIcon}> ✅</Text>
+                    )}
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        )}
+      </View>
+
+
 
       {/* Search More Facilities */}
       

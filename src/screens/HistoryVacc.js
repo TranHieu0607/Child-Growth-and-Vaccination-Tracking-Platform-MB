@@ -366,23 +366,31 @@ const HistoryVacc = ({ navigation }) => {
                 <View style={styles.packageHeader}>
                   <MaterialIcons name="archive" size={24} color="#007bff" />
                   <Text style={styles.packageTitle}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm lẻ'}</Text>
-                  {app.canCancel && (
+                  {app.status === 'Pending' && (
                     <TouchableOpacity
                       style={{ marginLeft: 40 }}
-                      onPress={async () => {
-                        if (window.confirm) {
-                          const ok = window.confirm('Bạn có chắc muốn hủy lịch hẹn này?');
-                          if (!ok) return;
-                        }
-                        try {
-                          await appointmentApi.cancelAppointment(app.appointmentId, '', token);
-                          Alert.alert('Hủy thành công', 'Lịch hẹn đã được hủy!');
-                          // Reload lại danh sách
-                          const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
-                          setAppointmentHistory(res.data?.appointments || []);
-                        } catch (e) {
-                          Alert.alert('Hủy thất bại', 'Không thể hủy lịch hẹn.');
-                        }
+                      onPress={() => {
+                        Alert.alert(
+                          'Xác nhận hủy',
+                          'Bạn có chắc muốn hủy lịch hẹn này?',
+                          [
+                            { text: 'Không', style: 'cancel' },
+                            {
+                              text: 'Có',
+                              style: 'destructive',
+                              onPress: async () => {
+                                try {
+                                  await appointmentApi.cancelAppointment(app.appointmentId, '', token);
+                                  Alert.alert('Hủy thành công', 'Lịch hẹn đã được hủy!');
+                                  const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+                                  setAppointmentHistory(res.data?.appointments || []);
+                                } catch (e) {
+                                  Alert.alert('Hủy thất bại', 'Không thể hủy lịch hẹn.');
+                                }
+                              }
+                            }
+                          ]
+                        );
                       }}
                     >
                       <FontAwesomeIcon icon={faTrash} size={20} color="#ff4444" />

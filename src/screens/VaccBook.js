@@ -250,7 +250,7 @@ const VaccBook = ({ navigation }) => {
                 <View style={styles.tableRow}>
                   <Text style={styles.tableHeader}>Mũi</Text>
                   <Text style={styles.tableHeader}>Trạng thái</Text>
-                  <Text style={styles.tableHeader}>Thời gian tiêm</Text>
+                  <Text style={styles.tableHeader}>Mốc tiêm phù hợp</Text>
                   <Text style={styles.tableHeader}>Tiến độ</Text>
                 </View>
                 {disease.doses.map((dose, doseIdx) => (
