@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert, Modal } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMyChildren } from '../store/api/growthRecordApi';
 import diseasesApi from '../store/api/diseasesApi';
@@ -421,6 +421,20 @@ const Booking = ({ navigation, route }) => {
   };
 
   const [expandedFacilityVaccineId, setExpandedFacilityVaccineId] = useState(null);
+  const [selectedVaccineForModal, setSelectedVaccineForModal] = useState(null);
+  const [isVaccineModalVisible, setIsVaccineModalVisible] = useState(false);
+
+  // Function to show vaccine details modal
+  const showVaccineDetails = (vaccine) => {
+    setSelectedVaccineForModal(vaccine);
+    setIsVaccineModalVisible(true);
+  };
+
+  // Function to close vaccine details modal
+  const closeVaccineDetails = () => {
+    setIsVaccineModalVisible(false);
+    setSelectedVaccineForModal(null);
+  };
 
   // Hàm đặt lịch
   const handleBookAppointment = async () => {
@@ -600,16 +614,18 @@ const Booking = ({ navigation, route }) => {
           </ScrollView>
         </View>
       )}
-      <Text style={styles.sectionTitle}>Chọn cơ sở tiêm chủng</Text>
-      <View style={styles.searchMoreContainer}>
-        <TouchableOpacity
-          style={styles.searchMoreButton}
-          onPress={() => setIsFacilityDropdownVisible(!isFacilityDropdownVisible)}
-        >
-          <FontAwesomeIcon icon={faSearch} size={16} color="#007bff" style={styles.searchMoreIcon} />
-          <Text style={styles.searchMoreText}>Tìm kiếm thêm cơ sở khác</Text>
-          <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
-        </TouchableOpacity>
+                    <Text style={styles.sectionTitle}>Chọn cơ sở tiêm chủng</Text>
+        <View style={styles.searchMoreContainer}>
+         <TouchableOpacity
+           style={styles.searchMoreButton}
+           onPress={() => setIsFacilityDropdownVisible(!isFacilityDropdownVisible)}
+         >
+           <FontAwesomeIcon icon={faSearch} size={16} color="#007bff" style={styles.searchMoreIcon} />
+           <Text style={styles.searchMoreText}>
+             {selectedFacility ? 'Thay đổi cơ sở' : 'Tìm kiếm thêm cơ sở khác'}
+           </Text>
+           <FontAwesomeIcon icon={faChevronDown} size={15} color="gray" />
+         </TouchableOpacity>
 
         {/* Facility Dropdown */}
         {isFacilityDropdownVisible && (
@@ -661,34 +677,50 @@ const Booking = ({ navigation, route }) => {
         )}
       </View>
       
-      {/* Popular Facilities - Show 3 facilities by default */}
-      <View style={styles.popularFacilitiesContainer}>
-        {facilities.slice(0, 3).map((facility) => (
-          <TouchableOpacity
-            key={facility.facilityId}
-            style={[
-              styles.popularFacilityCardVertical,
-              selectedFacility?.facilityId === facility.facilityId && styles.popularFacilityItemSelected
-            ]}
-            onPress={() => handleSelectFacility(facility)}
-          >
-            <Text style={styles.popularFacilityName}>{facility.facilityName}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-              <FontAwesomeIcon icon={faMapMarkerAlt} size={13} color="#888" style={{ marginRight: 4 }} />
-              <Text style={styles.popularFacilityAddress}>{facility.address}</Text>
+             {/* Popular Facilities - Only show when no facility is selected */}
+       {!selectedFacility && (
+         <View style={styles.popularFacilitiesContainer}>
+           <Text style={styles.sectionTitle}>Các cơ sở tiêm chủng</Text>
+           {facilities.slice(0, 3).map((facility) => (
+             <TouchableOpacity
+               key={facility.facilityId}
+               style={styles.popularFacilityCardVertical}
+               onPress={() => handleSelectFacility(facility)}
+             >
+               <Text style={styles.popularFacilityName}>{facility.facilityName}</Text>
+               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                 <FontAwesomeIcon icon={faMapMarkerAlt} size={13} color="#888" style={{ marginRight: 4 }} />
+                 <Text style={styles.popularFacilityAddress}>{facility.address}</Text>
+               </View>
+               {facility.phone && (
+                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                   <FontAwesomeIcon icon={faPhone} size={13} color="#888" style={{ marginRight: 4 }} />
+                   <Text style={styles.popularFacilityPhone}>{facility.phone}</Text>
+                 </View>
+               )}
+             </TouchableOpacity>
+           ))}
+         </View>
+       )}
+             {selectedFacility && (
+        <View style={styles.selectedFacilityContainer}>
+          <Text style={styles.selectedFacilityTitle}>Cơ sở đã chọn:</Text>
+          <View style={styles.selectedFacilityCard}>
+            <Text style={styles.selectedFacilityName}>{selectedFacility.facilityName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+              <FontAwesomeIcon icon={faMapMarkerAlt} size={13} color="#007bff" style={{ marginRight: 4 }} />
+              <Text style={styles.selectedFacilityAddress}>{selectedFacility.address}</Text>
             </View>
-            {facility.phone && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-                <FontAwesomeIcon icon={faPhone} size={13} color="#888" style={{ marginRight: 4 }} />
-                <Text style={styles.popularFacilityPhone}>{facility.phone}</Text>
+            {selectedFacility.phone && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                <FontAwesomeIcon icon={faPhone} size={13} color="#007bff" style={{ marginRight: 4 }} />
+                <Text style={styles.selectedFacilityPhone}>{selectedFacility.phone}</Text>
               </View>
             )}
-            {selectedFacility?.facilityId === facility.facilityId && (
-              <Text style={styles.selectedFacilityIcon}> ✅</Text>
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
+          </View>
+        </View>
+      )}
+       
       <Text style={[styles.sectionTitle, styles.diseaseSectionTitle]}>Chọn Bệnh Cần Tiêm</Text>
       
       {/* Disease Selection */}
@@ -740,12 +772,6 @@ const Booking = ({ navigation, route }) => {
           </View>
         )}
       </View>
-
-
-
-      {/* Search More Facilities */}
-      
-
 
 
       {/* Gói tiêm phù hợp */}
@@ -876,7 +902,7 @@ const Booking = ({ navigation, route }) => {
                 isDisabled && styles.packageItemDisabled
               ]}>
                 <TouchableOpacity
-                  onPress={() => setExpandedFacilityVaccineId(isExpanded ? null : fv.facilityVaccineId)}
+                  onPress={() => showVaccineDetails(fv)}
                   style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                   activeOpacity={0.8}
                 >
@@ -919,29 +945,6 @@ const Booking = ({ navigation, route }) => {
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
-                {isExpanded && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={styles.packageDetails}>{fv.vaccine?.description}</Text>
-                    <Text style={{ fontWeight: 'bold', fontSize: 13, marginTop: 5 }}>Bệnh liên quan:</Text>
-                    {fv.vaccine?.diseases?.map(d => (
-                      <View key={d.diseaseId} style={{ marginBottom: 4, marginLeft: 5 }}>
-                        <Text style={{ fontSize: 13, color: '#222', fontWeight: 'bold' }}>- {d.name}</Text>
-                        {d.description && (
-                          <Text style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>  {d.description}</Text>
-                        )}
-                      </View>
-                    ))}
-                    <Text style={{ fontSize: 12, color: '#888' }}>Số lượng còn: {fv.availableQuantity}</Text>
-                    <Text style={{ fontSize: 12, color: '#888' }}>Hạn dùng: {fv.expiryDate}</Text>
-                    <Text style={{ fontSize: 12, color: '#888' }}>Phác đồ: {fv.vaccine?.numberOfDoses || 1} liều</Text>
-                    {fv.vaccine?.ageGroup && (
-                      <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {fv.vaccine.ageGroup}</Text>
-                    )}
-                    <Text style={{ fontSize: 12, color: '#666' }}>
-                      Độ tuổi phù hợp: {fv.vaccine.ageGroup}
-                    </Text>
-                  </View>
-                )}
               </View>
             );
           })}
@@ -1055,6 +1058,126 @@ const Booking = ({ navigation, route }) => {
       <TouchableOpacity style={styles.bookButton} onPress={handleBookAppointment}>
         <Text style={styles.bookButtonText}>Đặt lịch</Text>
       </TouchableOpacity>
+
+      {/* Vaccine Details Modal */}
+      <Modal
+        visible={isVaccineModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeVaccineDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {selectedVaccineForModal && (
+              <>
+                {/* Modal Header */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Chi tiết vaccine</Text>
+                  <TouchableOpacity onPress={closeVaccineDetails} style={styles.modalCloseButton}>
+                    <FontAwesomeIcon icon={faTimes} size={20} color="#666" />
+                  </TouchableOpacity>
+                </View>
+
+                                                                  {/* Modal Content */}
+                                   <ScrollView 
+                    style={styles.modalContent} 
+                    showsVerticalScrollIndicator={true}
+                    contentContainerStyle={styles.modalContentContainer}
+                  >
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Vaccine: </Text>
+                      {selectedVaccineForModal.vaccine?.name}
+                    </Text>
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Giá: </Text>
+                      {selectedVaccineForModal.price?.toLocaleString('vi-VN')}đ
+                    </Text>
+                    
+                    {selectedVaccineForModal.vaccine?.description && (
+                      <Text style={styles.modalInfoText}>
+                        <Text style={styles.modalInfoLabel}>Mô tả: </Text>
+                        {selectedVaccineForModal.vaccine.description}
+                      </Text>
+                    )}
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Độ tuổi: </Text>
+                      {selectedVaccineForModal.vaccine?.ageGroup || 'Không xác định'}
+                    </Text>
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Số liều: </Text>
+                      {selectedVaccineForModal.vaccine?.numberOfDoses || 'Không xác định'} liều
+                    </Text>
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Số lượng còn: </Text>
+                      {selectedVaccineForModal.availableQuantity || 'Không xác định'}
+                    </Text>
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Hạn dùng: </Text>
+                      {selectedVaccineForModal.expiryDate || 'Không xác định'}
+                    </Text>
+                    
+                    {selectedVaccineForModal.vaccine?.manufacturer && (
+                      <Text style={styles.modalInfoText}>
+                        <Text style={styles.modalInfoLabel}>Nhà sản xuất: </Text>
+                        {selectedVaccineForModal.vaccine.manufacturer}
+                      </Text>
+                    )}
+                    
+                    {selectedVaccineForModal.vaccine?.origin && (
+                      <Text style={styles.modalInfoText}>
+                        <Text style={styles.modalInfoLabel}>Xuất xứ: </Text>
+                        {selectedVaccineForModal.vaccine.origin}
+                      </Text>
+                    )}
+                    
+                    {selectedVaccineForModal.vaccine?.diseases && selectedVaccineForModal.vaccine.diseases.length > 0 && (
+                      <>
+                        <Text style={styles.modalSectionTitle}>Bệnh phòng ngừa:</Text>
+                        {selectedVaccineForModal.vaccine.diseases.map(disease => (
+                          <Text key={disease.diseaseId} style={styles.modalInfoText}>
+                            • {disease.name}: {disease.description || 'Không có mô tả'}
+                          </Text>
+                        ))}
+                      </>
+                    )}
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Cơ sở cung cấp: </Text>
+                      {selectedFacility?.facilityName || 'Không xác định'}
+                    </Text>
+                    
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Trạng thái: </Text>
+                      {selectedVaccineForModal.availableQuantity > 0 ? 'Có sẵn' : 'Hết hàng'}
+                    </Text>
+                    
+                    {selectedVaccineForModal.vaccine?.storageConditions && (
+                      <Text style={styles.modalInfoText}>
+                        <Text style={styles.modalInfoLabel}>Điều kiện bảo quản: </Text>
+                        {selectedVaccineForModal.vaccine.storageConditions}
+                      </Text>
+                    )}
+                  </ScrollView>
+
+                {/* Modal Footer */}
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity 
+                    style={styles.modalButton}
+                    onPress={closeVaccineDetails}
+                  >
+                    <Text style={styles.modalButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
     </ScrollView>
   );
@@ -1608,6 +1731,36 @@ const styles = StyleSheet.create({
     color: '#007bff', // Blue color for phone number
     marginLeft: 5,
   },
+  selectedFacilityContainer: {
+    marginBottom: 15,
+  },
+  selectedFacilityTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  selectedFacilityCard: {
+    backgroundColor: '#e8f4fd',
+    padding: 15,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007bff',
+  },
+  selectedFacilityName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginBottom: 5,
+  },
+  selectedFacilityAddress: {
+    fontSize: 13,
+    color: '#555',
+  },
+  selectedFacilityPhone: {
+    fontSize: 13,
+    color: '#007bff',
+  },
   searchMoreContainer: {
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -1743,6 +1896,216 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 2,
     fontStyle: 'italic',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '92%',
+    maxHeight: '90%',
+    minHeight: '60%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 15,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    elevation: 15,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fafafa',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+    minHeight: 400,
+  },
+  modalContentContainer: {
+    paddingBottom: 20,
+  },
+  modalVaccineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f9ff',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 20,
+  },
+  modalVaccineIcon: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#e3f2fd',
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  modalVaccineTitleContainer: {
+    flex: 1,
+  },
+  modalVaccineTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  modalVaccinePrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginBottom: 15,
+  },
+  modalSection: {
+    marginBottom: 25,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    marginTop: 15,
+  },
+  modalVaccineDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 22,
+    marginBottom: 15,
+  },
+  modalDetailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  modalDetailItem: {
+    width: '48%',
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalDetailLabel: {
+    fontSize: 12,
+    color: '#666',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  modalDetailValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  modalDiseaseCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e3f2fd',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalDiseaseName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  modalDiseaseDescription: {
+    fontSize: 13,
+    color: '#666',
+    lineHeight: 18,
+    fontStyle: 'italic',
+  },
+  modalInfoCard: {
+    backgroundColor: '#f8f9fa',
+    padding: 15,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  modalInfoText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  modalInfoLabel: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fafafa',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  modalButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#007bff',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  changeFacilityButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  changeFacilityButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
 

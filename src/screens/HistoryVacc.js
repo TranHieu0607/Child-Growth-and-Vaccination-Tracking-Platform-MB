@@ -16,6 +16,7 @@ const HistoryVacc = ({ navigation }) => {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [activeTab, setActiveTab] = useState('history'); // 'history' or 'tracking'
   const [historySubTab, setHistorySubTab] = useState('completed'); // 'completed' or 'scheduled'
+  const [trackingStatusFilter, setTrackingStatusFilter] = useState('all'); // 'all', 'Completed', 'Pending', 'Canceled'
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [vaccineHistory, setVaccineHistory] = useState([]);
@@ -23,6 +24,12 @@ const HistoryVacc = ({ navigation }) => {
   const [diseases, setDiseases] = useState([]);
   const [facilities, setFacilities] = useState([]);
   const [appointmentHistory, setAppointmentHistory] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPerPage] = useState(4);
+  const [trackingPage, setTrackingPage] = useState(1);
+  const [trackingPerPage] = useState(3);
+  const [searchQuery, setSearchQuery] = useState('');
   const token = useSelector(state => state.auth.token);
 
   // Fetch children một lần duy nhất khi component mount
@@ -49,9 +56,12 @@ const HistoryVacc = ({ navigation }) => {
         try {
           const res = await childVaccineProfileApi.getByChildId(selectedChildId);
           setVaccineHistory(res.data || []);
+          // Reset về trang 1 khi fetch lại dữ liệu
+          setHistoryPage(1);
         } catch (e) {
           console.error('Error fetching vaccine history:', e);
           setVaccineHistory([]);
+          setHistoryPage(1);
         }
       };
       
@@ -105,6 +115,9 @@ const HistoryVacc = ({ navigation }) => {
   const handleSelectChild = (childId) => {
     setSelectedChildId(childId);
     setIsDropdownVisible(false);
+    setHistoryPage(1); // Reset về trang 1 khi chọn trẻ khác
+    setTrackingPage(1); // Reset về trang 1 khi chọn trẻ khác
+    setSearchQuery(''); // Reset search query khi chọn trẻ khác
   };
 
   const calculateAge = (dob) => {
@@ -190,21 +203,27 @@ const HistoryVacc = ({ navigation }) => {
         </View>
       )}
 
-      {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={activeTab === 'history' ? styles.activeTab : styles.tab}
-          onPress={() => setActiveTab('history')}
-        >
-          <Text style={activeTab === 'history' ? styles.activeTabText : styles.tabText}>Lịch sử tiêm chủng</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={activeTab === 'tracking' ? styles.activeTab : styles.tab}
-          onPress={() => setActiveTab('tracking')}
-        >
-          <Text style={activeTab === 'tracking' ? styles.activeTabText : styles.tabText}>Gói đang theo dõi</Text>
-        </TouchableOpacity>
-      </View>
+             {/* Tabs */}
+       <View style={styles.tabs}>
+         <TouchableOpacity
+           style={activeTab === 'history' ? styles.activeTab : styles.tab}
+           onPress={() => {
+             setActiveTab('history');
+             setHistoryPage(1); // Reset về trang 1 khi chuyển tab
+           }}
+         >
+           <Text style={activeTab === 'history' ? styles.activeTabText : styles.tabText}>Lịch sử tiêm chủng</Text>
+         </TouchableOpacity>
+         <TouchableOpacity
+           style={activeTab === 'tracking' ? styles.activeTab : styles.tab}
+           onPress={() => {
+             setActiveTab('tracking');
+             setTrackingPage(1); // Reset về trang 1 khi chuyển tab
+           }}
+         >
+           <Text style={activeTab === 'tracking' ? styles.activeTabText : styles.tabText}>Gói đang theo dõi</Text>
+         </TouchableOpacity>
+       </View>
 
       {activeTab === 'history' && selectedChild && (
         <>
@@ -214,14 +233,34 @@ const HistoryVacc = ({ navigation }) => {
             <TextInput
               style={styles.searchInput}
               placeholder="Tìm kiếm mũi tiêm..."
+              value={searchQuery}
+              onChangeText={(text) => {
+                setSearchQuery(text);
+                setHistoryPage(1); // Reset về trang 1 khi tìm kiếm
+              }}
             />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                onPress={() => {
+                  setSearchQuery('');
+                  setHistoryPage(1);
+                }}
+                style={{ padding: 5 }}
+              >
+                <MaterialIcons name="close" size={20} color="gray" />
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Sub Tabs for History */}
           <View style={styles.subTabs}>
             <TouchableOpacity
               style={historySubTab === 'completed' ? styles.activeSubTab : styles.subTab}
-              onPress={() => setHistorySubTab('completed')}
+              onPress={() => {
+                setHistorySubTab('completed');
+                setHistoryPage(1); // Reset về trang 1 khi chuyển tab
+                setSearchQuery(''); // Reset search query
+              }}
             >
               <Text style={historySubTab === 'completed' ? styles.activeSubTabText : styles.subTabText}>
                 ✅ Đã tiêm
@@ -229,7 +268,11 @@ const HistoryVacc = ({ navigation }) => {
             </TouchableOpacity>
             <TouchableOpacity
               style={historySubTab === 'scheduled' ? styles.activeSubTab : styles.subTab}
-              onPress={() => setHistorySubTab('scheduled')}
+              onPress={() => {
+                setHistorySubTab('scheduled');
+                setHistoryPage(1); // Reset về trang 1 khi chuyển tab
+                setSearchQuery(''); // Reset search query
+              }}
             >
               <Text style={historySubTab === 'scheduled' ? styles.activeSubTabText : styles.subTabText}>
                 📅 Dự kiến tiêm
@@ -241,115 +284,258 @@ const HistoryVacc = ({ navigation }) => {
           <View style={styles.vaccineList}>
             {historySubTab === 'completed' && (
               <View style={styles.sectionContainer}>
-                {vaccineHistory.filter(vaccine => vaccine.status === 'Completed').map(vaccine => {
-                  const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
-                  const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
-                  const facilityObj = facilities.find(f => f.facilityId === vaccine.facilityId);
-
+                {(() => {
+                  // Lọc vaccine theo search query
+                  const completedVaccines = vaccineHistory.filter(vaccine => {
+                    if (vaccine.status !== 'Completed') return false;
+                    
+                    if (!searchQuery.trim()) return true;
+                    
+                    const query = searchQuery.toLowerCase().trim();
+                    const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                    const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+                    const facilityObj = facilities.find(f => f.facilityId === vaccine.facilityId);
+                    
+                    // Tìm kiếm theo tên vaccine
+                    if (vaccineObj?.name?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo tên bệnh
+                    if (diseaseObj?.name?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo tên cơ sở
+                    if (facilityObj?.facilityName?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo ghi chú
+                    if (vaccine.note?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo ngày tiêm
+                    if (vaccine.actualDate?.toLowerCase().includes(query)) return true;
+                    
+                    return false;
+                  });
+                  
+                  const totalPages = Math.ceil(completedVaccines.length / historyPerPage);
+                  const startIndex = (historyPage - 1) * historyPerPage;
+                  const endIndex = startIndex + historyPerPage;
+                  const currentVaccines = completedVaccines.slice(startIndex, endIndex);
+                  
                   return (
-                    <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
-                      <MaterialIcons name="check-circle" size={24} color="#28a745" style={styles.checkIcon} />
-                      <View style={styles.vaccineDetails}>
-                        <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
-                        <Text style={{ color: '#28a745', fontWeight: 'bold', marginBottom: 5 }}>
-                          Mũi số {vaccine.doseNum} - Đã hoàn thành
-                        </Text>
-                        <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
-                        <View style={styles.detailRow}>
-                          <MaterialIcons name="access-time" size={16} color="gray" />
-                          <Text style={styles.detailText}>Ngày tiêm: {vaccine.actualDate}</Text>
+                    <>
+                      {currentVaccines.length === 0 ? (
+                        <Text style={styles.emptyText}>Chưa có mũi tiêm nào được hoàn thành</Text>
+                      ) : (
+                        currentVaccines.map(vaccine => {
+                          const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                          const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+                          const facilityObj = facilities.find(f => f.facilityId === vaccine.facilityId);
+
+                          return (
+                            <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
+                              <MaterialIcons name="check-circle" size={24} color="#28a745" style={styles.checkIcon} />
+                              <View style={styles.vaccineDetails}>
+                                <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
+                                <Text style={{ color: '#28a745', fontWeight: 'bold', marginBottom: 5 }}>
+                                  Mũi số {vaccine.doseNum} - Đã hoàn thành
+                                </Text>
+                                <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
+                                <View style={styles.detailRow}>
+                                  <MaterialIcons name="access-time" size={16} color="gray" />
+                                  <Text style={styles.detailText}>Ngày tiêm: {vaccine.actualDate}</Text>
+                                </View>
+                                <View style={styles.detailRow}>
+                                  <MaterialIcons name="location-on" size={16} color="gray" />
+                                  <Text style={styles.detailText}>Cơ sở: {facilityObj ? facilityObj.facilityName : (vaccine.facilityId ? `ID ${vaccine.facilityId}` : 'Chưa xác định')}</Text>
+                                </View>
+                                {vaccine.note && (
+                                  <View style={styles.detailRow}>
+                                    <MaterialIcons name="info-outline" size={16} color="gray" />
+                                    <Text style={styles.detailText}>Ghi chú: {vaccine.note}</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
+                          );
+                        })
+                      )}
+                      
+                      {/* Pagination for Completed Vaccines */}
+                      {completedVaccines.length > 0 && totalPages > 1 && (
+                        <View style={styles.paginationContainer}>
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              historyPage === 1 && styles.paginationButtonDisabled
+                            ]}
+                            onPress={() => setHistoryPage(prev => Math.max(1, prev - 1))}
+                            disabled={historyPage === 1}
+                          >
+                            <Text style={styles.paginationText}>Trước</Text>
+                          </TouchableOpacity>
+                          
+                          <Text style={styles.paginationText}>
+                            Trang {historyPage} / {totalPages}
+                          </Text>
+                          
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              historyPage === totalPages && styles.paginationButtonDisabled
+                            ]}
+                            onPress={() => setHistoryPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={historyPage === totalPages}
+                          >
+                            <Text style={styles.paginationText}>Sau</Text>
+                          </TouchableOpacity>
                         </View>
-                        <View style={styles.detailRow}>
-                          <MaterialIcons name="location-on" size={16} color="gray" />
-                          <Text style={styles.detailText}>Cơ sở: {facilityObj ? facilityObj.facilityName : (vaccine.facilityId ? `ID ${vaccine.facilityId}` : 'Chưa xác định')}</Text>
-                        </View>
-                        {vaccine.note && (
-                          <View style={styles.detailRow}>
-                            <MaterialIcons name="info-outline" size={16} color="gray" />
-                            <Text style={styles.detailText}>Ghi chú: {vaccine.note}</Text>
-                          </View>
-                        )}
-                      </View>
-                    </View>
+                      )}
+                    </>
                   );
-                })}
-                {vaccineHistory.filter(vaccine => vaccine.status === 'Completed').length === 0 && (
-                  <Text style={styles.emptyText}>Chưa có mũi tiêm nào được hoàn thành</Text>
-                )}
+                })()}
               </View>
             )}
 
             {historySubTab === 'scheduled' && (
               <View style={styles.sectionContainer}>
-                {vaccineHistory.filter(vaccine => vaccine.status === 'Scheduled').map(vaccine => {
-                  const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
-                  const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
-
+                {(() => {
+                  // Lọc vaccine theo search query
+                  const scheduledVaccines = vaccineHistory.filter(vaccine => {
+                    if (vaccine.status !== 'Scheduled') return false;
+                    
+                    if (!searchQuery.trim()) return true;
+                    
+                    const query = searchQuery.toLowerCase().trim();
+                    const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                    const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+                    
+                    // Tìm kiếm theo tên vaccine
+                    if (vaccineObj?.name?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo tên bệnh
+                    if (diseaseObj?.name?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo ghi chú
+                    if (vaccine.note?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo ngày dự kiến
+                    if (vaccine.expectedDate?.toLowerCase().includes(query)) return true;
+                    
+                    // Tìm kiếm theo priority
+                    if (vaccine.priority?.toLowerCase().includes(query)) return true;
+                    
+                    return false;
+                  });
+                  
+                  const totalPages = Math.ceil(scheduledVaccines.length / historyPerPage);
+                  const startIndex = (historyPage - 1) * historyPerPage;
+                  const endIndex = startIndex + historyPerPage;
+                  const currentVaccines = scheduledVaccines.slice(startIndex, endIndex);
+                  
                   return (
-                    <View key={vaccine.vaccineProfileId} style={styles.packageCard}>
-                      {/* Header với icon và tên vaccine */}
-                      <View style={styles.packageHeader}>
-                        <MaterialIcons name="vaccines" size={24} color="#007bff" />
-                        <Text style={styles.packageTitle}>
-                          {vaccineObj ? vaccineObj.name : `Vaccine ${vaccine.vaccineId}`}
-                        </Text>
-                        {/* Status indicator */}
-                        <View style={[
-                          styles.statusBadge, 
-                          vaccine.status === 'Pending' ? styles.statusPending : styles.statusScheduled
-                        ]}>
-                          <Text style={styles.statusText}>
-                            {vaccine.status === 'Pending' ? 'Chờ xác nhận' : 'Đã lên lịch'}
+                    <>
+                      {currentVaccines.length === 0 ? (
+                        <Text style={styles.emptyText}>Không có lịch tiêm dự kiến</Text>
+                      ) : (
+                        currentVaccines.map(vaccine => {
+                          const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
+                          const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
+
+                          return (
+                            <View key={vaccine.vaccineProfileId} style={styles.packageCard}>
+                              {/* Header với icon và tên vaccine */}
+                              <View style={styles.packageHeader}>
+                                <MaterialIcons name="vaccines" size={24} color="#007bff" />
+                                <Text style={styles.packageTitle}>
+                                  {vaccineObj ? vaccineObj.name : `Vaccine ${vaccine.vaccineId}`}
+                                </Text>
+                                {/* Status indicator */}
+                                <View style={[
+                                  styles.statusBadge, 
+                                  vaccine.status === 'Pending' ? styles.statusPending : styles.statusScheduled
+                                ]}>
+                                  <Text style={styles.statusText}>
+                                    {vaccine.status === 'Pending' ? 'Chờ xác nhận' : 'Đã lên lịch'}
+                                  </Text>
+                                </View>
+                              </View>
+
+                              {/* Chi tiết vaccine */}
+                              <View style={styles.vaccineDetailItem}>
+                                <MaterialIcons name="schedule" size={20} color="#ffc107" />
+                                <View style={styles.vaccineTextContainer}>
+                                  <Text style={styles.vaccineShotName}>
+                                    {diseaseObj ? diseaseObj.name : `Disease ${vaccine.diseaseId}`} - Mũi {vaccine.doseNum}
+                                  </Text>
+                                  <Text style={styles.vaccineDiseases}>
+                                    {vaccine.priority} - {vaccine.isRequired ? 'Bắt buộc' : 'Tùy chọn'}
+                                  </Text>
+                                </View>
+                                <Text style={styles.vaccineDate}>{vaccine.expectedDate}</Text>
+                                <MaterialIcons name="schedule" size={16} color="gray" />
+                              </View>
+
+                              {/* Gợi ý tiêm tiếp */}
+                              <Text style={styles.vaccineDiseases}>
+                                Gợi ý tiêm tiếp: {vaccine.expectedDate}
+                              </Text>
+
+                              {/* Nút đặt lịch */}
+                              <TouchableOpacity 
+                                style={styles.scheduleButton}
+                                onPress={() => navigation.navigate('ReBook', {
+                                  vaccine: vaccine,
+                                  child: selectedChild,
+                                  childVaccineProfileId: vaccine.vaccineProfileId
+                                })}
+                              >
+                                <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIÊM THEO</Text>
+                                <MaterialIcons name="arrow-forward" size={16} color="#fff" />
+                              </TouchableOpacity>
+
+                              {/* Thông tin bổ sung */}
+                              {vaccine.note && (
+                                <View style={styles.suggestionRow}>
+                                  <MaterialIcons name="info-outline" size={16} color="#007bff" />
+                                  <Text style={styles.suggestionText}>Ghi chú: {vaccine.note}</Text>
+                                </View>
+                              )}
+                            </View>
+                          );
+                        })
+                      )}
+                      
+                      {/* Pagination for Scheduled Vaccines */}
+                      {scheduledVaccines.length > 0 && totalPages > 1 && (
+                        <View style={styles.paginationContainer}>
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              historyPage === 1 && styles.paginationButtonDisabled
+                            ]}
+                            onPress={() => setHistoryPage(prev => Math.max(1, prev - 1))}
+                            disabled={historyPage === 1}
+                          >
+                            <Text style={styles.paginationText}>Trước</Text>
+                          </TouchableOpacity>
+                          
+                          <Text style={styles.paginationText}>
+                            Trang {historyPage} / {totalPages}
                           </Text>
-                        </View>
-                      </View>
-
-                      {/* Chi tiết vaccine */}
-                      <View style={styles.vaccineDetailItem}>
-                        <MaterialIcons name="schedule" size={20} color="#ffc107" />
-                        <View style={styles.vaccineTextContainer}>
-                          <Text style={styles.vaccineShotName}>
-                            {diseaseObj ? diseaseObj.name : `Disease ${vaccine.diseaseId}`} - Mũi {vaccine.doseNum}
-                          </Text>
-                          <Text style={styles.vaccineDiseases}>
-                            {vaccine.priority} - {vaccine.isRequired ? 'Bắt buộc' : 'Tùy chọn'}
-                          </Text>
-                        </View>
-                        <Text style={styles.vaccineDate}>{vaccine.expectedDate}</Text>
-                        <MaterialIcons name="schedule" size={16} color="gray" />
-                      </View>
-
-                      {/* Gợi ý tiêm tiếp */}
-                      <Text style={styles.vaccineDiseases}>
-                        Gợi ý tiêm tiếp: {vaccine.expectedDate}
-                      </Text>
-
-                      {/* Nút đặt lịch */}
-                      <TouchableOpacity 
-                        style={styles.scheduleButton}
-                        onPress={() => navigation.navigate('ReBook', {
-                          vaccine: vaccine,
-                          child: selectedChild,
-                          childVaccineProfileId: vaccine.vaccineProfileId
-                        })}
-                      >
-                        <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIÊM THEO</Text>
-                        <MaterialIcons name="arrow-forward" size={16} color="#fff" />
-                      </TouchableOpacity>
-
-                      {/* Thông tin bổ sung */}
-                      {vaccine.note && (
-                        <View style={styles.suggestionRow}>
-                          <MaterialIcons name="info-outline" size={16} color="#007bff" />
-                          <Text style={styles.suggestionText}>Ghi chú: {vaccine.note}</Text>
+                          
+                          <TouchableOpacity
+                            style={[
+                              styles.paginationButton,
+                              historyPage === totalPages && styles.paginationButtonDisabled
+                            ]}
+                            onPress={() => setHistoryPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={historyPage === totalPages}
+                          >
+                            <Text style={styles.paginationText}>Sau</Text>
+                          </TouchableOpacity>
                         </View>
                       )}
-                    </View>
+                    </>
                   );
-                })}
-                {vaccineHistory.filter(vaccine => vaccine.status === 'Scheduled').length === 0 && (
-                  <Text style={styles.emptyText}>Không có lịch tiêm dự kiến</Text>
-                )}
+                })()}
               </View>
             )}
           </View>
@@ -357,56 +543,212 @@ const HistoryVacc = ({ navigation }) => {
       )}
 
       {activeTab === 'tracking' && selectedChild && (
-        <View style={styles.trackingPackagesList}>
-          {appointmentHistory.length === 0 ? (
-            <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>Không có lịch hẹn nào</Text>
-          ) : (
-            appointmentHistory.map(app => (
-              <View key={app.appointmentId} style={styles.packageCard}>
-                <View style={styles.packageHeader}>
-                  <MaterialIcons name="archive" size={24} color="#007bff" />
-                  <Text style={styles.packageTitle}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm lẻ'}</Text>
-                  {app.status === 'Pending' && (
-                    <TouchableOpacity
-                      style={{ marginLeft: 40 }}
-                      onPress={() => {
-                        Alert.alert(
-                          'Xác nhận hủy',
-                          'Bạn có chắc muốn hủy lịch hẹn này?',
-                          [
-                            { text: 'Không', style: 'cancel' },
-                            {
-                              text: 'Có',
-                              style: 'destructive',
-                              onPress: async () => {
-                                try {
-                                  await appointmentApi.cancelAppointment(app.appointmentId, '', token);
-                                  Alert.alert('Hủy thành công', 'Lịch hẹn đã được hủy!');
-                                  const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
-                                  setAppointmentHistory(res.data?.appointments || []);
-                                } catch (e) {
-                                  Alert.alert('Hủy thất bại', 'Không thể hủy lịch hẹn.');
-                                }
-                              }
-                            }
-                          ]
-                        );
-                      }}
-                    >
-                      <FontAwesomeIcon icon={faTrash} size={20} color="#ff4444" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <Text style={styles.vaccineDiseases}>Cơ sở: {app.facilityName} - {app.facilityAddress}</Text>
-                <Text style={styles.vaccineDiseases}>Ngày: {app.appointmentDate} - Giờ: {app.appointmentTime}</Text>
-                <Text style={styles.vaccineDiseases}>Trạng thái: {app.status}</Text>
-                <Text style={styles.vaccineDiseases}>Chi phí dự kiến: {app.estimatedCost?.toLocaleString('vi-VN')}đ</Text>
-                {app.note && <Text style={styles.vaccineDiseases}>Ghi chú: {app.note}</Text>}
-                <Text style={styles.vaccineDiseases}>{app.timeUntilAppointment}</Text>
-              </View>
-            ))
-          )}
-        </View>
+        <>
+          {/* Status Filter for Tracking */}
+          <View style={styles.statusFilterContainer}>
+            <Text style={styles.filterTitle}>Lọc theo trạng thái:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
+                             <TouchableOpacity
+                 style={[
+                   styles.filterChip,
+                   trackingStatusFilter === 'all' && styles.activeFilterChip
+                 ]}
+                 onPress={() => {
+                   setTrackingStatusFilter('all');
+                   setTrackingPage(1); // Reset về trang 1
+                 }}
+               >
+                 <Text style={[
+                   styles.filterChipText,
+                   trackingStatusFilter === 'all' && styles.activeFilterChipText
+                 ]}>Tất cả</Text>
+               </TouchableOpacity>
+               <TouchableOpacity
+                 style={[
+                   styles.filterChip,
+                   trackingStatusFilter === 'Completed' && styles.activeFilterChip
+                 ]}
+                 onPress={() => {
+                   setTrackingStatusFilter('Completed');
+                   setTrackingPage(1); // Reset về trang 1
+                 }}
+               >
+                 <Text style={[
+                   styles.filterChipText,
+                   trackingStatusFilter === 'Completed' && styles.activeFilterChipText
+                 ]}>✅ Hoàn thành</Text>
+               </TouchableOpacity>
+               <TouchableOpacity
+                 style={[
+                   styles.filterChip,
+                   trackingStatusFilter === 'Pending' && styles.activeFilterChip
+                 ]}
+                 onPress={() => {
+                   setTrackingStatusFilter('Pending');
+                   setTrackingPage(1); // Reset về trang 1
+                 }}
+               >
+                 <Text style={[
+                   styles.filterChipText,
+                   trackingStatusFilter === 'Pending' && styles.activeFilterChipText
+                 ]}>⏳ Chờ xác nhận</Text>
+               </TouchableOpacity>
+               <TouchableOpacity
+                 style={[
+                   styles.filterChip,
+                   trackingStatusFilter === 'Canceled' && styles.activeFilterChip
+                 ]}
+                 onPress={() => {
+                   setTrackingStatusFilter('Canceled');
+                   setTrackingPage(1); // Reset về trang 1
+                 }}
+               >
+                 <Text style={[
+                   styles.filterChipText,
+                   trackingStatusFilter === 'Canceled' && styles.activeFilterChipText
+                 ]}>❌ Đã hủy</Text>
+               </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+                     <View style={styles.trackingPackagesList}>
+             {(() => {
+               const filteredAppointments = trackingStatusFilter === 'all' 
+                 ? appointmentHistory 
+                 : appointmentHistory.filter(app => app.status === trackingStatusFilter);
+               
+               // Lọc bỏ những lịch hẹn đã qua thời gian
+               const validAppointments = filteredAppointments.filter(app => 
+                 app.timeUntilAppointment !== 'Đã qua'
+               );
+               
+               // Sắp xếp: Pending lên đầu, sau đó theo thời gian gần nhất
+               const sortedAppointments = validAppointments.sort((a, b) => {
+                 // Ưu tiên status Pending lên đầu
+                 if (a.status === 'Pending' && b.status !== 'Pending') return -1;
+                 if (a.status !== 'Pending' && b.status === 'Pending') return 1;
+                 
+                 // Nếu cả hai đều Pending hoặc không Pending, sắp xếp theo thời gian
+                 if (a.timeUntilAppointment && b.timeUntilAppointment) {
+                   // Trích xuất số giờ hoặc ngày từ timeUntilAppointment
+                   const getTimeValue = (timeStr) => {
+                     // Kiểm tra "ngày nữa" trước
+                     const dayMatch = timeStr.match(/(\d+)\s*ngày/);
+                     if (dayMatch) return parseInt(dayMatch[1]) * 24; // Chuyển ngày thành giờ
+                     
+                     // Kiểm tra "giờ nữa"
+                     const hourMatch = timeStr.match(/(\d+)\s*giờ/);
+                     if (hourMatch) return parseInt(hourMatch[1]);
+                     
+                     return Infinity;
+                   };
+                   
+                   const timeA = getTimeValue(a.timeUntilAppointment);
+                   const timeB = getTimeValue(b.timeUntilAppointment);
+                   
+                   // Sắp xếp theo thời gian gần nhất (số giờ nhỏ nhất lên đầu)
+                   return timeA - timeB;
+                 }
+                 
+                 return 0;
+               });
+               
+               // Tính toán phân trang
+               const totalPages = Math.ceil(sortedAppointments.length / trackingPerPage);
+               const startIndex = (trackingPage - 1) * trackingPerPage;
+               const endIndex = startIndex + trackingPerPage;
+               const currentAppointments = sortedAppointments.slice(startIndex, endIndex);
+               
+               return (
+                 <>
+                   {currentAppointments.length === 0 ? (
+                     <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>
+                       {trackingStatusFilter === 'all' ? 'Không có lịch hẹn nào' : `Không có lịch hẹn ${trackingStatusFilter === 'Completed' ? 'hoàn thành' : trackingStatusFilter === 'Pending' ? 'chờ xác nhận' : 'đã hủy'}`}
+                     </Text>
+                   ) : (
+                     currentAppointments.map(app => (
+                       <View key={app.appointmentId} style={styles.packageCard}>
+                         <View style={styles.packageHeader}>
+                           <MaterialIcons name="archive" size={24} color="#007bff" />
+                           <Text style={styles.packageTitle}>{app.packageName || app.vaccineNames?.join(', ') || 'Lịch tiêm lẻ'}</Text>
+                           {app.status === 'Pending' && (
+                             <TouchableOpacity
+                               style={{ marginLeft: 40 }}
+                               onPress={() => {
+                                 Alert.alert(
+                                   'Xác nhận hủy',
+                                   'Bạn có chắc muốn hủy lịch hẹn này?',
+                                   [
+                                     { text: 'Không', style: 'cancel' },
+                                     {
+                                       text: 'Có',
+                                       style: 'destructive',
+                                       onPress: async () => {
+                                         try {
+                                           await appointmentApi.cancelAppointment(app.appointmentId, '', token);
+                                           Alert.alert('Hủy thành công', 'Lịch hẹn đã được hủy!');
+                                           const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+                                           setAppointmentHistory(res.data?.appointments || []);
+                                         } catch (e) {
+                                           Alert.alert('Hủy thất bại', 'Không thể hủy lịch hẹn.');
+                                         }
+                                       }
+                                     }
+                                   ]
+                                 );
+                               }}
+                             >
+                               <FontAwesomeIcon icon={faTrash} size={20} color="#ff4444" />
+                             </TouchableOpacity>
+                           )}
+                         </View>
+                         <Text style={styles.vaccineDiseases}>Cơ sở: {app.facilityName} - {app.facilityAddress}</Text>
+                         <Text style={styles.vaccineDiseases}>Ngày: {app.appointmentDate} - Giờ: {app.appointmentTime}</Text>
+                         <Text style={styles.vaccineDiseases}>Trạng thái: {app.status}</Text>
+                         <Text style={styles.vaccineDiseases}>Chi phí dự kiến: {app.estimatedCost?.toLocaleString('vi-VN')}đ</Text>
+                         {app.note && <Text style={styles.vaccineDiseases}>Ghi chú: {app.note}</Text>}
+                         {app.timeUntilAppointment && (
+                           <Text style={styles.vaccineDiseases}>{app.timeUntilAppointment}</Text>
+                         )}
+                       </View>
+                     ))
+                   )}
+                   
+                   {/* Pagination for Tracking */}
+                   {sortedAppointments.length > 0 && totalPages > 1 && (
+                     <View style={styles.paginationContainer}>
+                       <TouchableOpacity
+                         style={[
+                           styles.paginationButton,
+                           trackingPage === 1 && styles.paginationButtonDisabled
+                         ]}
+                         onPress={() => setTrackingPage(prev => Math.max(1, prev - 1))}
+                         disabled={trackingPage === 1}
+                       >
+                         <Text style={styles.paginationText}>Trước</Text>
+                       </TouchableOpacity>
+                       
+                       <Text style={styles.paginationText}>
+                         Trang {trackingPage} / {totalPages}
+                       </Text>
+                       
+                       <TouchableOpacity
+                         style={[
+                           styles.paginationButton,
+                           trackingPage === totalPages && styles.paginationButtonDisabled
+                         ]}
+                         onPress={() => setTrackingPage(prev => Math.min(totalPages, prev + 1))}
+                         disabled={trackingPage === totalPages}
+                       >
+                         <Text style={styles.paginationText}>Sau</Text>
+                       </TouchableOpacity>
+                     </View>
+                   )}
+                 </>
+               );
+             })()}
+           </View>
+        </>
       )}
     </ ScrollView>
   );
@@ -777,6 +1119,69 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  statusFilterContainer: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  filterTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  filterScrollView: {
+    flexDirection: 'row',
+  },
+  filterChip: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  activeFilterChip: {
+    backgroundColor: '#007bff',
+    borderColor: '#007bff',
+  },
+  filterChipText: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+  },
+  activeFilterChipText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+  },
+  paginationButton: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007bff',
+    backgroundColor: '#fff',
+    marginHorizontal: 10,
+  },
+  paginationButtonDisabled: {
+    borderColor: '#ccc',
+    backgroundColor: '#f8f9fa',
+  },
+  paginationText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    marginHorizontal: 15,
   },
 });
 
