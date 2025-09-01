@@ -10,9 +10,11 @@ import {
   ScrollView,
   ActivityIndicator,
   SafeAreaView,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { logout, updateProfile } from '../store/authSlice';
+import { logout, updateProfile, fetchCurrentAccount } from '../store/authSlice';
 import childrenApi from '../store/api/childrenApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -26,6 +28,7 @@ import {
   faChevronRight,
   faSignOutAlt,
 } from '@fortawesome/free-solid-svg-icons';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 
 const COLOR_PRIMARY = '#2F80ED';
 const COLOR_TEXT = '#1F2937';
@@ -47,14 +50,89 @@ export default function AccountScreen({ navigation, onLogout }) {
     phoneNumber: '',
     address: '',
   });
+  const [avatar, setAvatar] = useState(null); // { uri, fileName, type }
 
   useEffect(() => {
     setProfileDraft({
-      fullName: user?.fullName || '',
+      fullName: user?.fullName || user?.accountName || '',
       phoneNumber: user?.phone || user?.phoneNumber || '',
       address: user?.address || '',
     });
   }, [user]);
+
+  useEffect(() => {
+    // Fetch current account information when component mounts
+    const loadCurrentAccount = async () => {
+      try {
+        await dispatch(fetchCurrentAccount()).unwrap();
+      } catch (error) {
+        console.log('Failed to fetch current account:', error);
+      }
+    };
+    
+    loadCurrentAccount();
+  }, [dispatch]);
+
+  // ====== IMAGE PICKER (same approach as Register.js) ======
+  const pickFromLibrary = async () => {
+    const res = await launchImageLibrary({
+      mediaType: 'photo',
+      includeBase64: false,
+      quality: 0.8,
+      selectionLimit: 1,
+      maxWidth: 1024,
+      maxHeight: 1024,
+    });
+    if (res?.didCancel) return;
+    if (res?.errorCode) {
+      Alert.alert('Lỗi chọn ảnh', res.errorMessage || res.errorCode);
+      return;
+    }
+    const a = res.assets?.[0];
+    if (a?.uri) {
+      setAvatar({ uri: a.uri, fileName: a.fileName || `avatar_${Date.now()}.jpg`, type: a.type || 'image/jpeg' });
+    }
+  };
+
+  const takePhoto = async () => {
+    const res = await launchCamera({
+      mediaType: 'photo',
+      includeBase64: false,
+      quality: 0.8,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      saveToPhotos: false,
+    });
+    if (res?.didCancel) return;
+    if (res?.errorCode) {
+      Alert.alert('Lỗi chụp ảnh', res.errorMessage || res.errorCode);
+      return;
+    }
+    const a = res.assets?.[0];
+    if (a?.uri) {
+      setAvatar({ uri: a.uri, fileName: a.fileName || `avatar_${Date.now()}.jpg`, type: a.type || 'image/jpeg' });
+    }
+  };
+
+  const openAvatarMenu = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Hủy', 'Chọn từ thư viện', 'Chụp ảnh'],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          if (idx === 1) pickFromLibrary();
+          if (idx === 2) takePhoto();
+        }
+      );
+    } else {
+      Alert.alert('Chọn ảnh', 'Bạn muốn lấy ảnh từ đâu?', [
+        { text: 'Thư viện', onPress: pickFromLibrary },
+        { text: 'Hủy', style: 'cancel' },
+      ]);
+    }
+  };
 
   const fetchChildren = async () => {
     try {
@@ -122,19 +200,26 @@ export default function AccountScreen({ navigation, onLogout }) {
         {/* Header đơn giản */}
         <View style={styles.header}>
         <View style={styles.row}>
-          {user?.imageURL && !imageErrors[user.imageURL] ? (
-            <Image
-              source={{ uri: user.imageURL }}
-              style={styles.avatarLg}
-              onError={() => setImageErrors((p) => ({ ...p, [user.imageURL]: true }))}
-            />
-          ) : (
-            <View style={[styles.avatarLg, styles.avatarPlaceholder]}>
-              <FontAwesomeIcon icon={faUser} size={36} color={COLOR_PRIMARY} />
-            </View>
-          )}
+          <TouchableOpacity onPress={openAvatarMenu} activeOpacity={0.8}>
+            {avatar?.uri ? (
+              <Image
+                source={{ uri: avatar.uri }}
+                style={styles.avatarLg}
+              />
+            ) : user?.imageUrl && !imageErrors[user.imageUrl] ? (
+              <Image
+                source={{ uri: user.imageUrl }}
+                style={styles.avatarLg}
+                onError={() => setImageErrors((p) => ({ ...p, [user.imageUrl]: true }))}
+              />
+            ) : (
+              <View style={[styles.avatarLg, styles.avatarPlaceholder]}>
+                <FontAwesomeIcon icon={faUser} size={36} color={COLOR_PRIMARY} />
+              </View>
+            )}
+          </TouchableOpacity>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{user?.fullName || 'Chưa cập nhật'}</Text>
+            <Text style={styles.name}>{user?.fullName || user?.accountName || 'Chưa cập nhật'}</Text>
             <View style={styles.inline}>
               <FontAwesomeIcon icon={faEnvelope} size={12} color={COLOR_MUTED} />
               <Text style={styles.subText}> {user?.email || '—'}</Text>
@@ -197,7 +282,7 @@ export default function AccountScreen({ navigation, onLogout }) {
 
             <View style={styles.actionsRow}>
               <TouchableOpacity
-                onPress={() => setEditing(false)}
+                onPress={() => { setEditing(false); setAvatar(null); }}
                 style={[styles.btn, styles.btnGhost]}
               >
                 <Text style={[styles.btnText, { color: COLOR_MUTED }]}>Huỷ</Text>
@@ -211,9 +296,13 @@ export default function AccountScreen({ navigation, onLogout }) {
                       phoneNumber: profileDraft.phoneNumber?.trim(),
                       address: profileDraft.address?.trim(),
                     };
+                    if (avatar?.uri) {
+                      payload.avatar = avatar;
+                    }
                     await dispatch(updateProfile(payload)).unwrap();
                     Alert.alert('Thành công', 'Cập nhật thông tin thành công');
                     setEditing(false);
+                    setAvatar(null);
                   } catch (e) {
                     Alert.alert('Lỗi', (e?.message || e || 'Cập nhật thất bại').toString());
                   } finally {
@@ -308,10 +397,10 @@ export default function AccountScreen({ navigation, onLogout }) {
        </View>
 
        <View style={{ height: 24 }} />
-       </ScrollView>
-     </SafeAreaView>
-   );
- }
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
 
 /* ---------- Các component nhỏ cho “cell” & “field” ---------- */
 function Cell({ icon, label, value, last }) {

@@ -43,7 +43,7 @@ export default function RegisterScreen({ onRegister, navigation }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Image source={require('../../assets/icon.png')} style={styles.avatar} />
+      <Image source={require('../../assets/logo.png')} style={styles.avatar} />
       <Text style={styles.title}>KidTrack</Text>
       <Text style={styles.welcome}>Tạo tài khoản mới</Text>
       <Text style={styles.subtitle}>Đăng ký để theo dõi tiêm chủng và phát triển của bé</Text>

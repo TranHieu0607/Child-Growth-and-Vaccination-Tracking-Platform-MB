@@ -1,4 +1,5 @@
 import axiosClient from './axiosClient';
+import { Platform } from 'react-native';
 
 /**
  * Đăng ký tài khoản người dùng
@@ -62,11 +63,40 @@ export async function resetPassword(payload) {
 }
 
 /**
- * Cập nhật hồ sơ thành viên (yêu cầu Authorization token)
- * @param {{ fullName?: string, phoneNumber?: string, address?: string }} payload
+ * Cập nhật hồ sơ thành viên (multipart) theo API mới /Accounts/update-member-info
+ * Chấp nhận optional avatar giống Register.js: { uri, fileName, type }
+ * @param {{ fullName?: string, phoneNumber?: string, address?: string, avatar?: { uri: string, fileName?: string, type?: string } }} payload
  * @returns {Promise<any>}
  */
 export async function updateMemberProfile(payload) {
-  const response = await axiosClient.put('/auth/update-member-profile', payload);
+  const form = new FormData();
+  if (payload?.fullName != null) form.append('FullName', payload.fullName);
+  if (payload?.phoneNumber != null) form.append('PhoneNumber', payload.phoneNumber);
+  if (payload?.address != null) form.append('Address', payload.address);
+
+  const avatar = payload?.avatar;
+  if (avatar?.uri) {
+    const imageUri = Platform.OS === 'ios'
+      ? (avatar.uri.startsWith('file://') ? avatar.uri.replace('file://', '') : avatar.uri)
+      : avatar.uri; // Keep file:// on Android
+    form.append('ImageUrl', {
+      uri: imageUri,
+      name: avatar.fileName || `avatar_${Date.now()}.jpg`,
+      type: avatar.type || 'image/jpeg',
+    });
+  }
+
+  const response = await axiosClient.put('/Accounts/update-member-info', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+}
+
+/**
+ * Lấy thông tin tài khoản hiện tại (yêu cầu Authorization token)
+ * @returns {Promise<any>}
+ */
+export async function getCurrentAccount() {
+  const response = await axiosClient.get('/Accounts/me');
   return response.data;
 }

@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axiosClient from './api/axiosClient';
 import * as SecureStore from 'expo-secure-store';
-import { updateMemberProfile as updateMemberProfileApi } from './api/authApi';
+import { updateMemberProfile as updateMemberProfileApi, getCurrentAccount as getCurrentAccountApi } from './api/authApi';
 import deviceTokenApi from './api/deviceTokenApi';
 
 export const login = createAsyncThunk(
@@ -82,6 +82,19 @@ export const updateProfile = createAsyncThunk(
   }
 );
 
+export const fetchCurrentAccount = createAsyncThunk(
+  'auth/fetchCurrentAccount',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await getCurrentAccountApi();
+      return data;
+    } catch (error) {
+      const err = error.response?.data;
+      return rejectWithValue(typeof err === 'string' ? err : err?.message || err?.title || 'Không thể lấy thông tin tài khoản');
+    }
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState: { user: null, token: null, loading: false, error: null },
@@ -102,7 +115,14 @@ const authSlice = createSlice({
       .addCase(updateProfile.fulfilled, (state, action) => {
         state.loading = false; state.user = { ...(state.user || {}), ...(action.payload || {}) };
       })
-      .addCase(updateProfile.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
+      .addCase(updateProfile.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+
+      .addCase(fetchCurrentAccount.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchCurrentAccount.fulfilled, (state, action) => { 
+        state.loading = false; 
+        state.user = { ...(state.user || {}), ...(action.payload || {}) }; 
+      })
+      .addCase(fetchCurrentAccount.rejected, (state, action) => { state.loading = false; state.error = action.payload; });
   },
 });
 

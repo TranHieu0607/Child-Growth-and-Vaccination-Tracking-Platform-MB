@@ -10,6 +10,7 @@ import {
   Image,
   Platform,
   ActionSheetIOS,
+  Modal,
 } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
@@ -26,6 +27,7 @@ const Register = ({ navigation }) => {
   const [isDatePickerVisible, setDatePickerVisibility] = useState(false);
   const [isCreatedAtPickerVisible, setCreatedAtPickerVisibility] = useState(false);
   const [avatar, setAvatar] = useState(null); // { uri, fileName, type }
+  const [isHeadCircumferenceModalVisible, setIsHeadCircumferenceModalVisible] = useState(false);
 
   const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -127,6 +129,10 @@ const Register = ({ navigation }) => {
   const toApiDate = (yyyyDashMmDashDd) => {
     if (!yyyyDashMmDashDd) return '';
     return yyyyDashMmDashDd.split('-').join('/');
+  };
+
+  const closeHeadCircumferenceInstructions = () => {
+    setIsHeadCircumferenceModalVisible(false);
   };
 
   // ====== SUBMIT ======
@@ -566,7 +572,12 @@ const Register = ({ navigation }) => {
       />
       {errors.height && <Text style={{ color: 'red', marginBottom: 10 }}>{errors.height.message}</Text>}
 
-      <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Vòng đầu</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 5 }}>
+        <Text style={{ fontSize: 16, fontWeight: '500' }}>Vòng đầu</Text>
+        <TouchableOpacity onPress={() => setIsHeadCircumferenceModalVisible(true)} style={{ marginLeft: 8 }}>
+          <Text style={{ color: '#007bff', fontSize: 18, fontWeight: 'bold' }}>?</Text>
+        </TouchableOpacity>
+      </View>
       <Controller
         control={control}
         name="headCircumference"
@@ -595,6 +606,179 @@ const Register = ({ navigation }) => {
         )}
       />
       {errors.headCircumference && <Text style={{ color: 'red', marginBottom: 10 }}>{errors.headCircumference.message}</Text>}
+
+      {/* Head Circumference Instructions Modal */}
+      <Modal
+        visible={isHeadCircumferenceModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closeHeadCircumferenceInstructions}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20,
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 12,
+            width: '100%',
+            maxWidth: 350,
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 2,
+            },
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            elevation: 5,
+          }}>
+            {/* Modal Header */}
+            <View style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: '#e0e0e0',
+              backgroundColor: '#f8f9fa',
+              borderTopLeftRadius: 12,
+              borderTopRightRadius: 12,
+            }}>
+              <Text style={{
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#333',
+                flex: 1,
+              }}>Hướng dẫn đo vòng đầu</Text>
+              <TouchableOpacity 
+                onPress={closeHeadCircumferenceInstructions} 
+                style={{
+                  padding: 4,
+                  borderRadius: 16,
+                  backgroundColor: '#e0e0e0',
+                  width: 32,
+                  height: 32,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 18, color: '#666', fontWeight: 'bold' }}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Content */}
+            <View style={{
+              padding: 16,
+              maxHeight: 400,
+            }}>
+              <Text style={{
+                fontSize: 15,
+                color: '#333',
+                lineHeight: 22,
+                marginBottom: 16,
+                fontWeight: '500',
+              }}>
+                Cách đo vòng đầu cho trẻ:
+              </Text>
+              
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                }}>
+                  1. Dùng thước dây mềm.
+                </Text>
+                
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                }}>
+                  2. Quấn thước quanh đầu bé, đi qua:
+                </Text>
+                
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                  marginLeft: 16,
+                }}>
+                  3. Trán cao nhất (trên chân mày một chút).
+                </Text>
+                
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                  marginLeft: 16,
+                }}>
+                  4. Phần sau đầu nhô nhất (xương chẩm).
+                </Text>
+                
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                }}>
+                  5. Giữ thước nằm ngang, không xoắn.
+                </Text>
+                
+                <Text style={{
+                  fontSize: 14,
+                  color: '#555',
+                  lineHeight: 20,
+                  marginBottom: 8,
+                }}>
+                  6. Đọc số đo, chính xác đến 0,1 cm. (Nên đo 2–3 lần và lấy kết quả trung bình.)
+                </Text>
+              </View>
+            </View>
+
+            {/* Modal Footer */}
+            <View style={{
+              padding: 16,
+              borderTopWidth: 1,
+              borderTopColor: '#e0e0e0',
+              backgroundColor: '#f8f9fa',
+              borderBottomLeftRadius: 12,
+              borderBottomRightRadius: 12,
+            }}>
+              <TouchableOpacity 
+                style={{
+                  backgroundColor: '#007bff',
+                  paddingVertical: 12,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  shadowColor: '#007bff',
+                  shadowOffset: {
+                    width: 0,
+                    height: 2,
+                  },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+                onPress={closeHeadCircumferenceInstructions}
+              >
+                <Text style={{
+                  color: '#fff',
+                  fontSize: 15,
+                  fontWeight: '600',
+                }}>Đã hiểu</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Ngày ghi chỉ số tăng trưởng */}
       <Text style={{ fontSize: 16, marginBottom: 5, fontWeight: '500' }}>Ngày ghi chỉ số tăng trưởng</Text>
