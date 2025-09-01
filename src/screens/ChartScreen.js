@@ -630,6 +630,33 @@ const ChartScreen = ({ navigation }) => {
   // Get actual data for prediction calculations
   const actualData = childGrowthData?.data?.[selectedTab] || [];
   const validActualData = actualData.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
+  // Determine whether to display X-axis in years (when latest actual day > 720)
+  const latestActualDayForUnit = validActualData.length > 0 ? validActualData[validActualData.length - 1].ageInDays : 0;
+  const useYearsOnXAxis = latestActualDayForUnit > 720;
+  const convertDaysToYearsString = (days) => {
+    if (days == null || isNaN(days)) return '';
+    if (days === 0) return '0';
+    const years = days / 365;
+    return years.toFixed(1);
+  };
+  const formatXAxisTick = (value) => {
+    // value comes as string label from datasets
+    let labelStr = value;
+    // If label is composite like '123/...' keep the day part
+    if (typeof labelStr === 'string' && labelStr.includes('/')) {
+      const parts = labelStr.split('/');
+      labelStr = parts[0];
+    }
+    const dayNumber = parseFloat(labelStr);
+    if (useYearsOnXAxis && !isNaN(dayNumber)) {
+      return convertDaysToYearsString(dayNumber);
+    }
+    // default behaviour (days)
+    if (typeof labelStr === 'string') {
+      return labelStr.length <= 4 ? labelStr : `${labelStr.substring(0,3)}..`;
+    }
+    return String(labelStr ?? '');
+  };
 
   // Get screen width to make chart responsive (subtracting container padding)
   const chartWidth = screenWidth - 32; // 16 padding on each side
@@ -1240,7 +1267,7 @@ const ChartScreen = ({ navigation }) => {
             color: '#333',
             textAlign: 'center'
           }}>
-            ngày
+            {useYearsOnXAxis ? 'năm' : 'ngày'}
           </Text>
         </View>
 
@@ -1255,13 +1282,7 @@ const ChartScreen = ({ navigation }) => {
             decimalPlaces: 1,
             labelColor: (opacity = 1) => `rgba(0,0,0,${opacity})`,
             formatYLabel: (value) => value.toFixed(1),
-            formatXLabel: (value) => {
-              if (value.includes('/')) {
-                const parts = value.split('/');
-                return parts[0].length <= 3 ? parts[0] : `${parts[0].substring(0,2)}..`;
-              }
-              return value.length <= 4 ? value : `${value.substring(0,3)}..`;
-            }
+            formatXLabel: (value) => formatXAxisTick(value)
           }}
           onDataPointClick={({ value, index, x, y, datasetIndex }) => {
             let unit = '';
@@ -1282,19 +1303,30 @@ const ChartScreen = ({ navigation }) => {
               // Biểu đồ thực tế - hiển thị ngày
               if (index === 0) {
                 label = '0';
-                labelUnit = 'ngày';
+                labelUnit = useYearsOnXAxis ? 'năm' : 'ngày';
               } else {
                 // Lấy label từ dataset labels của actual data
                 if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
-                  label = currentDataset.labels[index];
-                  labelUnit = 'ngày';
+                  const dayStr = currentDataset.labels[index];
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(parseFloat(dayStr));
+                    labelUnit = 'năm';
+                  } else {
+                    label = dayStr;
+                    labelUnit = 'ngày';
+                  }
                 } else {
                   // Fallback: tìm điểm dữ liệu thực tế tương ứng với index
                   const actualDataPoints = tableData.filter(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
                   const dataPoint = actualDataPoints[index - 1]; // index - 1 vì index 0 là điểm gốc
                   if (dataPoint) {
-                    label = dataPoint.ageInDays || '';
-                    labelUnit = 'ngày';
+                    if (useYearsOnXAxis) {
+                      label = convertDaysToYearsString(dataPoint.ageInDays);
+                      labelUnit = 'năm';
+                    } else {
+                      label = dataPoint.ageInDays || '';
+                      labelUnit = 'ngày';
+                    }
                   }
                 }
               }
@@ -1304,31 +1336,52 @@ const ChartScreen = ({ navigation }) => {
                 // First point is last actual point
                 const lastActualPoint = tableData.find(item => !item.isPrediction && !item.status?.includes('Chuẩn'));
                 if (lastActualPoint) {
-                  label = lastActualPoint.ageInDays || '';
-                  labelUnit = 'ngày';
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(lastActualPoint.ageInDays);
+                    labelUnit = 'năm';
+                  } else {
+                    label = lastActualPoint.ageInDays || '';
+                    labelUnit = 'ngày';
+                  }
                 }
               } else {
                 // Prediction point (chỉ có 1 điểm dự đoán)
                 const predictionPoint = tableData.find(item => item.isPrediction);
                 if (predictionPoint) {
-                  label = predictionPoint.ageInDays || '';
-                  labelUnit = 'ngày (dự đoán)';
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(predictionPoint.ageInDays);
+                    labelUnit = 'năm (dự đoán)';
+                  } else {
+                    label = predictionPoint.ageInDays || '';
+                    labelUnit = 'ngày (dự đoán)';
+                  }
                 }
               }
             } else if (isStandardData) {
               // Biểu đồ tiêu chuẩn - lấy ngày từ labels thật sự của dataset
               if (index === 0) {
                 label = '0';
-                labelUnit = 'ngày';
+                labelUnit = useYearsOnXAxis ? 'năm' : 'ngày';
               } else {
                 // Lấy label thực từ dataset labels
                 if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
-                  label = currentDataset.labels[index];
-                  labelUnit = 'ngày';
+                  const dayStr = currentDataset.labels[index];
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(parseFloat(dayStr));
+                    labelUnit = 'năm';
+                  } else {
+                    label = dayStr;
+                    labelUnit = 'ngày';
+                  }
                 } else {
                   // Fallback: tính theo index * 30
-                  label = (index * 30).toString();
-                  labelUnit = 'ngày';
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(index * 30);
+                    labelUnit = 'năm';
+                  } else {
+                    label = (index * 30).toString();
+                    labelUnit = 'ngày';
+                  }
                 }
               }
             }

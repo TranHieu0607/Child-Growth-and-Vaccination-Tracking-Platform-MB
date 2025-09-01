@@ -36,6 +36,7 @@ const Register = ({ navigation }) => {
     control,
     handleSubmit,
     formState: { errors },
+    watch,
   } = useForm({
     defaultValues: {
       fullName: '',
@@ -52,6 +53,8 @@ const Register = ({ navigation }) => {
     },
     mode: 'onChange',
   });
+
+  const birthDateValue = watch('birthDate');
 
   // ====== IMAGE PICKER ======
   const pickFromLibrary = useCallback(async () => {
@@ -131,6 +134,14 @@ const Register = ({ navigation }) => {
     return yyyyDashMmDashDd.split('-').join('/');
   };
 
+  // "YYYY-MM-DD" -> Date (local)
+  const parseYyyyMmDdToDate = (yyyyDashMmDashDd) => {
+    if (!yyyyDashMmDashDd) return undefined;
+    const [y, m, d] = yyyyDashMmDashDd.split('-').map(Number);
+    if (!y || !m || !d) return undefined;
+    return new Date(y, m - 1, d);
+  };
+
   const closeHeadCircumferenceInstructions = () => {
     setIsHeadCircumferenceModalVisible(false);
   };
@@ -165,6 +176,12 @@ const Register = ({ navigation }) => {
       }
       if (!data.createdAt) {
         Alert.alert('Lỗi', 'Vui lòng chọn ngày ghi chỉ số');
+        return;
+      }
+      const bdDate = parseYyyyMmDdToDate(data.birthDate);
+      const caDate = parseYyyyMmDdToDate(data.createdAt);
+      if (bdDate && caDate && caDate.getTime() < bdDate.getTime()) {
+        Alert.alert('Lỗi', 'Ngày ghi chỉ số không được trước ngày sinh');
         return;
       }
       if (data.headCircumference && (parseFloat(data.headCircumference) < 20 || parseFloat(data.headCircumference) > 100)) {
@@ -785,7 +802,17 @@ const Register = ({ navigation }) => {
       <Controller
         control={control}
         name="createdAt"
-        rules={{ required: 'Vui lòng chọn ngày ghi chỉ số' }}
+        rules={{
+          required: 'Vui lòng chọn ngày ghi chỉ số',
+          validate: (value) => {
+            const bd = parseYyyyMmDdToDate(birthDateValue);
+            const ca = parseYyyyMmDdToDate(value);
+            if (bd && ca && ca.getTime() < bd.getTime()) {
+              return 'Ngày ghi chỉ số không được trước ngày sinh';
+            }
+            return true;
+          },
+        }}
         render={({ field: { onChange, value } }) => (
           <>
             <TouchableOpacity
@@ -811,6 +838,7 @@ const Register = ({ navigation }) => {
                 onChange(formatted);
               }}
               onCancel={() => setCreatedAtPickerVisibility(false)}
+              minimumDate={parseYyyyMmDdToDate(birthDateValue)}
               maximumDate={new Date()}
             />
           </>

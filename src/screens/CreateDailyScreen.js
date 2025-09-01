@@ -40,6 +40,18 @@ const CreateDailyScreen = ({ navigation }) => {
   const onSubmit = async (data) => {
     if (!selectedChildId) return;
     try {
+      // Validate record date is not before child's birth date
+      const child = children.find(c => c.childId === selectedChildId);
+      const birthDate = child?.dateOfBirth || child?.birthDate || null;
+      if (data.recordDate && birthDate) {
+        const recordDate = new Date(data.recordDate);
+        const birth = new Date(birthDate);
+        if (recordDate < birth) {
+          Alert.alert('Lỗi', 'Ngày ghi nhận không được trước ngày sinh của trẻ');
+          return;
+        }
+      }
+      
       const payload = {
         childId: selectedChildId,
         recordDate: data.recordDate,
@@ -160,6 +172,7 @@ const CreateDailyScreen = ({ navigation }) => {
               <DateTimePickerModal
                 isVisible={isDatePickerVisible}
                 mode="date"
+                minimumDate={selectedChild && (selectedChild.dateOfBirth || selectedChild.birthDate) ? new Date(selectedChild.dateOfBirth || selectedChild.birthDate) : undefined}
                 onConfirm={(date) => {
                   setDatePickerVisibility(false);
                   const formatted = date.toISOString().split('T')[0];

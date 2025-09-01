@@ -41,6 +41,17 @@ const UpdateGrowth = ({ navigation }) => {
   const onSubmit = async (data) => {
     try {
       const childId = selectedChildren[0];
+      // Prevent selecting a measurement date before the child's birth date
+      const child = children.find(c => c.childId === childId);
+      const birthDate = child?.dateOfBirth || child?.birthDate || null;
+      if (data.measurementDate && birthDate) {
+        const measurement = new Date(data.measurementDate);
+        const birth = new Date(birthDate);
+        if (measurement < birth) {
+          alert('Ngày đo không được trước ngày sinh của trẻ');
+          return;
+        }
+      }
       const createdAt = data.measurementDate
         ? new Date(data.measurementDate).toISOString()
         : new Date().toISOString();
@@ -187,6 +198,7 @@ const UpdateGrowth = ({ navigation }) => {
               <DateTimePickerModal
                 isVisible={isDatePickerVisible}
                 mode="date"
+                minimumDate={selectedChild && (selectedChild.dateOfBirth || selectedChild.birthDate) ? new Date(selectedChild.dateOfBirth || selectedChild.birthDate) : undefined}
                 onConfirm={(date) => {
                   setDatePickerVisibility(false);
                   const formatted = date.toISOString().split('T')[0];

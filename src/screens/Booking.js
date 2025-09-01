@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert, Modal } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt, faBaby } from '@fortawesome/free-solid-svg-icons';
-import { useDispatch, useSelector } from 'react-redux';
+import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt, faBaby } from '@fortawesome/free-solid-svg-icons';
+import { useSelector } from 'react-redux';
 import { getMyChildren } from '../store/api/growthRecordApi';
 import diseasesApi from '../store/api/diseasesApi';
 import vaccinationFacilitiesApi from '../store/api/vaccinationFacilitiesApi';
 import vaccinePackagesApi from '../store/api/vaccinePackagesApi';
 import vaccinesApi from '../store/api/vaccinesApi';
-import { addToCart, selectCartItems, selectCartItemCount, clearCart } from '../store/cartSlice';
 import scheduleApi from '../store/api/scheduleApi';
 import dayjs from 'dayjs';
 import bookingApi from '../store/api/bookingApi';
@@ -56,11 +55,6 @@ const Booking = ({ navigation, route }) => {
   // State cho calendar động
   const [calendarMonth, setCalendarMonth] = useState(dayjs().month() + 1); // 1-12
   const [calendarYear, setCalendarYear] = useState(dayjs().year());
-
-  // Redux hooks
-  const dispatch = useDispatch();
-  const cartItems = useSelector(selectCartItems);
-  const cartItemCount = useSelector(selectCartItemCount);
 
   const orderId = route?.params?.orderId; // Lấy orderId từ params nếu có
 
@@ -335,6 +329,8 @@ const Booking = ({ navigation, route }) => {
     setFilteredDiseases(diseases);
     // Reset vaccine lẻ được chọn khi thay đổi bệnh
     setSelectedSingleVaccine(null);
+    // Reset gói vaccine được chọn khi thay đổi bệnh
+    setSelectedPackageId(null);
   };
 
   // Function to handle facility selection
@@ -345,6 +341,8 @@ const Booking = ({ navigation, route }) => {
     setFilteredFacilities(facilities);
     // Reset vaccine lẻ được chọn khi thay đổi cơ sở
     setSelectedSingleVaccine(null);
+    // Reset gói vaccine được chọn khi thay đổi cơ sở
+    setSelectedPackageId(null);
   };
 
   // Function to handle the dropdown press
@@ -358,30 +356,34 @@ const Booking = ({ navigation, route }) => {
     setIsDropdownVisible(false);
     // Reset vaccine lẻ được chọn khi thay đổi trẻ
     setSelectedSingleVaccine(null);
+    // Reset gói vaccine được chọn khi thay đổi trẻ
+    setSelectedPackageId(null);
   };
 
   const selectedChild = children.find(child => child.childId === selectedChildren[0]);
 
-  // Cart functions
-  const handleAddToCart = (packageItem) => {
+  // Function to handle package selection
+  const handleSelectPackage = (packageItem) => {
     // Kiểm tra xem đã có vaccine lẻ được chọn chưa
     if (selectedSingleVaccine) {
-      Alert.alert('Thông báo', 'Bạn đã chọn vaccine lẻ. Vui lòng bỏ chọn vaccine lẻ trước khi thêm gói tiêm!');
+      Alert.alert('Thông báo', 'Bạn đã chọn vaccine lẻ. Vui lòng bỏ chọn vaccine lẻ trước khi chọn gói tiêm!');
       return;
     }
 
-    dispatch(addToCart(packageItem));
-    // Reset vaccine lẻ được chọn khi thêm gói vào giỏ
-    setSelectedSingleVaccine(null);
-    Alert.alert('Thành công', 'Đã thêm gói tiêm vào giỏ hàng!');
+    if (selectedPackageId === packageItem.packageId) {
+      // Nếu đã chọn rồi thì bỏ chọn
+      setSelectedPackageId(null);
+    } else {
+      // Chọn gói mới
+      setSelectedPackageId(packageItem.packageId);
+    }
   };
 
   // Function to handle single vaccine selection
   const handleSelectSingleVaccine = (facilityVaccine) => {
-    // Kiểm tra xem đã có gói tiêm trong giỏ hàng chưa
-    const hasPackageInCart = cartItems.some(item => item.packageId);
-    if (hasPackageInCart) {
-      Alert.alert('Thông báo', 'Bạn đã có gói tiêm trong giỏ hàng. Vui lòng xóa gói tiêm trước khi chọn vaccine lẻ!');
+    // Kiểm tra xem đã có gói tiêm được chọn chưa
+    if (selectedPackageId) {
+      Alert.alert('Thông báo', 'Bạn đã chọn gói tiêm. Vui lòng bỏ chọn gói tiêm trước khi chọn vaccine lẻ!');
       return;
     }
 
@@ -391,17 +393,6 @@ const Booking = ({ navigation, route }) => {
     } else {
       // Chọn vaccine mới
       setSelectedSingleVaccine(facilityVaccine);
-    }
-  };
-
-  const handleDecreaseCart = (packageItem) => {
-    const cartItem = cartItems.find(item => item.packageId === packageItem.packageId);
-    if (cartItem && cartItem.quantity > 1) {
-      dispatch(addToCart({ ...packageItem, quantity: cartItem.quantity - 1 }));
-      Alert.alert('Thành công', 'Đã giảm số lượng gói tiêm trong giỏ!');
-    } else if (cartItem) {
-      dispatch(addToCart({ ...packageItem, quantity: 1 })); // Remove from cart if quantity is 1
-      Alert.alert('Thành công', 'Đã xóa gói tiêm khỏi giỏ!');
     }
   };
 
@@ -421,9 +412,11 @@ const Booking = ({ navigation, route }) => {
     return date.isBefore(today, 'day');
   };
 
-  const [expandedFacilityVaccineId, setExpandedFacilityVaccineId] = useState(null);
+
   const [selectedVaccineForModal, setSelectedVaccineForModal] = useState(null);
   const [isVaccineModalVisible, setIsVaccineModalVisible] = useState(false);
+  const [selectedPackageForModal, setSelectedPackageForModal] = useState(null);
+  const [isPackageModalVisible, setIsPackageModalVisible] = useState(false);
 
   // Function to show vaccine details modal
   const showVaccineDetails = (vaccine) => {
@@ -437,6 +430,18 @@ const Booking = ({ navigation, route }) => {
     setSelectedVaccineForModal(null);
   };
 
+  // Function to show package details modal
+  const showPackageDetails = (packageItem) => {
+    setSelectedPackageForModal(packageItem);
+    setIsPackageModalVisible(true);
+  };
+
+  // Function to close package details modal
+  const closePackageDetails = () => {
+    setIsPackageModalVisible(false);
+    setSelectedPackageForModal(null);
+  };
+
   // Hàm đặt lịch
   const handleBookAppointment = async () => {
     if (!selectedChildren[0] || !selectedDisease || !selectedFacility || !selectedSlot) {
@@ -445,8 +450,7 @@ const Booking = ({ navigation, route }) => {
     }
 
     // Kiểm tra có gói tiêm hoặc vaccine lẻ được chọn
-    const packageItem = cartItems.find(item => item.packageId);
-    if (!packageItem && !selectedSingleVaccine) {
+    if (!selectedPackageId && !selectedSingleVaccine) {
       Alert.alert('Thiếu thông tin', 'Vui lòng chọn gói tiêm hoặc vaccine để đặt lịch!');
       return;
     }
@@ -460,9 +464,16 @@ const Booking = ({ navigation, route }) => {
     };
 
     try {
-      if (packageItem) {
+      if (selectedPackageId) {
+        // Tìm gói vaccine đã chọn
+        const selectedPackage = filteredPackages.find(pkg => pkg.packageId === selectedPackageId);
+        if (!selectedPackage) {
+          Alert.alert('Lỗi', 'Không tìm thấy gói vaccine đã chọn!');
+          return;
+        }
+
         // 1. Tạo order trực tiếp cho gói tiêm
-        const orderResponse = await orderApi.createOrder(packageItem, token);
+        const orderResponse = await orderApi.createOrder(selectedPackage, token);
         const orderId = orderResponse.data?.orderId;
         if (!orderId) throw new Error('Không lấy được orderId từ server!');
         data.orderId = orderId;
@@ -475,14 +486,13 @@ const Booking = ({ navigation, route }) => {
       console.log('=== PAYLOAD BOOKING ===');
       console.log('Data:', data);
       console.log('Token:', token);
-      console.log('Package Item:', packageItem);
+      console.log('Selected Package ID:', selectedPackageId);
       console.log('Selected Single Vaccine:', selectedSingleVaccine);
       console.log('Selected Children:', selectedChildren);
       console.log('Selected Disease:', selectedDisease);
       console.log('Selected Facility:', selectedFacility);
       console.log('Selected Slot:', selectedSlot);
       console.log('Note:', note);
-      console.log('Cart Items:', cartItems);
       console.log('========================');
 
       const res = await bookingApi.bookAppointment(data, token);
@@ -494,8 +504,8 @@ const Booking = ({ navigation, route }) => {
         return;
       }
       
-      // Clear cart và vaccine đã chọn
-      dispatch(clearCart());
+      // Reset các lựa chọn đã chọn
+      setSelectedPackageId(null);
       setSelectedSingleVaccine(null);
       
       Alert.alert('Đặt lịch thành công', 'Lịch tiêm đã được xác nhận!', [
@@ -548,17 +558,7 @@ const Booking = ({ navigation, route }) => {
           <FontAwesomeIcon icon={faArrowLeft} size={25} color="black" />
         </TouchableOpacity>
         <Text style={{ fontSize: 24, fontWeight: 'bold', textAlign: 'center', flex: 1 }}>Đặt lịch tiêm chủng</Text>
-        <TouchableOpacity 
-          style={styles.cartButton} 
-          onPress={() => navigation.navigate('Cart')}
-        >
-          <FontAwesomeIcon icon={faShoppingCart} size={20} color="white" />
-          {cartItemCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartItemCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+        <View style={{ width: 25 }} />
       </View>
 
       {/* Chọn Bé */}
@@ -807,49 +807,38 @@ const Booking = ({ navigation, route }) => {
         <>
           {/* Vaccine package */}
           {filteredPackages.map(pkg => {
-            const isInCart = cartItems.some(item => item.packageId === pkg.packageId);
-            const isDisabled = selectedSingleVaccine && !isInCart;
+            const isSelected = selectedPackageId === pkg.packageId;
+            const isDisabled = selectedSingleVaccine && !isSelected;
             
             // Get package minimum age info for display
             const packageMinAge = getPackageMinimumAge(pkg.packageVaccines);
             
-            const packageCartObj = {
-              packageId: pkg.packageId,
-              name: pkg.name,
-              price: pkg.price,
-              description: pkg.description,
-              facilityId: pkg.facilityId, // thêm facilityId
-              packageVaccines: pkg.packageVaccines, // thêm packageVaccines
-            };
-            const handleAddPackage = () => {
-              if (!isInCart && !isDisabled) handleAddToCart(packageCartObj);
-            };
             return (
               <View key={pkg.packageId} style={[
                 styles.packageItem, 
-                isInCart && styles.packageItemInCart,
+                isSelected && styles.packageItemSelected,
                 isDisabled && styles.packageItemDisabled
               ]}>
                 <TouchableOpacity
-                  onPress={() => setExpandedPackageId(expandedPackageId === pkg.packageId ? null : pkg.packageId)}
+                  onPress={() => showPackageDetails(pkg)}
                   style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                   activeOpacity={0.8}
                 >
                   <View style={styles.packageInfo}>
                     <Text style={[
                       styles.packageName, 
-                      isInCart && styles.packageTextInCart,
+                      isSelected && styles.packageTextSelected,
                       isDisabled && styles.packageTextDisabled
                     ]}>{pkg.name}</Text>
                     <Text style={[
                       styles.packagePrice, 
-                      isInCart && styles.packageTextInCart,
+                      isSelected && styles.packageTextSelected,
                       isDisabled && styles.packageTextDisabled
                     ]}>{pkg.price?.toLocaleString('vi-VN')}đ</Text>
                     {packageMinAge !== undefined && (
                       <Text style={[
                         styles.ageGroupText,
-                        isInCart && styles.packageTextInCart,
+                        isSelected && styles.packageTextSelected,
                         isDisabled && styles.packageTextDisabled
                       ]}>
                         {formatAgeGroup(packageMinAge)}
@@ -859,66 +848,34 @@ const Booking = ({ navigation, route }) => {
                   <TouchableOpacity
                     style={[
                       styles.addToCartButton, 
-                      isInCart && styles.addToCartButtonInCart,
+                      isSelected && styles.addToCartButtonSelected,
                       isDisabled && styles.addToCartButtonDisabled
                     ]}
-                    onPress={handleAddPackage}
-                    disabled={isInCart || isDisabled}
+                    onPress={() => handleSelectPackage(pkg)}
+                    disabled={isDisabled}
                   >
                     <Text style={[
                       styles.addToCartText, 
-                      isInCart && styles.addToCartTextInCart,
+                      isSelected && styles.addToCartTextSelected,
                       isDisabled && styles.addToCartTextDisabled
                     ]}>
-                      {isDisabled ? 'Không thể thêm' : (isInCart ? 'Đã thêm' : 'Thêm vào giỏ')}
+                      {isDisabled ? 'Không thể chọn' : (isSelected ? 'Đã chọn' : 'Chọn gói')}
                     </Text>
                   </TouchableOpacity>
                 </TouchableOpacity>
-                {expandedPackageId === pkg.packageId && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={styles.packageDetails}>{pkg.description}</Text>
-                    <Text style={{ fontWeight: 'bold', fontSize: 13, marginTop: 5 }}>Vaccine trong gói:</Text>
-                    {pkg.packageVaccines && pkg.packageVaccines.length > 0 ? (
-                      pkg.packageVaccines.map(pv => (
-                        <View key={pv.packageVaccineId} style={{ marginBottom: 8, marginLeft: 5 }}>
-                          <Text style={{ fontSize: 13, color: '#222', fontWeight: 'bold' }}>- Bệnh: {pv.disease?.name || 'Không rõ'}</Text>
-                          <Text style={{ fontSize: 13, color: '#007bff' }}>  Vaccine: {pv.facilityVaccine?.vaccine?.name || 'Không rõ tên vaccine'}</Text>
-                          {pv.disease?.description && (
-                            <Text style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>  Mô tả bệnh: {pv.disease.description}</Text>
-                          )}
-                          <Text style={{ fontSize: 12, color: '#888' }}>  Số lượng: {pv.quantity}</Text>
-                          <Text style={{ fontSize: 12, color: '#888' }}>  Phác đồ: {pv.facilityVaccine?.vaccine?.numberOfDoses || 1} liều</Text>
-                          <Text style={{ fontSize: 12, color: '#888' }}>  Hạn dùng: {pv.facilityVaccine?.expiryDate}</Text>
-                          {pv.facilityVaccine?.vaccine?.ageGroup && (
-                            <Text style={{ fontSize: 12, color: '#666' }}>  Độ tuổi: {pv.facilityVaccine.vaccine.ageGroup}</Text>
-                          )}
-                        </View>
-                      ))
-                    ) : (
-                      <Text style={{ fontSize: 13, color: '#888' }}>Không có vaccine</Text>
-                    )}
-                    {packageMinAge !== undefined && (
-                      <Text style={{ fontSize: 12, color: '#666', marginTop: 5 }}>
-                        Độ tuổi tối thiểu cho gói: {formatAgeGroup(packageMinAge)}
-                      </Text>
-                    )}
-                  </View>
-                )}
               </View>
             );
           })}
           {/* Vaccine lẻ */}
           {filteredFacilityVaccines.map(fv => {
             const isSelected = selectedSingleVaccine?.facilityVaccineId === fv.facilityVaccineId;
-            const hasPackageInCart = cartItems.some(item => item.packageId);
-            const isDisabled = hasPackageInCart && !isSelected;
+            const isDisabled = selectedPackageId && !isSelected;
             
             const handleSelectVaccine = () => {
               if (!isDisabled) {
                 handleSelectSingleVaccine(fv);
               }
             };
-            const isExpanded = expandedFacilityVaccineId === fv.facilityVaccineId;
             
             return (
               <View key={fv.facilityVaccineId} style={[
@@ -1083,6 +1040,128 @@ const Booking = ({ navigation, route }) => {
       <TouchableOpacity style={styles.bookButton} onPress={handleBookAppointment}>
         <Text style={styles.bookButtonText}>Đặt lịch</Text>
       </TouchableOpacity>
+
+      {/* Package Details Modal */}
+      <Modal
+        visible={isPackageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closePackageDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {selectedPackageForModal && (
+              <>
+                {/* Modal Header */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Chi tiết gói tiêm</Text>
+                  <TouchableOpacity onPress={closePackageDetails} style={styles.modalCloseButton}>
+                    <FontAwesomeIcon icon={faTimes} size={20} color="#666" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Modal Content */}
+                <ScrollView 
+                  style={styles.modalContent} 
+                  showsVerticalScrollIndicator={true}
+                  contentContainerStyle={styles.modalContentContainer}
+                >
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Tên gói: </Text>
+                    {selectedPackageForModal.name}
+                  </Text>
+                  
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Giá: </Text>
+                    {selectedPackageForModal.price?.toLocaleString('vi-VN')}đ
+                  </Text>
+                  
+                  {selectedPackageForModal.description && (
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Mô tả: </Text>
+                      {selectedPackageForModal.description}
+                    </Text>
+                  )}
+                  
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Cơ sở cung cấp: </Text>
+                    {selectedFacility?.facilityName || 'Không xác định'}
+                  </Text>
+                  
+                  {selectedPackageForModal.packageVaccines && selectedPackageForModal.packageVaccines.length > 0 && (
+                    <>
+                      <Text style={styles.modalSectionTitle}>Vaccine trong gói:</Text>
+                      {selectedPackageForModal.packageVaccines.map(pv => (
+                        <View key={pv.packageVaccineId} style={styles.modalDiseaseCard}>
+                          <Text style={styles.modalDiseaseName}>
+                            • Bệnh: {pv.disease?.name || 'Không rõ'}
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Vaccine: </Text>
+                            {pv.facilityVaccine?.vaccine?.name || 'Không rõ tên vaccine'}
+                          </Text>
+                          {pv.disease?.description && (
+                            <Text style={styles.modalDiseaseDescription}>
+                              Mô tả bệnh: {pv.disease.description}
+                            </Text>
+                          )}
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Số lượng: </Text>
+                            {pv.quantity}
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Phác đồ: </Text>
+                            {pv.facilityVaccine?.vaccine?.numberOfDoses || 1} liều
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Hạn dùng: </Text>
+                            {pv.facilityVaccine?.expiryDate || 'Không xác định'}
+                          </Text>
+                          {pv.facilityVaccine?.vaccine?.ageGroup && (
+                            <Text style={styles.modalInfoText}>
+                              <Text style={styles.modalInfoLabel}>Độ tuổi: </Text>
+                              {pv.facilityVaccine.vaccine.ageGroup}
+                            </Text>
+                          )}
+                          {pv.facilityVaccine?.vaccine?.manufacturer && (
+                            <Text style={styles.modalInfoText}>
+                              <Text style={styles.modalInfoLabel}>Nhà sản xuất: </Text>
+                              {pv.facilityVaccine.vaccine.manufacturer}
+                            </Text>
+                          )}
+                          {pv.facilityVaccine?.vaccine?.origin && (
+                            <Text style={styles.modalInfoText}>
+                              <Text style={styles.modalInfoLabel}>Xuất xứ: </Text>
+                              {pv.facilityVaccine.vaccine.origin}
+                            </Text>
+                          )}
+                        </View>
+                      ))}
+                    </>
+                  )}
+                  
+                  {getPackageMinimumAge(selectedPackageForModal.packageVaccines) !== undefined && (
+                    <Text style={styles.modalInfoText}>
+                      <Text style={styles.modalInfoLabel}>Độ tuổi tối thiểu: </Text>
+                      {formatAgeGroup(getPackageMinimumAge(selectedPackageForModal.packageVaccines))}
+                    </Text>
+                  )}
+                </ScrollView>
+
+                {/* Modal Footer */}
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity 
+                    style={styles.modalButton}
+                    onPress={closePackageDetails}
+                  >
+                    <Text style={styles.modalButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Vaccine Details Modal */}
       <Modal
@@ -1829,31 +1908,9 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
   },
 
-  // Cart button styles
-  cartButton: {
-    backgroundColor: '#007bff',
-    padding: 8,
-    borderRadius: 20,
-    position: 'relative',
-  },
-  cartBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#ff4444',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartBadgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
 
-  // Package styles with cart integration
+
+  // Package styles with selection integration
   packageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1861,10 +1918,6 @@ const styles = StyleSheet.create({
   },
   packageInfo: {
     flex: 1,
-  },
-  packageItemInCart: {
-    borderColor: '#28a745',
-    backgroundColor: '#fff',
   },
   packageItemSelected: {
     borderColor: '#007bff',
@@ -1880,9 +1933,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     opacity: 0.6,
   },
-  packageTextInCart: {
-    color: '#28a745',
-  },
   packageTextSelected: {
     color: '#007bff',
   },
@@ -1892,9 +1942,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
     marginLeft: 10,
-  },
-  addToCartButtonInCart: {
-    backgroundColor: '#28a745',
   },
   addToCartButtonSelected: {
     backgroundColor: '#007bff',
@@ -1906,9 +1953,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
-  },
-  addToCartTextInCart: {
-    color: 'white',
   },
   addToCartTextSelected: {
     color: 'white',
