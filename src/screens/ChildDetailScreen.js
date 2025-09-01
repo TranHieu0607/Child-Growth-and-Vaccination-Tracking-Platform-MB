@@ -177,19 +177,24 @@ export default function ChildDetailScreen({ route, navigation }) {
         status: true,
       };
       
+      console.log('Saving with payload:', payload);
+      console.log('childImage:', childImage);
+      
       if (childImage?.uri) {
+        console.log('Adding image to payload');
         payload.image = childImage;
-        await childrenApi.updateChildWithImage(childId, payload);
-      } else {
-        await childrenApi.updateChild(childId, payload);
       }
+      
+      console.log('Using updateChildWithImage');
+      await childrenApi.updateChildWithImage(childId, payload);
       
       await fetchChildDetail();
       setIsEditing(false);
       setChildImage(null);
       Alert.alert('Thành công', 'Cập nhật thông tin thành công');
     } catch (err) {
-      Alert.alert('Lỗi', 'Cập nhật thông tin thất bại');
+      console.log('Error in handleSaveEdit:', err);
+      Alert.alert('Lỗi', 'Cập nhật thông tin thất bại: ' + (err?.message || err));
     } finally {
       setLoading(false);
     }

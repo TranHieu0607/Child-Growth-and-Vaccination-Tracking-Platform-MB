@@ -21,7 +21,21 @@ const childrenApi = {
   updateDailyRecord: (dailyRecordId, data) => axiosClient.put(`/DailyRecords/${dailyRecordId}`, data),
   deleteDailyRecord: (dailyRecordId) => axiosClient.delete(`/DailyRecords/${dailyRecordId}`),
   getGrowthPrediction: (childId, period = '1week') => axiosClient.get(`/GrowthAssessment/child/${childId}/prediction?period=${period}`),
-  updateChild: (childId, data) => axiosClient.put(`/Children/${childId}`, data),
+  updateChild: (childId, data) => {
+    const form = new FormData();
+    
+    if (data?.fullName != null) form.append('FullName', data.fullName);
+    if (data?.birthDate != null) form.append('BirthDate', data.birthDate);
+    if (data?.gender != null) form.append('Gender', data.gender);
+    if (data?.bloodType != null) form.append('BloodType', data.bloodType);
+    if (data?.allergiesNotes != null) form.append('AllergiesNotes', data.allergiesNotes);
+    if (data?.medicalHistory != null) form.append('MedicalHistory', data.medicalHistory);
+    if (data?.status != null) form.append('Status', data.status);
+
+    return axiosClient.put(`/Children/${childId}`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
   
   /**
    * Cập nhật thông tin trẻ em với ảnh (multipart)
