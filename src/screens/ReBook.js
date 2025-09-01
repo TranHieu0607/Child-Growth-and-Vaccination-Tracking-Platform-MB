@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert, Modal } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faCalendarAlt, faChevronLeft, faChevronRight, faBaby } from '@fortawesome/free-solid-svg-icons';
@@ -37,6 +37,12 @@ const ReBook = ({ navigation, route }) => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [imageErrors, setImageErrors] = useState({});
+  
+  // Modal states
+  const [selectedVaccineForModal, setSelectedVaccineForModal] = useState(null);
+  const [isVaccineModalVisible, setIsVaccineModalVisible] = useState(false);
+  const [selectedPackageForModal, setSelectedPackageForModal] = useState(null);
+  const [isPackageModalVisible, setIsPackageModalVisible] = useState(false);
   
   // Calendar states
   const [calendarMonth, setCalendarMonth] = useState(dayjs().month() + 1);
@@ -228,6 +234,30 @@ const ReBook = ({ navigation, route }) => {
     } catch (error) {
       console.error('Error fetching facility info:', error);
     }
+  };
+
+  // Function to show vaccine details modal
+  const showVaccineDetails = (vaccine) => {
+    setSelectedVaccineForModal(vaccine);
+    setIsVaccineModalVisible(true);
+  };
+
+  // Function to close vaccine details modal
+  const closeVaccineDetails = () => {
+    setIsVaccineModalVisible(false);
+    setSelectedVaccineForModal(null);
+  };
+
+  // Function to show package details modal
+  const showPackageDetails = (packageItem) => {
+    setSelectedPackageForModal(packageItem);
+    setIsPackageModalVisible(true);
+  };
+
+  // Function to close package details modal
+  const closePackageDetails = () => {
+    setIsPackageModalVisible(false);
+    setSelectedPackageForModal(null);
   };
 
   // Handle facility selection
@@ -450,13 +480,21 @@ const ReBook = ({ navigation, route }) => {
                  >
                    <View style={styles.orderHeader}>
                      <MaterialIcons name="shopping-bag" size={20} color="#28a745" />
-                                           <Text style={styles.orderTitle}>
+                     <Text style={styles.orderTitle}>
                         {order.packageName || 
                          order.package?.name || 
                          `Gói ${order.orderId}`}
                       </Text>
-                     <View style={styles.orderStatusContainer}>
-                       <Text style={styles.orderStatus}>Đã thanh toán</Text>
+                     <View style={styles.orderHeaderActions}>
+                       <TouchableOpacity
+                         style={styles.eyeIconButton}
+                         onPress={() => showPackageDetails(order)}
+                       >
+                         <MaterialIcons name="visibility" size={20} color="#007bff" />
+                       </TouchableOpacity>
+                       <View style={styles.orderStatusContainer}>
+                         <Text style={styles.orderStatus}>Đã thanh toán</Text>
+                       </View>
                      </View>
                    </View>
                    <Text style={styles.orderDate}>
@@ -465,11 +503,6 @@ const ReBook = ({ navigation, route }) => {
                    <Text style={styles.orderAmount}>
                      Tổng tiền: {order.totalAmount?.toLocaleString('vi-VN')}đ
                    </Text>
-                   {matchingDetail && (
-                     <Text style={styles.orderRemaining}>
-                       Số lượng còn lại: {matchingDetail.remainingQuantity}
-                     </Text>
-                   )}
                  </TouchableOpacity>
               );
             })
@@ -638,6 +671,93 @@ const ReBook = ({ navigation, route }) => {
       >
         <Text style={styles.bookButtonText}>Đặt lại lịch</Text>
       </TouchableOpacity>
+
+      {/* Package Details Modal */}
+      <Modal
+        visible={isPackageModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={closePackageDetails}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {selectedPackageForModal && (
+              <>
+                {/* Modal Header */}
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Chi tiết gói vaccine</Text>
+                  <TouchableOpacity onPress={closePackageDetails} style={styles.modalCloseButton}>
+                    <MaterialIcons name="close" size={20} color="#666" />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Modal Content */}
+                <ScrollView 
+                  style={styles.modalContent} 
+                  showsVerticalScrollIndicator={true}
+                  contentContainerStyle={styles.modalContentContainer}
+                >
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Tên gói: </Text>
+                    {selectedPackageForModal.packageName || selectedPackageForModal.package?.name || `Gói ${selectedPackageForModal.orderId}`}
+                  </Text>
+                  
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Giá: </Text>
+                    {selectedPackageForModal.totalAmount?.toLocaleString('vi-VN')}đ
+                  </Text>
+                  
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Ngày mua: </Text>
+                    {new Date(selectedPackageForModal.orderDate).toLocaleDateString('vi-VN')}
+                  </Text>
+                  
+                  <Text style={styles.modalInfoText}>
+                    <Text style={styles.modalInfoLabel}>Trạng thái: </Text>
+                    {selectedPackageForModal.status}
+                  </Text>
+                  
+                  {selectedPackageForModal.orderDetails && selectedPackageForModal.orderDetails.length > 0 && (
+                    <>
+                      <Text style={styles.modalSectionTitle}>Chi tiết gói:</Text>
+                      {selectedPackageForModal.orderDetails.map((detail, index) => (
+                        <View key={index} style={styles.modalDiseaseCard}>
+                          <Text style={styles.modalDiseaseName}>
+                            • Vaccine: {detail.facilityVaccine?.vaccine?.name || 'Không rõ'}
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Số lượng: </Text>
+                            {detail.quantity}
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Số lượng còn lại: </Text>
+                            {detail.remainingQuantity}
+                          </Text>
+                          <Text style={styles.modalInfoText}>
+                            <Text style={styles.modalInfoLabel}>Giá: </Text>
+                            {detail.price?.toLocaleString('vi-VN')}đ
+                          </Text>
+                        </View>
+                      ))}
+                    </>
+                  )}
+                </ScrollView>
+
+                {/* Modal Footer */}
+                <View style={styles.modalFooter}>
+                  <TouchableOpacity 
+                    style={styles.modalButton}
+                    onPress={closePackageDetails}
+                  >
+                    <Text style={styles.modalButtonText}>Đóng</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 };
@@ -1004,6 +1124,15 @@ const styles = StyleSheet.create({
     color: '#333',
     flex: 1,
   },
+  orderHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  eyeIconButton: {
+    padding: 5,
+    marginRight: 8,
+  },
   orderStatusContainer: {
     backgroundColor: '#28a745',
     paddingHorizontal: 8,
@@ -1054,6 +1183,123 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#007bff',
     fontWeight: '500',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '92%',
+    maxHeight: '90%',
+    minHeight: '60%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 15,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 25,
+    elevation: 15,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fafafa',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalCloseButton: {
+    padding: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 20,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+    minHeight: 400,
+  },
+  modalContentContainer: {
+    paddingBottom: 20,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    marginTop: 15,
+  },
+  modalDiseaseCard: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e3f2fd',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modalDiseaseName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  modalInfoText: {
+    fontSize: 14,
+    color: '#555',
+    lineHeight: 20,
+    marginBottom: 10,
+  },
+  modalInfoLabel: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  modalFooter: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fafafa',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  modalButton: {
+    backgroundColor: '#007bff',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#007bff',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

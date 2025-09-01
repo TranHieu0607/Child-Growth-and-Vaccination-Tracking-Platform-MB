@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Alert, RefreshControl } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faTrash, faBaby } from '@fortawesome/free-solid-svg-icons';
@@ -31,7 +31,52 @@ const HistoryVacc = ({ navigation }) => {
   const [trackingPage, setTrackingPage] = useState(1);
   const [trackingPerPage] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
   const token = useSelector(state => state.auth.token);
+
+  // Hàm fetch vaccine history
+  const fetchVaccineHistory = useCallback(async () => {
+    if (!selectedChildId) return;
+    
+    try {
+      const res = await childVaccineProfileApi.getByChildId(selectedChildId);
+      setVaccineHistory(res.data || []);
+      setLastRefreshTime(Date.now());
+    } catch (e) {
+      console.error('Error fetching vaccine history:', e);
+      setVaccineHistory([]);
+    }
+  }, [selectedChildId]);
+
+  // Hàm fetch appointment history
+  const fetchAppointmentHistory = useCallback(async () => {
+    if (!selectedChildId || !token) return;
+    
+    try {
+      const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
+      setAppointmentHistory(res.data?.appointments || []);
+      setLastRefreshTime(Date.now());
+    } catch (e) {
+      console.error('Error fetching appointment history:', e);
+      setAppointmentHistory([]);
+    }
+  }, [selectedChildId, token]);
+
+  // Hàm refresh tất cả dữ liệu
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        fetchVaccineHistory(),
+        activeTab === 'tracking' ? fetchAppointmentHistory() : Promise.resolve()
+      ]);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchVaccineHistory, fetchAppointmentHistory, activeTab]);
 
   // Fetch children một lần duy nhất khi component mount
   useEffect(() => {
@@ -53,23 +98,49 @@ const HistoryVacc = ({ navigation }) => {
     React.useCallback(() => {
       if (!selectedChildId) return;
       
-      const fetchVaccineHistory = async () => {
-        try {
-          const res = await childVaccineProfileApi.getByChildId(selectedChildId);
-          setVaccineHistory(res.data || []);
-          // Reset về trang 1 khi fetch lại dữ liệu
-          setHistoryPage(1);
-        } catch (e) {
-          console.error('Error fetching vaccine history:', e);
-          setVaccineHistory([]);
-          setHistoryPage(1);
-        }
-      };
-      
       fetchVaccineHistory();
-    }, [selectedChildId])
+      // Reset về trang 1 khi fetch lại dữ liệu
+      setHistoryPage(1);
+    }, [selectedChildId, fetchVaccineHistory])
   );
 
+  // Tự động fetch lại appointment history khi sang tab tracking
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab !== 'tracking' || !selectedChildId || !token) return;
+      
+      fetchAppointmentHistory();
+    }, [activeTab, selectedChildId, token, fetchAppointmentHistory])
+  );
+
+  // Auto-refresh data every 30 seconds
+  useEffect(() => {
+    if (!selectedChildId) return;
+
+    const interval = setInterval(() => {
+      // Chỉ refresh nếu màn hình đang active và đã qua 30 giây từ lần refresh cuối
+      if (Date.now() - lastRefreshTime > 30000) {
+        fetchVaccineHistory();
+        if (activeTab === 'tracking') {
+          fetchAppointmentHistory();
+        }
+      }
+    }, 30000); // 30 giây
+
+    return () => clearInterval(interval);
+  }, [selectedChildId, activeTab, lastRefreshTime, fetchVaccineHistory, fetchAppointmentHistory]);
+
+  // Tự động refresh dữ liệu khi component mount và khi selectedChildId thay đổi
+  useEffect(() => {
+    if (selectedChildId) {
+      fetchVaccineHistory();
+      if (activeTab === 'tracking') {
+        fetchAppointmentHistory();
+      }
+    }
+  }, [selectedChildId, activeTab, fetchVaccineHistory, fetchAppointmentHistory]);
+
+  // Fetch vaccines, diseases, facilities một lần duy nhất
   useEffect(() => {
     const fetchVaccinesAndDiseases = async () => {
       try {
@@ -90,25 +161,6 @@ const HistoryVacc = ({ navigation }) => {
     fetchVaccinesAndDiseases();
   }, []);
 
-  // Lấy lịch sử đặt lịch tiêm chủng khi sang tab tracking
-  useFocusEffect(
-    React.useCallback(() => {
-      if (activeTab !== 'tracking' || !selectedChildId || !token) return;
-      
-      const fetchAppointmentHistory = async () => {
-        try {
-          const res = await appointmentApi.getMyAppointmentHistory(selectedChildId, token);
-          setAppointmentHistory(res.data?.appointments || []);
-        } catch (e) {
-          console.error('Error fetching appointment history:', e);
-          setAppointmentHistory([]);
-        }
-      };
-      
-      fetchAppointmentHistory();
-    }, [activeTab, selectedChildId, token])
-  );
-
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
   };
@@ -119,6 +171,14 @@ const HistoryVacc = ({ navigation }) => {
     setHistoryPage(1); // Reset về trang 1 khi chọn trẻ khác
     setTrackingPage(1); // Reset về trang 1 khi chọn trẻ khác
     setSearchQuery(''); // Reset search query khi chọn trẻ khác
+    
+    // Tự động fetch dữ liệu mới khi chọn trẻ khác
+    setTimeout(() => {
+      fetchVaccineHistory();
+      if (activeTab === 'tracking') {
+        fetchAppointmentHistory();
+      }
+    }, 100);
   };
 
   const calculateAge = (dob) => {
@@ -144,7 +204,11 @@ const HistoryVacc = ({ navigation }) => {
   const selectedChild = children.find(child => child.childId === selectedChildId);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 32 }}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 10 }}>
         <TouchableOpacity onPress={() => navigation.navigate('Home')}>
@@ -235,6 +299,8 @@ const HistoryVacc = ({ navigation }) => {
            onPress={() => {
              setActiveTab('history');
              setHistoryPage(1); // Reset về trang 1 khi chuyển tab
+             // Refresh dữ liệu khi chuyển tab
+             fetchVaccineHistory();
            }}
          >
            <Text style={activeTab === 'history' ? styles.activeTabText : styles.tabText}>Lịch sử tiêm chủng</Text>
@@ -244,6 +310,9 @@ const HistoryVacc = ({ navigation }) => {
            onPress={() => {
              setActiveTab('tracking');
              setTrackingPage(1); // Reset về trang 1 khi chuyển tab
+             // Refresh dữ liệu khi chuyển tab
+             fetchVaccineHistory();
+             fetchAppointmentHistory();
            }}
          >
            <Text style={activeTab === 'tracking' ? styles.activeTabText : styles.tabText}>Gói đang theo dõi</Text>
@@ -285,6 +354,8 @@ const HistoryVacc = ({ navigation }) => {
                 setHistorySubTab('completed');
                 setHistoryPage(1); // Reset về trang 1 khi chuyển tab
                 setSearchQuery(''); // Reset search query
+                // Refresh dữ liệu khi chuyển sub tab
+                fetchVaccineHistory();
               }}
             >
               <Text style={historySubTab === 'completed' ? styles.activeSubTabText : styles.subTabText}>
@@ -297,6 +368,8 @@ const HistoryVacc = ({ navigation }) => {
                 setHistorySubTab('scheduled');
                 setHistoryPage(1); // Reset về trang 1 khi chuyển tab
                 setSearchQuery(''); // Reset search query
+                // Refresh dữ liệu khi chuyển sub tab
+                fetchVaccineHistory();
               }}
             >
               <Text style={historySubTab === 'scheduled' ? styles.activeSubTabText : styles.subTabText}>
@@ -567,14 +640,7 @@ const HistoryVacc = ({ navigation }) => {
                                 <Text style={styles.scheduleButtonText}>ĐẶT LỊCH MŨI TIÊM THEO</Text>
                                 <MaterialIcons name="arrow-forward" size={16} color="#fff" />
                               </TouchableOpacity>
-
-                              {/* Thông tin bổ sung */}
-                              {vaccine.note && (
-                                <View style={styles.suggestionRow}>
-                                  <MaterialIcons name="info-outline" size={16} color="#007bff" />
-                                  <Text style={styles.suggestionText}>Ghi chú: {vaccine.note}</Text>
-                                </View>
-                              )}
+                              
                             </View>
                           );
                         })
