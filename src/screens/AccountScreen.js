@@ -348,7 +348,11 @@ function Field({ icon, label, value, onChangeText, placeholder, keyboardType, mu
 
 /* --------------------------- Styles --------------------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLOR_BG },
+  container: { 
+    flex: 1, 
+    backgroundColor: COLOR_BG,
+    paddingTop: 30,
+  },
   header: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,

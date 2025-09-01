@@ -3,6 +3,7 @@ import childrenApi from '../api/childrenApi';
 
 export default function useChildren() {
   const [children, setChildren] = useState([]);
+  const [selectedChildId, setSelectedChildId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,5 +24,11 @@ export default function useChildren() {
     fetchChildren();
   }, [fetchChildren]);
 
-  return { children, loading, error, refetch: fetchChildren };
+  useEffect(() => {
+    if (children.length > 0 && !selectedChildId) {
+      setSelectedChildId(children[0].childId);
+    }
+  }, [children, selectedChildId]);
+
+  return { children, selectedChildId, setSelectedChildId, loading, error, refetch: fetchChildren };
 } 

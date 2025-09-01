@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getDailyRecordsByChildId } from '../api/dailyApi';
+import { getDailyRecordsByChildId, updateDailyRecord as updateDailyRecordApi } from '../api/dailyApi';
 
 export default function useDailyRecords(childId) {
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchRecords = useCallback(async () => {
-    if (!childId) return;
+  const fetchDailyRecords = useCallback(async (childIdParam) => {
+    const targetChildId = childIdParam || childId;
+    if (!targetChildId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await getDailyRecordsByChildId(childId);
+      const res = await getDailyRecordsByChildId(targetChildId);
       setRecords(res || []);
     } catch (err) {
       setError(err);
@@ -20,9 +21,22 @@ export default function useDailyRecords(childId) {
     }
   }, [childId]);
 
-  useEffect(() => {
-    fetchRecords();
-  }, [fetchRecords]);
+  const updateDailyRecord = useCallback(async (recordId, payload) => {
+    try {
+      const updated = await updateDailyRecordApi(recordId, payload);
+      setRecords(prev => prev.map(r => r.dailyRecordId === recordId ? updated : r));
+      return updated;
+    } catch (err) {
+      setError(err);
+      throw err;
+    }
+  }, []);
 
-  return { records, loading, error, refetch: fetchRecords };
+  useEffect(() => {
+    if (childId) {
+      fetchDailyRecords();
+    }
+  }, [childId, fetchDailyRecords]);
+
+  return { records, loading, error, fetchDailyRecords, updateDailyRecord };
 } 

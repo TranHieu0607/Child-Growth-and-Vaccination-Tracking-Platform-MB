@@ -392,7 +392,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff', // Add background color for consistency
+    backgroundColor: '#fff',
+    paddingTop: 30,
   },
   header: {
     flexDirection: 'row',

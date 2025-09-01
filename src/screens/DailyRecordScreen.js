@@ -8,14 +8,16 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
-  StyleSheet
+  StyleSheet,
+  Modal,
+  TextInput
 } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
 import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-icons';
-import { useAuth } from '../store/hook/useAuth';
-import { useDailyRecords } from '../store/hook/useDailyRecords';
-import { useChildren } from '../store/hook/useChildren';
-import { useNotifications } from '../store/hook/useNotifications';
+import useAuth from '../store/hook/useAuth';
+import useDailyRecords from '../store/hook/useDailyRecords';
+import useChildren from '../store/hook/useChildren';
+import useNotifications from '../store/hook/useNotifications';
 import { useFocusEffect } from '@react-navigation/native';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -56,19 +58,7 @@ const DailyRecordScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (!selectedChildId) return;
-    // setLoading(true); // This is now managed by useDailyRecords hook
-    const fetchRecords = async () => {
-      try {
-        // const data = await getDailyRecordsByChildId(selectedChildId);
-        // const sorted = data.sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
-        // setRecords(sorted);
-        await fetchDailyRecords(selectedChildId);
-      } catch {
-        // setRecords([]);
-      }
-      // setLoading(false); // This is now managed by useDailyRecords hook
-    };
-    fetchRecords();
+    fetchDailyRecords(selectedChildId);
   }, [selectedChildId, fetchDailyRecords]);
 
   const paginatedRecords = records.slice((page - 1) * 3, page * 3); // PAGE_SIZE is removed, hardcoded to 3
@@ -121,38 +111,57 @@ const DailyRecordScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Nhật ký hằng ngày</Text>
       </View>
 
-      <View style={styles.childInfoContainer}>
-        <View style={styles.childInfo}>
-          {selectedChild && (
-            <>
-              {selectedChild.imageURL && !imageErrors[selectedChild.imageURL] ? (
-                <Image
-                  source={{ uri: selectedChild.imageURL }}
-                  style={styles.profileImage}
-                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
-                />
-              ) : (
-                <View style={[styles.profileImage, {
-                  backgroundColor: '#E6F0FE',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }]}>
-                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
-                </View>
-              )}
-            </>
-          )}
-          <View>
-            {selectedChild && (
-              <Text style={styles.childName}>{selectedChild.fullName}</Text>
+      {children.length > 0 ? (
+        <View style={styles.childInfoContainer}>
+          <View style={styles.childInfo}>
+            {selectedChild ? (
+              <>
+                {selectedChild.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                  <Image
+                    source={{ uri: selectedChild.imageURL }}
+                    style={styles.profileImage}
+                    onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.profileImage, {
+                    backgroundColor: '#E6F0FE',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }]}>
+                    <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                  </View>
+                )}
+                <Text style={styles.childName}>{selectedChild.fullName}</Text>
+              </>
+            ) : (
+              <View style={[styles.profileImage, {
+                backgroundColor: '#E6F0FE',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }]}>
+                <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+              </View>
             )}
           </View>
+          <TouchableOpacity style={styles.dropdownToggle} onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
+            <FontAwesomeIcon icon={faChevronDown} size={20} color="black" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.dropdownToggle} onPress={() => setIsDropdownVisible(!isDropdownVisible)}>
-          <FontAwesomeIcon icon={faChevronDown} size={20} color="black" />
-        </TouchableOpacity>
-      </View>
-      {isDropdownVisible && (
+      ) : (
+        <View style={styles.childInfoContainer}>
+          <View style={styles.childInfo}>
+            <View style={[styles.profileImage, {
+              backgroundColor: '#E6F0FE',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }]}>
+              <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+            </View>
+            <Text style={styles.childName}>Chưa có trẻ nào</Text>
+          </View>
+        </View>
+      )}
+      {isDropdownVisible && children.length > 0 && (
         <View style={styles.dropdownContainer}>
           <ScrollView nestedScrollEnabled={true} style={styles.dropdownScroll}>
             {children.map(child => (
@@ -191,7 +200,11 @@ const DailyRecordScreen = ({ navigation }) => {
       )}
 
       <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10 }}>Nhật ký gần đây</Text>
-      {loading ? (
+      {children.length === 0 ? (
+        <Text>Vui lòng đăng ký trẻ để xem nhật ký.</Text>
+      ) : !selectedChildId ? (
+        <Text>Vui lòng chọn trẻ để xem nhật ký.</Text>
+      ) : loading ? (
         <ActivityIndicator size="large" color="#007BFF" />
       ) : paginatedRecords.length === 0 ? (
         <Text>Chưa có nhật ký nào.</Text>
@@ -236,7 +249,7 @@ const DailyRecordScreen = ({ navigation }) => {
         ))
       )}
 
-      {totalPages > 1 && (
+      {totalPages > 1 && selectedChildId && children.length > 0 && (
         <View style={styles.pagination}>
           <TouchableOpacity
             disabled={page === 1}
