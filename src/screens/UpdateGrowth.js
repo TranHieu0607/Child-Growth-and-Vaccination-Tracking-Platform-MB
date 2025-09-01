@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../store/api/childrenApi';
 import { getMyChildren, updateGrowthRecord } from '../store/api/growthRecordApi';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -60,6 +60,7 @@ const UpdateGrowth = ({ navigation }) => {
 
   // Add state for dropdown visibility
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
   // Function to handle the dropdown press
   const handleSelectChildPress = () => {
@@ -88,10 +89,23 @@ const UpdateGrowth = ({ navigation }) => {
         <View style={styles.childInfo}>
           {/* Display profile image of the first selected child */}
           {selectedChildren.length > 0 && (
-            <Image
-              source={require('../../assets/vnvc.jpg')}
-              style={styles.profileImage}
-            />
+            <>
+              {selectedChild?.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                <Image
+                  source={{ uri: selectedChild.imageURL }}
+                  style={styles.profileImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.profileImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {/* Display name of the first selected child */}
@@ -117,10 +131,21 @@ const UpdateGrowth = ({ navigation }) => {
                 style={styles.dropdownItem}
                 onPress={() => handleSelectChild(child.childId)}
               >
-                <Image
-                  source={require('../../assets/vnvc.jpg')}
-                  style={styles.dropdownItemImage}
-                />
+                {child.imageURL && !imageErrors[child.imageURL] ? (
+                  <Image
+                    source={{ uri: child.imageURL }}
+                    style={styles.dropdownItemImage}
+                    onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.dropdownItemImage, {
+                    backgroundColor: '#E6F0FE',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }]}>
+                    <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                  </View>
+                )}
                 <View style={styles.dropdownItemTextContainer}>
                   <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 </View>

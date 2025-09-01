@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faCalendarAlt, faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faCalendarAlt, faChevronLeft, faChevronRight, faBaby } from '@fortawesome/free-solid-svg-icons';
 import { useSelector } from 'react-redux';
 import dayjs from 'dayjs';
 
@@ -36,6 +36,7 @@ const ReBook = ({ navigation, route }) => {
   const [availableOrders, setAvailableOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
   
   // Calendar states
   const [calendarMonth, setCalendarMonth] = useState(dayjs().month() + 1);
@@ -379,10 +380,21 @@ const ReBook = ({ navigation, route }) => {
       {/* Child Info */}
       <View style={styles.childInfoContainer}>
         <View style={styles.childInfo}>
-          <Image
-            source={child?.image || require('../../assets/vnvc.jpg')}
-            style={styles.profileImage}
-          />
+          {child?.imageURL && !imageErrors[child.imageURL] ? (
+            <Image
+              source={{ uri: child.imageURL }}
+              style={styles.profileImage}
+              onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+            />
+          ) : (
+            <View style={[styles.profileImage, {
+              backgroundColor: '#E6F0FE',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }]}>
+              <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+            </View>
+          )}
           <View>
             <Text style={styles.childName}>{child?.fullName}</Text>
             <Text style={styles.childAge}>{calculateAge(child?.dateOfBirth)}</Text>
@@ -428,33 +440,37 @@ const ReBook = ({ navigation, route }) => {
               );
               
               return (
-                <TouchableOpacity
-                  key={order.orderId}
-                  style={[
-                    styles.orderCard,
-                    selectedOrder?.orderId === order.orderId && styles.orderCardSelected
-                  ]}
-                  onPress={() => handleSelectOrder(order)}
-                >
-                  <View style={styles.orderHeader}>
-                    <MaterialIcons name="shopping-bag" size={20} color="#28a745" />
-                    <Text style={styles.orderTitle}>Gói #{order.orderId}</Text>
-                    <View style={styles.orderStatusContainer}>
-                      <Text style={styles.orderStatus}>Đã thanh toán</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.orderDate}>
-                    Ngày mua: {new Date(order.orderDate).toLocaleDateString('vi-VN')}
-                  </Text>
-                  <Text style={styles.orderAmount}>
-                    Tổng tiền: {order.totalAmount?.toLocaleString('vi-VN')}đ
-                  </Text>
-                  {matchingDetail && (
-                    <Text style={styles.orderRemaining}>
-                      Số lượng còn lại: {matchingDetail.remainingQuantity}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                                 <TouchableOpacity
+                   key={order.orderId}
+                   style={[
+                     styles.orderCard,
+                     selectedOrder?.orderId === order.orderId && styles.orderCardSelected
+                   ]}
+                   onPress={() => handleSelectOrder(order)}
+                 >
+                   <View style={styles.orderHeader}>
+                     <MaterialIcons name="shopping-bag" size={20} color="#28a745" />
+                                           <Text style={styles.orderTitle}>
+                        {order.packageName || 
+                         order.package?.name || 
+                         `Gói ${order.orderId}`}
+                      </Text>
+                     <View style={styles.orderStatusContainer}>
+                       <Text style={styles.orderStatus}>Đã thanh toán</Text>
+                     </View>
+                   </View>
+                   <Text style={styles.orderDate}>
+                     Ngày mua: {new Date(order.orderDate).toLocaleDateString('vi-VN')}
+                   </Text>
+                   <Text style={styles.orderAmount}>
+                     Tổng tiền: {order.totalAmount?.toLocaleString('vi-VN')}đ
+                   </Text>
+                   {matchingDetail && (
+                     <Text style={styles.orderRemaining}>
+                       Số lượng còn lại: {matchingDetail.remainingQuantity}
+                     </Text>
+                   )}
+                 </TouchableOpacity>
               );
             })
           )}

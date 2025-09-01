@@ -122,11 +122,11 @@ export default function AccountScreen({ navigation, onLogout }) {
         {/* Header đơn giản */}
         <View style={styles.header}>
         <View style={styles.row}>
-          {user?.imageURL && !imageErrors.user ? (
+          {user?.imageURL && !imageErrors[user.imageURL] ? (
             <Image
               source={{ uri: user.imageURL }}
               style={styles.avatarLg}
-              onError={() => setImageErrors((p) => ({ ...p, user: true }))}
+              onError={() => setImageErrors((p) => ({ ...p, [user.imageURL]: true }))}
             />
           ) : (
             <View style={[styles.avatarLg, styles.avatarPlaceholder]}>

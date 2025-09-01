@@ -33,6 +33,8 @@ import VipScreen from './src/screens/VipScreen';
 import ReBook from './src/screens/ReBook';
 import ChildDetailScreen from './src/screens/ChildDetailScreen';
 import DoctorFeedbackScreen from './src/screens/DoctorFeedbackScreen';
+import CreateDailyScreen from './src/screens/CreateDailyScreen';
+import ReOrderScreen from './src/screens/ReOrderScreen';
 
 
 const Stack = createStackNavigator();
@@ -104,10 +106,10 @@ export default function App() {
                   )}
                 </Stack.Screen>
                 <Stack.Screen name="DailyRecord" component={DailyRecordScreen} />
-                <Stack.Screen name="CreateDaily" component={require('./src/screens/CreateDailyScreen').default} />
+                <Stack.Screen name="CreateDaily" component={CreateDailyScreen} />
                 <Stack.Screen name="Cart" component={CartScreen} />
                 <Stack.Screen name="ReBook" component={ReBook} />
-                <Stack.Screen name="ReOrder" component={require('./src/screens/ReOrderScreen').default} />
+                <Stack.Screen name="ReOrder" component={ReOrderScreen} />
                 <Stack.Screen name="ChildDetail" component={ChildDetailScreen} />
               </>
             )}

@@ -15,6 +15,7 @@ const ReOrderScreen = ({ navigation }) => {
 	const [children, setChildren] = useState([]);
 	const [selectedChildId, setSelectedChildId] = useState(null);
 	const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+	const [imageErrors, setImageErrors] = useState({});
 	const [orders, setOrders] = useState([]); // Danh sách order đã mua
 	const [selectedPackage, setSelectedPackage] = useState(null); // Gói đã mua (order)
 	const [selectedDiseaseId, setSelectedDiseaseId] = useState(null); // Bệnh được chọn
@@ -332,10 +333,27 @@ const ReOrderScreen = ({ navigation }) => {
 					activeOpacity={0.8}
 				>
 					{selectedChild && (
-						<Image
-							source={require('../../assets/vnvc.jpg')}
-							style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }}
-						/>
+						<>
+							{selectedChild.imageURL && !imageErrors[selectedChild.imageURL] ? (
+								<Image
+									source={{ uri: selectedChild.imageURL }}
+									style={{ width: 36, height: 36, borderRadius: 18, marginRight: 10 }}
+									onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+								/>
+							) : (
+								<View style={{ 
+									width: 36, 
+									height: 36, 
+									borderRadius: 18, 
+									marginRight: 10,
+									backgroundColor: '#E6F0FE',
+									justifyContent: 'center',
+									alignItems: 'center'
+								}}>
+									<Text style={{ color: '#2F80ED', fontSize: 16 }}>👶</Text>
+								</View>
+							)}
+						</>
 					)}
 					<Text style={{ flex: 1, color: selectedChild ? '#000' : '#888', fontWeight: 'bold', fontSize: 15 }}>
 						{selectedChild ? selectedChild.fullName : 'Chọn hồ sơ bé'}
@@ -351,10 +369,25 @@ const ReOrderScreen = ({ navigation }) => {
 									style={{ flexDirection: 'row', alignItems: 'center', padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee' }}
 									onPress={() => handleSelectChild(child.childId)}
 								>
-									<Image
-										source={require('../../assets/vnvc.jpg')}
-										style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10 }}
-									/>
+									{child.imageURL && !imageErrors[child.imageURL] ? (
+										<Image
+											source={{ uri: child.imageURL }}
+											style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10 }}
+											onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+										/>
+									) : (
+										<View style={{ 
+											width: 32, 
+											height: 32, 
+											borderRadius: 16, 
+											marginRight: 10,
+											backgroundColor: '#E6F0FE',
+											justifyContent: 'center',
+											alignItems: 'center'
+										}}>
+											<Text style={{ color: '#2F80ED', fontSize: 14 }}>👶</Text>
+										</View>
+									)}
 									<Text style={{ flex: 1, color: '#222', fontSize: 15 }}>{child.fullName}</Text>
 									{selectedChildId === child.childId && <Text style={{ color: '#1976d2', fontSize: 16 }}>✓</Text>}
 								</TouchableOpacity>

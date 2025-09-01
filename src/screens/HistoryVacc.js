@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, FlatList, Alert } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faTrash } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faTrash, faBaby } from '@fortawesome/free-solid-svg-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import childrenApi from '../store/api/childrenApi';
 import childVaccineProfileApi from '../store/api/childVaccineProfileApi';
@@ -19,6 +19,7 @@ const HistoryVacc = ({ navigation }) => {
   const [trackingStatusFilter, setTrackingStatusFilter] = useState('all'); // 'all', 'Completed', 'Pending', 'Canceled'
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
   const [vaccineHistory, setVaccineHistory] = useState([]);
   const [vaccines, setVaccines] = useState([]);
   const [diseases, setDiseases] = useState([]);
@@ -156,10 +157,23 @@ const HistoryVacc = ({ navigation }) => {
       <View style={styles.childInfoContainer}>
         <View style={styles.childInfo}>
           {selectedChildId && (
-            <Image
-              source={selectedChild?.image || require('../../assets/vnvc.jpg')}
-              style={styles.avatar}
-            />
+            <>
+              {selectedChild?.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                <Image
+                  source={{ uri: selectedChild.imageURL }}
+                  style={styles.avatar}
+                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.avatar, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {selectedChildId && (
@@ -189,10 +203,21 @@ const HistoryVacc = ({ navigation }) => {
               style={styles.dropdownItem}
               onPress={() => handleSelectChild(child.childId)}
             >
-              <Image
-                source={child.image || require('../../assets/vnvc.jpg')}
-                style={styles.dropdownItemImage}
-              />
+              {child.imageURL && !imageErrors[child.imageURL] ? (
+                <Image
+                  source={{ uri: child.imageURL }}
+                  style={styles.dropdownItemImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.dropdownItemImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                </View>
+              )}
               <View style={styles.dropdownItemTextContainer}>
                 <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>

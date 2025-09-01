@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, FlatList } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faCalendarAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faSearch, faCalendarAlt, faMapMarkerAlt, faBaby } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../store/api/childrenApi';
 import diseasesApi from '../store/api/diseasesApi';
 import vaccinesApi from '../store/api/vaccinesApi';
@@ -48,6 +48,7 @@ const UpdateVaccHiss = ({ navigation }) => {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [imageErrors, setImageErrors] = useState({});
 
   // Disease dropdown state
   const [diseases, setDiseases] = useState([]);
@@ -145,10 +146,23 @@ const UpdateVaccHiss = ({ navigation }) => {
         <View style={styles.childInfo}>
           {/* Display profile image of the selected child */}
           {selectedChildId && (
-            <Image
-              source={children.find(child => child.childId === selectedChildId)?.image || require('../../assets/vnvc.jpg')}
-              style={styles.profileImage}
-            />
+            <>
+              {children.find(child => child.childId === selectedChildId)?.imageURL && !imageErrors[children.find(child => child.childId === selectedChildId)?.imageURL] ? (
+                <Image
+                  source={{ uri: children.find(child => child.childId === selectedChildId)?.imageURL }}
+                  style={styles.profileImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [children.find(child => child.childId === selectedChildId)?.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.profileImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {/* Display name of the selected child */}
@@ -180,10 +194,21 @@ const UpdateVaccHiss = ({ navigation }) => {
               style={styles.dropdownItem}
               onPress={() => handleSelectChild(child.childId)}
             >
-              <Image
-                source={child.image || require('../../assets/vnvc.jpg')}
-                style={styles.dropdownItemImage}
-              />
+              {child.imageURL && !imageErrors[child.imageURL] ? (
+                <Image
+                  source={{ uri: child.imageURL }}
+                  style={styles.dropdownItemImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.dropdownItemImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                </View>
+              )}
               <View style={styles.dropdownItemTextContainer}>
                 <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>

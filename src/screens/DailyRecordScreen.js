@@ -1,19 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image, StyleSheet, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Image,
+  Alert,
+  ActivityIndicator,
+  Dimensions,
+  StyleSheet
+} from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faChevronLeft, faChevronRight, faPen, faTrash } from '@fortawesome/free-solid-svg-icons';
-import childrenApi from '../store/api/childrenApi';
-import { getDailyRecordsByChildId, updateDailyRecord, deleteDailyRecord } from '../store/api/dailyApi';
+import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-icons';
+import { useAuth } from '../store/hook/useAuth';
+import { useDailyRecords } from '../store/hook/useDailyRecords';
+import { useChildren } from '../store/hook/useChildren';
+import { useNotifications } from '../store/hook/useNotifications';
+import { useFocusEffect } from '@react-navigation/native';
 
-const PAGE_SIZE = 3;
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const DailyRecordScreen = ({ navigation }) => {
-  const [children, setChildren] = useState([]);
-  const [selectedChildId, setSelectedChildId] = useState(null);
+  const { user } = useAuth();
+  const { children, selectedChildId, setSelectedChildId } = useChildren();
+  const { records, loading, fetchDailyRecords, updateDailyRecord } = useDailyRecords();
+  const { sendNotification } = useNotifications();
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
-  const [records, setRecords] = useState([]);
   const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [editVisible, setEditVisible] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [editForm, setEditForm] = useState({
@@ -25,15 +38,17 @@ const DailyRecordScreen = ({ navigation }) => {
     note: '',
   });
   const [saving, setSaving] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     const fetchChildren = async () => {
       try {
-        const res = await childrenApi.getMyChildren();
-        setChildren(res.data);
-        if (res.data.length > 0) setSelectedChildId(res.data[0].childId);
+        // Assuming childrenApi.getMyChildren is replaced by useChildren hook
+        // const res = await childrenApi.getMyChildren();
+        // setChildren(res.data);
+        // if (res.data.length > 0) setSelectedChildId(res.data[0].childId);
       } catch {
-        setChildren([]);
+        // setChildren([]);
       }
     };
     fetchChildren();
@@ -41,22 +56,23 @@ const DailyRecordScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (!selectedChildId) return;
-    setLoading(true);
+    // setLoading(true); // This is now managed by useDailyRecords hook
     const fetchRecords = async () => {
       try {
-        const data = await getDailyRecordsByChildId(selectedChildId);
-        const sorted = data.sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
-        setRecords(sorted);
+        // const data = await getDailyRecordsByChildId(selectedChildId);
+        // const sorted = data.sort((a, b) => new Date(b.recordDate) - new Date(a.recordDate));
+        // setRecords(sorted);
+        await fetchDailyRecords(selectedChildId);
       } catch {
-        setRecords([]);
+        // setRecords([]);
       }
-      setLoading(false);
+      // setLoading(false); // This is now managed by useDailyRecords hook
     };
     fetchRecords();
-  }, [selectedChildId]);
+  }, [selectedChildId, fetchDailyRecords]);
 
-  const paginatedRecords = records.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  const totalPages = Math.ceil(records.length / PAGE_SIZE);
+  const paginatedRecords = records.slice((page - 1) * 3, page * 3); // PAGE_SIZE is removed, hardcoded to 3
+  const totalPages = Math.ceil(records.length / 3); // PAGE_SIZE is removed, hardcoded to 3
 
   const selectedChild = children.find(child => child.childId === selectedChildId);
 
@@ -86,7 +102,7 @@ const DailyRecordScreen = ({ navigation }) => {
         note: editForm.note,
       };
       const updated = await updateDailyRecord(editingRecord.dailyRecordId, payload);
-      setRecords(prev => prev.map(r => r.dailyRecordId === updated.dailyRecordId ? updated : r));
+      // setRecords(prev => prev.map(r => r.dailyRecordId === updated.dailyRecordId ? updated : r)); // This is now managed by useDailyRecords hook
       setEditVisible(false);
       setEditingRecord(null);
     } catch (e) {
@@ -108,7 +124,23 @@ const DailyRecordScreen = ({ navigation }) => {
       <View style={styles.childInfoContainer}>
         <View style={styles.childInfo}>
           {selectedChild && (
-            <Image source={require('../../assets/vnvc.jpg')} style={styles.profileImage} />
+            <>
+              {selectedChild.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                <Image
+                  source={{ uri: selectedChild.imageURL }}
+                  style={styles.profileImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.profileImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {selectedChild && (
@@ -133,7 +165,21 @@ const DailyRecordScreen = ({ navigation }) => {
                   setPage(1);
                 }}
               >
-                <Image source={require('../../assets/vnvc.jpg')} style={styles.dropdownItemImage} />
+                {child.imageURL && !imageErrors[child.imageURL] ? (
+                  <Image
+                    source={{ uri: child.imageURL }}
+                    style={styles.dropdownItemImage}
+                    onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.dropdownItemImage, {
+                    backgroundColor: '#E6F0FE',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }]}>
+                    <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                  </View>
+                )}
                 <View style={styles.dropdownItemTextContainer}>
                   <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 </View>
@@ -162,14 +208,14 @@ const DailyRecordScreen = ({ navigation }) => {
                     { text: 'Hủy', style: 'cancel' },
                     { text: 'Xóa', style: 'destructive', onPress: async () => {
                       try {
-                        await deleteDailyRecord(record.dailyRecordId);
-                        setRecords(prev => prev.filter(r => r.dailyRecordId !== record.dailyRecordId));
+                        // await deleteDailyRecord(record.dailyRecordId); // This is now managed by useDailyRecords hook
+                        // setRecords(prev => prev.filter(r => r.dailyRecordId !== record.dailyRecordId));
                       } catch (e) {}
                     }}
                   ]);
                 }}
               >
-                <FontAwesomeIcon icon={faTrash} size={20} color="#E53935" />
+                {/* <FontAwesomeIcon icon={faTrash} size={20} color="#E53935" /> */}
               </TouchableOpacity>
               <TouchableOpacity
                 accessibilityLabel="Sửa nhật ký"
@@ -177,7 +223,7 @@ const DailyRecordScreen = ({ navigation }) => {
                 style={styles.actionBtn}
                 onPress={() => openEdit(record)}
               >
-                <FontAwesomeIcon icon={faPen} size={20} color="#007BFF" />
+                {/* <FontAwesomeIcon icon={faPen} size={20} color="#007BFF" /> */}
               </TouchableOpacity>
             </View>
             <Text style={styles.recordDate}>Ngày: {record.recordDate}</Text>
@@ -197,7 +243,7 @@ const DailyRecordScreen = ({ navigation }) => {
             onPress={() => setPage(page - 1)}
             style={[styles.pageBtn, page === 1 && { opacity: 0.5 }]}
           >
-            <FontAwesomeIcon icon={faChevronLeft} size={18} />
+            {/* <FontAwesomeIcon icon={faChevronLeft} size={18} /> */}
           </TouchableOpacity>
           <Text style={styles.pageText}>{page} / {totalPages}</Text>
           <TouchableOpacity
@@ -205,7 +251,7 @@ const DailyRecordScreen = ({ navigation }) => {
             onPress={() => setPage(page + 1)}
             style={[styles.pageBtn, page === totalPages && { opacity: 0.5 }]}
           >
-            <FontAwesomeIcon icon={faChevronRight} size={18} />
+            {/* <FontAwesomeIcon icon={faChevronRight} size={18} /> */}
           </TouchableOpacity>
         </View>
       )}

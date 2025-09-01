@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Animated } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons'; // Assuming MaterialIcons for icons
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faBaby } from '@fortawesome/free-solid-svg-icons';
 import useChildren from '../store/hook/useChildren';
 import useVaccineTemplate from '../store/hook/useVaccineTemplate';
 
@@ -11,6 +11,7 @@ const VaccBook = ({ navigation }) => {
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [imageErrors, setImageErrors] = useState({});
   const itemsPerPage = 3;
   const { children, loading: loadingChildren } = useChildren();
   const [selectedChildId, setSelectedChildId] = useState(null);
@@ -126,10 +127,23 @@ const VaccBook = ({ navigation }) => {
         {/* Child Profile */}
         <View style={styles.childProfileContainer}>
           {childDetail && (
-            <Image
-              source={require('../../assets/vnvc.jpg')}
-              style={styles.childImage}
-            />
+            <>
+              {childDetail.imageURL && !imageErrors[childDetail.imageURL] ? (
+                <Image
+                  source={{ uri: childDetail.imageURL }}
+                  style={styles.childImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [childDetail.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.childImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View style={styles.childInfo}>
             {childDetail && (
@@ -154,10 +168,21 @@ const VaccBook = ({ navigation }) => {
                   style={styles.dropdownItem}
                   onPress={() => { setSelectedChildId(child.childId?.toString()); setIsDropdownVisible(false); }}
                 >
-                  <Image
-                    source={require('../../assets/vnvc.jpg')}
-                    style={styles.dropdownItemImage}
-                  />
+                  {child.imageURL && !imageErrors[child.imageURL] ? (
+                    <Image
+                      source={{ uri: child.imageURL }}
+                      style={styles.dropdownItemImage}
+                      onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                    />
+                  ) : (
+                    <View style={[styles.dropdownItemImage, {
+                      backgroundColor: '#E6F0FE',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }]}>
+                      <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                    </View>
+                  )}
                   <View style={styles.dropdownItemTextContainer}>
                     <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                     <Text style={styles.dropdownItemAge}>{calculateAge(child.birthDate)}</Text>

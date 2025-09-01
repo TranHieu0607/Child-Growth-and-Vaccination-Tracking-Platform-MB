@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert, Modal } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faShoppingCart, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt, faBaby } from '@fortawesome/free-solid-svg-icons';
 import { useDispatch, useSelector } from 'react-redux';
 import { getMyChildren } from '../store/api/growthRecordApi';
 import diseasesApi from '../store/api/diseasesApi';
@@ -18,6 +18,7 @@ const Booking = ({ navigation, route }) => {
   const [children, setChildren] = useState([]);
   const [selectedChildren, setSelectedChildren] = useState([]);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
   // Disease state
   const [diseases, setDiseases] = useState([]);
@@ -568,10 +569,23 @@ const Booking = ({ navigation, route }) => {
         <View style={styles.childInfo}>
           {/* Display profile image of the first selected child */}
           {selectedChildren.length > 0 && (
-            <Image
-              source={require('../../assets/vnvc.jpg')}
-              style={styles.profileImage}
-            />
+            <>
+              {selectedChild?.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                <Image
+                  source={{ uri: selectedChild.imageURL }}
+                  style={styles.profileImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.profileImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {/* Display name of the first selected child */}
@@ -600,10 +614,21 @@ const Booking = ({ navigation, route }) => {
                 style={styles.dropdownItem}
                 onPress={() => handleSelectChild(child.childId)}
               >
-                <Image
-                  source={require('../../assets/vnvc.jpg')}
-                  style={styles.dropdownItemImage}
-                />
+                {child.imageURL && !imageErrors[child.imageURL] ? (
+                  <Image
+                    source={{ uri: child.imageURL }}
+                    style={styles.dropdownItemImage}
+                    onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.dropdownItemImage, {
+                    backgroundColor: '#E6F0FE',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }]}>
+                    <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                  </View>
+                )}
                 <View style={styles.dropdownItemTextContainer}>
                   <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                   <Text style={styles.dropdownItemAge}>{calculateAge(child.birthDate)}</Text>

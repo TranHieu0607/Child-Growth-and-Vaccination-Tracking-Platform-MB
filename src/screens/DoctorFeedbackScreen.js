@@ -13,6 +13,7 @@ export default function DoctorFeedbackScreen({ navigation }) {
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [showFeedback, setShowFeedback] = useState(false); // legacy, kept but unused for global toggle
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
   const [appointments, setAppointments] = useState([]);
   const token = useSelector(state => state.auth.token);
   const [surveyByAppointmentId, setSurveyByAppointmentId] = useState({});
@@ -140,10 +141,23 @@ export default function DoctorFeedbackScreen({ navigation }) {
           <View style={styles.childInfoContainer}>
             <View style={styles.childInfo}>
               {selectedChildId && (
-                <Image
-                  source={selectedChild?.image || require('../../assets/vnvc.jpg')}
-                  style={styles.avatar}
-                />
+                <>
+                  {selectedChild?.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                    <Image
+                      source={{ uri: selectedChild.imageURL }}
+                      style={styles.avatar}
+                      onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                    />
+                  ) : (
+                    <View style={[styles.avatar, {
+                      backgroundColor: '#E6F0FE',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }]}>
+                      <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                    </View>
+                  )}
+                </>
               )}
               <View>
                 {selectedChildId && (
@@ -171,10 +185,21 @@ export default function DoctorFeedbackScreen({ navigation }) {
                   style={styles.dropdownItem}
                   onPress={() => handleSelectChild(child.childId)}
                 >
-                  <Image
-                    source={child.image || require('../../assets/vnvc.jpg')}
-                    style={styles.dropdownItemImage}
-                  />
+                  {child.imageURL && !imageErrors[child.imageURL] ? (
+                    <Image
+                      source={{ uri: child.imageURL }}
+                      style={styles.dropdownItemImage}
+                      onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                    />
+                  ) : (
+                    <View style={[styles.dropdownItemImage, {
+                      backgroundColor: '#E6F0FE',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }]}>
+                      <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                    </View>
+                  )}
                   <View style={styles.dropdownItemTextContainer}>
                     <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                     <Text style={styles.dropdownItemAge}>{calculateAge(child.dateOfBirth)}</Text>

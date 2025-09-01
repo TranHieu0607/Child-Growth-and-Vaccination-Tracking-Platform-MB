@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Image, Dimensions, Modal, Alert } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-icons';
 import CustomLineChart from '../components/CustomLineChart';
 import childrenApi from '../store/api/childrenApi';
 import { getFullGrowthData, getPredictionData } from '../store/api/growthApi';
@@ -168,6 +168,9 @@ const ChartScreen = ({ navigation }) => {
 
   // Cache để tránh reload không cần thiết
   const [dataCache, setDataCache] = useState({});
+
+  // Thêm state để xử lý lỗi ảnh
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -803,16 +806,14 @@ const ChartScreen = ({ navigation }) => {
       flex: 1,
     },
     dropdownItemName: {
-      fontSize: Math.max(14, screenWidth * 0.04),
-      fontWeight: 'bold',
+      fontSize: Math.max(14, Math.min(16, screenWidth / 23))
     },
     dropdownItemAge: {
-      fontSize: Math.max(11, screenWidth * 0.03),
-      color: '#555',
+      fontSize: Math.max(10, Math.min(12, screenWidth / 30))
     },
     selectedIcon: {
       color: 'green',
-      fontSize: Math.max(14, screenWidth * 0.04),
+      fontSize: Math.max(14, Math.min(16, screenWidth / 23))
     },
     assessmentContainer: {
       marginTop: Math.max(4, screenHeight * 0.01),
@@ -992,14 +993,30 @@ const ChartScreen = ({ navigation }) => {
     {/* Display profile image of the first selected child */}
     {/* Use selectedChildId as we are back to single select in display */}
     {selectedChildId && (
-      <Image
-        source={children.find(child => child.childId === selectedChildId)?.image || require('../../assets/vnvc.jpg')}
-        style={[styles.profileImage, {
-          width: Math.max(35, Math.min(40, screenWidth * 0.1)),
-          height: Math.max(35, Math.min(40, screenWidth * 0.1)),
-          borderRadius: Math.max(17.5, Math.min(20, screenWidth * 0.05))
-        }]}
-      />
+      <>
+        {children.find(child => child.childId === selectedChildId)?.imageURL && !imageErrors[children.find(child => child.childId === selectedChildId)?.imageURL] ? (
+          <Image
+            source={{ uri: children.find(child => child.childId === selectedChildId)?.imageURL }}
+            style={[styles.profileImage, {
+              width: Math.max(35, Math.min(40, screenWidth * 0.1)),
+              height: Math.max(35, Math.min(40, screenWidth * 0.1)),
+              borderRadius: Math.max(17.5, Math.min(20, screenWidth * 0.05))
+            }]}
+            onError={() => setImageErrors(prev => ({ ...prev, [children.find(child => child.childId === selectedChildId)?.imageURL]: true }))}
+          />
+        ) : (
+          <View style={[styles.profileImage, {
+            width: Math.max(35, Math.min(40, screenWidth * 0.1)),
+            height: Math.max(35, Math.min(40, screenWidth * 0.1)),
+            borderRadius: Math.max(17.5, Math.min(20, screenWidth * 0.05)),
+            backgroundColor: '#E6F0FE',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }]}>
+            <FontAwesomeIcon icon={faBaby} size={Math.max(16, Math.min(18, screenWidth / 22))} color="#2F80ED" />
+          </View>
+        )}
+      </>
     )}
     <View>
       {/* Display name of the first selected child */}
@@ -1047,14 +1064,28 @@ const ChartScreen = ({ navigation }) => {
           onPress={() => handleSelectChild(child.childId)}
         >
           {/* Add child image */}
-          <Image
-            source={child.image || require('../../assets/vnvc.jpg')}
-            style={[styles.dropdownItemImage, {
+          {child.imageURL && !imageErrors[child.imageURL] ? (
+            <Image
+              source={{ uri: child.imageURL }}
+              style={[styles.dropdownItemImage, {
+                width: Math.max(25, Math.min(30, screenWidth * 0.08)),
+                height: Math.max(25, Math.min(30, screenWidth * 0.08)),
+                borderRadius: Math.max(12.5, Math.min(15, screenWidth * 0.04))
+              }]}
+              onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+            />
+          ) : (
+            <View style={[styles.dropdownItemImage, {
               width: Math.max(25, Math.min(30, screenWidth * 0.08)),
               height: Math.max(25, Math.min(30, screenWidth * 0.08)),
-              borderRadius: Math.max(12.5, Math.min(15, screenWidth * 0.04))
-            }]}
-          />
+              borderRadius: Math.max(12.5, Math.min(15, screenWidth * 0.04)),
+              backgroundColor: '#E6F0FE',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }]}>
+              <FontAwesomeIcon icon={faBaby} size={Math.max(12, Math.min(14, screenWidth / 28))} color="#2F80ED" />
+            </View>
+          )}
           <View style={styles.dropdownItemTextContainer}>
             <Text style={[styles.dropdownItemName, {
               fontSize: Math.max(14, Math.min(16, screenWidth / 23))

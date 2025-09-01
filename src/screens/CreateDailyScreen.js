@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, StyleSheet, Alert } from 'react-native';
 import { useForm, Controller } from 'react-hook-form';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-icons';
 import childrenApi from '../store/api/childrenApi';
 import { createDailyRecord } from '../store/api/dailyApi';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
@@ -22,6 +22,7 @@ const CreateDailyScreen = ({ navigation }) => {
   const [children, setChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
   const [isDropdownVisible, setIsDropdownVisible] = useState(false);
+  const [imageErrors, setImageErrors] = useState({});
 
   useEffect(() => {
     const fetchChildren = async () => {
@@ -73,7 +74,23 @@ const CreateDailyScreen = ({ navigation }) => {
       <View style={styles.childInfoContainer}>
         <View style={styles.childInfo}>
           {selectedChild && (
-            <Image source={require('../../assets/vnvc.jpg')} style={styles.profileImage} />
+            <>
+              {selectedChild.imageURL && !imageErrors[selectedChild.imageURL] ? (
+                <Image
+                  source={{ uri: selectedChild.imageURL }}
+                  style={styles.profileImage}
+                  onError={() => setImageErrors(prev => ({ ...prev, [selectedChild.imageURL]: true }))}
+                />
+              ) : (
+                <View style={[styles.profileImage, {
+                  backgroundColor: '#E6F0FE',
+                  justifyContent: 'center',
+                  alignItems: 'center'
+                }]}>
+                  <FontAwesomeIcon icon={faBaby} size={16} color="#2F80ED" />
+                </View>
+              )}
+            </>
           )}
           <View>
             {selectedChild && (
@@ -97,7 +114,21 @@ const CreateDailyScreen = ({ navigation }) => {
                   setIsDropdownVisible(false);
                 }}
               >
-                <Image source={require('../../assets/vnvc.jpg')} style={styles.dropdownItemImage} />
+                {child.imageURL && !imageErrors[child.imageURL] ? (
+                  <Image
+                    source={{ uri: child.imageURL }}
+                    style={styles.dropdownItemImage}
+                    onError={() => setImageErrors(prev => ({ ...prev, [child.imageURL]: true }))}
+                  />
+                ) : (
+                  <View style={[styles.dropdownItemImage, {
+                    backgroundColor: '#E6F0FE',
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }]}>
+                    <FontAwesomeIcon icon={faBaby} size={12} color="#2F80ED" />
+                  </View>
+                )}
                 <View style={styles.dropdownItemTextContainer}>
                   <Text style={styles.dropdownItemName}>{child.fullName}</Text>
                 </View>
