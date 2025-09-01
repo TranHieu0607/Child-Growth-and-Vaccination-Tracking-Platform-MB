@@ -53,10 +53,31 @@ export async function checkPaymentStatus(orderId, token) {
   return res.data;
 }
 
+/**
+ * Kiểm tra trạng thái VIP của người dùng hiện tại
+ * @param {number} accountId
+ * @param {string} token
+ * @returns {Promise<any>}
+ */
+export async function getUserMembershipStatus(accountId, token) {
+  const res = await axiosClient.get(
+    `/UserMemberships/my-memberships`,
+    {
+      headers: {
+        'accept': '*/*',
+        'Authorization': token,
+      },
+    }
+  );
+  // Trả về membership đầu tiên nếu có, hoặc null nếu không có
+  return res.data && res.data.length > 0 ? res.data[0] : null;
+}
+
 const membershipApi = {
   getActiveMemberships,
   createPayment,
   checkPaymentStatus,
+  getUserMembershipStatus,
 };
 
 export default membershipApi; 

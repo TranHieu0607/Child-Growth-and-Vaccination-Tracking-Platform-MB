@@ -11,6 +11,8 @@ const VipScreen = ({ navigation }) => {
   const [vip, setVip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userVipStatus, setUserVipStatus] = useState(null);
+  const [checkingUserStatus, setCheckingUserStatus] = useState(true);
   const token = useSelector(state => state.auth.token);
   const accountId = useSelector(state => state.auth.user?.accountId || state.auth.user?.id);
   const [payLoading, setPayLoading] = useState(false);
@@ -19,21 +21,37 @@ const VipScreen = ({ navigation }) => {
   const [paymentUrl, setPaymentUrl] = useState('');
 
   useEffect(() => {
-    const fetchVip = async () => {
+    const fetchData = async () => {
       try {
-        console.log('🔍 [VIP] Bắt đầu tải dữ liệu gói VIP...');
-        const data = await membershipApi.getActiveMemberships();
-        console.log('✅ [VIP] Dữ liệu gói VIP:', JSON.stringify(data, null, 2));
-        setVip(data[0]);
+        console.log('🔍 [VIP] Bắt đầu tải dữ liệu...');
+        
+        // Tải danh sách gói VIP
+        const vipData = await membershipApi.getActiveMemberships();
+        console.log('✅ [VIP] Dữ liệu gói VIP:', JSON.stringify(vipData, null, 2));
+        setVip(vipData[0]);
+        
+        // Kiểm tra trạng thái VIP của người dùng
+        if (accountId && token) {
+          console.log('🔍 [VIP] Kiểm tra trạng thái VIP của người dùng...');
+          try {
+            const userStatus = await membershipApi.getUserMembershipStatus(accountId, token);
+            console.log('✅ [VIP] Trạng thái VIP người dùng:', JSON.stringify(userStatus, null, 2));
+            setUserVipStatus(userStatus);
+          } catch (statusErr) {
+            console.warn('⚠️ [VIP] Không thể kiểm tra trạng thái VIP:', statusErr);
+            setUserVipStatus(null);
+          }
+        }
       } catch (err) {
         console.error('❌ [VIP] Lỗi tải dữ liệu VIP:', err);
         setError('Không thể tải dữ liệu gói VIP');
       } finally {
         setLoading(false);
+        setCheckingUserStatus(false);
       }
     };
-    fetchVip();
-  }, []);
+    fetchData();
+  }, [accountId, token]);
 
   const handlePaymentSuccess = async (orderId) => {
     console.log('🎉 [VIP] Thanh toán thành công, orderId:', orderId);
@@ -62,9 +80,14 @@ const VipScreen = ({ navigation }) => {
           [
             {
               text: 'OK',
-              onPress: () => {
-                // Refresh lại dữ liệu VIP hoặc navigate về màn hình khác
-                navigation.goBack();
+              onPress: async () => {
+                // Refresh lại trạng thái VIP
+                try {
+                  const userStatus = await membershipApi.getUserMembershipStatus(accountId, token);
+                  setUserVipStatus(userStatus);
+                } catch (err) {
+                  console.warn('⚠️ [VIP] Không thể refresh trạng thái VIP:', err);
+                }
               },
             },
           ]
@@ -201,15 +224,36 @@ const VipScreen = ({ navigation }) => {
         </ScrollView>
         {/* Nút đăng ký VIP */}
         <View style={styles.upgradeBtnContainer}>
-          <TouchableOpacity
-            style={styles.upgradeBtn}
-            disabled={payLoading || !vip}
-            onPress={handleRegister}
-          >
-            <Text style={styles.upgradeText}>{payLoading ? 'Đang xử lý...' : 'Đăng ký VIP'}</Text>
-          </TouchableOpacity>
-          {payError && (
-            <Text style={{ color: 'red', marginTop: 8, textAlign: 'center' }}>{payError}</Text>
+          {checkingUserStatus ? (
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusText}>Đang kiểm tra trạng thái VIP...</Text>
+            </View>
+          ) : userVipStatus && userVipStatus.isActive ? (
+            <View style={styles.vipActiveContainer}>
+              <FontAwesomeIcon icon={faCrown} size={24} color="#FFD700" style={styles.vipIcon} />
+              <Text style={styles.vipActiveTitle}>Bạn đã là thành viên VIP!</Text>
+              <Text style={styles.vipActiveText}>
+                Gói: {userVipStatus.membershipName || 'VIP'}
+              </Text>
+              {userVipStatus.expiryDate && (
+                <Text style={styles.vipActiveText}>
+                  Hết hạn: {new Date(userVipStatus.expiryDate).toLocaleDateString('vi-VN')}
+                </Text>
+              )}
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                style={styles.upgradeBtn}
+                disabled={payLoading || !vip}
+                onPress={handleRegister}
+              >
+                <Text style={styles.upgradeText}>{payLoading ? 'Đang xử lý...' : 'Đăng ký VIP'}</Text>
+              </TouchableOpacity>
+              {payError && (
+                <Text style={{ color: 'red', marginTop: 8, textAlign: 'center' }}>{payError}</Text>
+              )}
+            </>
           )}
         </View>
         
@@ -265,6 +309,40 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   upgradeText: { color: '#fff', fontSize: 20, fontWeight: 'bold', letterSpacing: 1 },
+  statusContainer: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statusText: {
+    fontSize: 16,
+    color: '#555',
+  },
+  vipActiveContainer: {
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  vipIcon: {
+    marginBottom: 10,
+  },
+  vipActiveTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1565C0',
+    marginBottom: 5,
+  },
+  vipActiveText: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 2,
+  },
 });
 
 export default VipScreen; 

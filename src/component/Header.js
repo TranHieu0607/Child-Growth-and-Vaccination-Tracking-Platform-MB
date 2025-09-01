@@ -1,10 +1,36 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
+import { faCrown } from '@fortawesome/free-solid-svg-icons';
 import { useSelector } from 'react-redux';
+import membershipApi from '../store/api/membershipApi';
 
 export default function Header({ username }) {
-  const { user } = useSelector((state) => state.auth);
+  const { user, token } = useSelector((state) => state.auth);
+  const [isVip, setIsVip] = useState(false);
+  const [checkingVip, setCheckingVip] = useState(true);
+  
+  // Kiểm tra trạng thái VIP của người dùng
+  useEffect(() => {
+    const checkVipStatus = async () => {
+      if (user?.accountId && token) {
+        try {
+          const vipStatus = await membershipApi.getUserMembershipStatus(user.accountId, token);
+          setIsVip(vipStatus && (vipStatus.isActive || vipStatus.status === true));
+        } catch (error) {
+          console.warn('Không thể kiểm tra trạng thái VIP:', error);
+          setIsVip(false);
+        } finally {
+          setCheckingVip(false);
+        }
+      } else {
+        setCheckingVip(false);
+      }
+    };
+    
+    checkVipStatus();
+  }, [user?.accountId, token]);
   
   // Hàm lấy lời chào theo giờ Việt Nam
   const getGreeting = () => {
@@ -28,9 +54,11 @@ export default function Header({ username }) {
         <Text style={styles.greeting}>{getGreeting()}</Text>
         <Text style={styles.username}>{user?.fullName?.toUpperCase() || username?.toUpperCase() || 'NGƯỜI DÙNG'}</Text>
       </View>
-      <TouchableOpacity>
-        <Ionicons name="notifications-outline" size={24} color="#fff" />
-      </TouchableOpacity>
+      {!checkingVip && isVip && (
+        <TouchableOpacity>
+          <FontAwesomeIcon icon={faCrown} size={24} color="#FFD700" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
