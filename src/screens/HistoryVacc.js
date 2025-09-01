@@ -338,11 +338,58 @@ const HistoryVacc = ({ navigation }) => {
                     
                     return false;
                   });
+
+                  // Gộp những vaccine profile HOÀN TOÀN GIỐNG NHAU (trừ diseaseId và vaccineProfileId)
+                  const groupedVaccines = [];
+                  const processedIds = new Set();
+
+                  completedVaccines.forEach(vaccine => {
+                    if (processedIds.has(vaccine.vaccineProfileId)) return;
+
+                                         // Tìm tất cả vaccine profile HOÀN TOÀN GIỐNG NHAU (trừ diseaseId, vaccineProfileId và expectedDate)
+                     const similarVaccines = completedVaccines.filter(v => 
+                       v.childId === vaccine.childId &&
+                       v.appointmentId === vaccine.appointmentId &&
+                       v.facilityId === vaccine.facilityId &&
+                       v.vaccineId === vaccine.vaccineId &&
+                       v.doseNum === vaccine.doseNum &&
+                       v.actualDate === vaccine.actualDate &&
+                       v.status === vaccine.status &&
+                       v.isRequired === vaccine.isRequired &&
+                       v.priority === vaccine.priority &&
+                       v.note === vaccine.note
+                     );
+
+                    // Chỉ gộp nếu có nhiều hơn 1 vaccine giống nhau
+                    if (similarVaccines.length > 1) {
+                      // Đánh dấu đã xử lý
+                      similarVaccines.forEach(v => processedIds.add(v.vaccineProfileId));
+
+                      // Tạo vaccine group mới
+                      const groupedVaccine = {
+                        ...vaccine,
+                        diseaseIds: similarVaccines.map(v => v.diseaseId),
+                        vaccineProfileIds: similarVaccines.map(v => v.vaccineProfileId),
+                        isGrouped: true
+                      };
+
+                      groupedVaccines.push(groupedVaccine);
+                    } else {
+                      // Nếu chỉ có 1 vaccine, thêm vào như bình thường
+                      processedIds.add(vaccine.vaccineProfileId);
+                      groupedVaccines.push({
+                        ...vaccine,
+                        diseaseIds: [vaccine.diseaseId],
+                        vaccineProfileIds: [vaccine.vaccineProfileId],
+                        isGrouped: false
+                      });
+                    }
+                  });
                   
-                  const totalPages = Math.ceil(completedVaccines.length / historyPerPage);
+                  const totalPages = Math.ceil(groupedVaccines.length / historyPerPage);
                   const startIndex = (historyPage - 1) * historyPerPage;
                   const endIndex = startIndex + historyPerPage;
-                  const currentVaccines = completedVaccines.slice(startIndex, endIndex);
+                  const currentVaccines = groupedVaccines.slice(startIndex, endIndex);
                   
                   return (
                     <>
@@ -351,18 +398,23 @@ const HistoryVacc = ({ navigation }) => {
                       ) : (
                         currentVaccines.map(vaccine => {
                           const vaccineObj = vaccines.find(v => v.vaccineId === vaccine.vaccineId);
-                          const diseaseObj = diseases.find(d => d.diseaseId === vaccine.diseaseId);
                           const facilityObj = facilities.find(f => f.facilityId === vaccine.facilityId);
+                          
+                          // Lấy tên của tất cả các bệnh
+                          const diseaseNames = vaccine.diseaseIds.map(diseaseId => {
+                            const diseaseObj = diseases.find(d => d.diseaseId === diseaseId);
+                            return diseaseObj ? diseaseObj.name : `Disease ID: ${diseaseId}`;
+                          }).join(', ');
 
                           return (
-                            <View key={vaccine.vaccineProfileId} style={styles.vaccineItem}>
+                            <View key={vaccine.vaccineProfileIds.join(',')} style={styles.vaccineItem}>
                               <MaterialIcons name="check-circle" size={24} color="#28a745" style={styles.checkIcon} />
                               <View style={styles.vaccineDetails}>
                                 <Text style={styles.vaccineName}>{vaccineObj ? vaccineObj.name : `Vaccine ID: ${vaccine.vaccineId}`}</Text>
                                 <Text style={{ color: '#28a745', fontWeight: 'bold', marginBottom: 5 }}>
                                   Mũi số {vaccine.doseNum} - Đã hoàn thành
                                 </Text>
-                                <Text style={styles.vaccineDescription}>{diseaseObj ? diseaseObj.name : `Disease ID: ${vaccine.diseaseId}`}</Text>
+                                <Text style={styles.vaccineDescription}>{diseaseNames}</Text>
                                 <View style={styles.detailRow}>
                                   <MaterialIcons name="access-time" size={16} color="gray" />
                                   <Text style={styles.detailText}>Ngày tiêm: {vaccine.actualDate}</Text>
@@ -384,7 +436,7 @@ const HistoryVacc = ({ navigation }) => {
                       )}
                       
                       {/* Pagination for Completed Vaccines */}
-                      {completedVaccines.length > 0 && totalPages > 1 && (
+                      {groupedVaccines.length > 0 && totalPages > 1 && (
                         <View style={styles.paginationContainer}>
                           <TouchableOpacity
                             style={[
@@ -488,7 +540,7 @@ const HistoryVacc = ({ navigation }) => {
                                 <MaterialIcons name="schedule" size={20} color="#ffc107" />
                                 <View style={styles.vaccineTextContainer}>
                                   <Text style={styles.vaccineShotName}>
-                                    {diseaseObj ? diseaseObj.name : `Disease ${vaccine.diseaseId}`} - Mũi {vaccine.doseNum}
+                                    Mũi {vaccine.doseNum}
                                   </Text>
                                   <Text style={styles.vaccineDiseases}>
                                     {vaccine.priority} - {vaccine.isRequired ? 'Bắt buộc' : 'Tùy chọn'}

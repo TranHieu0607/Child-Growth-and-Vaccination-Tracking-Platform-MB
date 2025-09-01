@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Image, Alert, Modal } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt, faBaby } from '@fortawesome/free-solid-svg-icons';
+import { faArrowLeft, faChevronDown, faSearch, faStar, faStarHalfAlt, faCalendarAlt, faChevronLeft, faChevronRight, faMapMarkerAlt, faPhone, faEnvelope, faTrash, faPlus, faMinus, faTimes, faInfo, faShieldAlt, faBaby, faCheckCircle, faExclamationTriangle } from '@fortawesome/free-solid-svg-icons';
 import { useSelector } from 'react-redux';
 import { getMyChildren } from '../store/api/growthRecordApi';
 import diseasesApi from '../store/api/diseasesApi';
@@ -12,6 +12,7 @@ import scheduleApi from '../store/api/scheduleApi';
 import dayjs from 'dayjs';
 import bookingApi from '../store/api/bookingApi';
 import orderApi from '../store/api/orderApi';
+import useVaccineTemplate from '../store/hook/useVaccineTemplate';
 
 const Booking = ({ navigation, route }) => {
   const [children, setChildren] = useState([]);
@@ -57,6 +58,9 @@ const Booking = ({ navigation, route }) => {
   const [calendarYear, setCalendarYear] = useState(dayjs().year());
 
   const orderId = route?.params?.orderId; // Lấy orderId từ params nếu có
+
+  // Lấy vaccine template cho trẻ được chọn
+  const { vaccineBook } = useVaccineTemplate(selectedChildren[0]);
 
   // Lấy danh sách trẻ từ API khi vào màn hình
   useEffect(() => {
@@ -323,6 +327,41 @@ const Booking = ({ navigation, route }) => {
 
   // Function to handle disease selection
   const handleSelectDisease = (disease) => {
+    // Kiểm tra xem bệnh này đã tiêm xong chưa
+    const diseaseVaccineStatus = checkDiseaseVaccinationStatus(disease.diseaseId);
+    
+    if (diseaseVaccineStatus.isCompleted) {
+      // Hiển thị thông báo nếu bệnh đã tiêm xong
+      Alert.alert(
+        'Thông báo',
+        `Bệnh "${disease.name}" đã được tiêm đủ liều cho bé ${selectedChild?.fullName || 'của bạn'}.\n\nTổng số mũi: ${diseaseVaccineStatus.totalDoses}\nSố mũi đã tiêm: ${diseaseVaccineStatus.completedDoses}\nTrạng thái: ${diseaseVaccineStatus.status}\n\nBạn có muốn tiếp tục chọn bệnh này không?`,
+        [
+          {
+            text: 'Chọn bệnh khác',
+            style: 'cancel',
+            onPress: () => {
+              // Không làm gì, giữ nguyên dropdown mở
+            }
+          },
+          {
+            text: 'Vẫn chọn bệnh này',
+            onPress: () => {
+              setSelectedDisease(disease);
+              setIsDiseaseDropdownVisible(false);
+              setDiseaseSearchText('');
+              setFilteredDiseases(diseases);
+              // Reset vaccine lẻ được chọn khi thay đổi bệnh
+              setSelectedSingleVaccine(null);
+              // Reset gói vaccine được chọn khi thay đổi bệnh
+              setSelectedPackageId(null);
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    // Nếu bệnh chưa tiêm xong, tiếp tục như bình thường
     setSelectedDisease(disease);
     setIsDiseaseDropdownVisible(false);
     setDiseaseSearchText('');
@@ -331,6 +370,49 @@ const Booking = ({ navigation, route }) => {
     setSelectedSingleVaccine(null);
     // Reset gói vaccine được chọn khi thay đổi bệnh
     setSelectedPackageId(null);
+  };
+
+  // Function to check disease vaccination status
+  const checkDiseaseVaccinationStatus = (diseaseId) => {
+    if (!vaccineBook || !Array.isArray(vaccineBook)) {
+      return { isCompleted: false, totalDoses: 0, completedDoses: 0, status: 'Không có dữ liệu' };
+    }
+
+    const diseaseData = vaccineBook.find(disease => disease.diseaseId === diseaseId);
+    if (!diseaseData) {
+      return { isCompleted: false, totalDoses: 0, completedDoses: 0, status: 'Chưa có lịch tiêm' };
+    }
+
+    return {
+      isCompleted: diseaseData.overallStatus === 'Đã đủ liều',
+      totalDoses: diseaseData.totalDoses,
+      completedDoses: diseaseData.completedDoses,
+      status: diseaseData.overallStatus
+    };
+  };
+
+  // Function to get disease status display text
+  const getDiseaseStatusDisplay = (diseaseId) => {
+    const status = checkDiseaseVaccinationStatus(diseaseId);
+    if (status.isCompleted) {
+      return 'Đã tiêm đủ liều';
+    } else if (status.completedDoses > 0) {
+      return `Đã tiêm ${status.completedDoses}/${status.totalDoses} mũi`;
+    } else {
+      return 'Chưa tiêm mũi nào';
+    }
+  };
+
+  // Function to get disease status color
+  const getDiseaseStatusColor = (diseaseId) => {
+    const status = checkDiseaseVaccinationStatus(diseaseId);
+    if (status.isCompleted) {
+      return '#4CAF50'; // Green
+    } else if (status.completedDoses > 0) {
+      return '#FF9800'; // Orange
+    } else {
+      return '#F44336'; // Red
+    }
   };
 
   // Function to handle facility selection
@@ -748,6 +830,19 @@ const Booking = ({ navigation, route }) => {
        
       <Text style={[styles.sectionTitle, styles.diseaseSectionTitle]}>Chọn Bệnh Cần Tiêm</Text>
       
+      {/* Thông báo về trạng thái vaccine */}
+      <View style={styles.vaccineStatusInfo}>
+        <Text style={styles.vaccineStatusInfoText}>
+          <FontAwesomeIcon icon={faCheckCircle} size={14} color="#4CAF50" /> Xanh: Đã tiêm đủ liều
+        </Text>
+        <Text style={styles.vaccineStatusInfoText}>
+          <FontAwesomeIcon icon={faExclamationTriangle} size={14} color="#FF9800" /> Cam: Đã tiêm một số mũi
+        </Text>
+        <Text style={styles.vaccineStatusInfoText}>
+          <FontAwesomeIcon icon={faExclamationTriangle} size={14} color="#F44336" /> Đỏ: Chưa tiêm mũi nào
+        </Text>
+      </View>
+      
       {/* Disease Selection */}
       <View style={styles.diseaseSelectionContainer}>
         <TouchableOpacity
@@ -780,18 +875,34 @@ const Booking = ({ navigation, route }) => {
               {filteredDiseases.length === 0 ? (
                 <Text style={styles.noDiseaseText}>Không tìm thấy bệnh</Text>
               ) : (
-                filteredDiseases.map(disease => (
-                  <TouchableOpacity
-                    key={disease.diseaseId}
-                    style={styles.diseaseItem}
-                    onPress={() => handleSelectDisease(disease)}
-                  >
-                    <Text style={styles.diseaseItemText}>{disease.name}</Text>
-                    {selectedDisease?.diseaseId === disease.diseaseId && (
-                      <Text style={styles.selectedDiseaseIcon}> ✅</Text>
-                    )}
-                  </TouchableOpacity>
-                ))
+                filteredDiseases.map(disease => {
+                  const vaccineStatus = checkDiseaseVaccinationStatus(disease.diseaseId);
+                  const statusColor = getDiseaseStatusColor(disease.diseaseId);
+                  const statusText = getDiseaseStatusDisplay(disease.diseaseId);
+                  
+                  return (
+                    <TouchableOpacity
+                      key={disease.diseaseId}
+                      style={styles.diseaseItem}
+                      onPress={() => handleSelectDisease(disease)}
+                    >
+                      <View style={styles.diseaseItemContent}>
+                        <Text style={styles.diseaseItemText}>{disease.name}</Text>
+                        <View style={styles.diseaseStatusContainer}>
+                          <Text style={[styles.diseaseStatusText, { color: statusColor }]}>
+                            {statusText}
+                          </Text>
+                          {vaccineStatus.isCompleted && (
+                            <FontAwesomeIcon icon={faCheckCircle} size={14} color={statusColor} style={styles.diseaseStatusIcon} />
+                          )}
+                        </View>
+                      </View>
+                      {selectedDisease?.diseaseId === disease.diseaseId && (
+                        <Text style={styles.selectedDiseaseIcon}> ✅</Text>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })
               )}
             </ScrollView>
           </View>
@@ -1346,6 +1457,20 @@ const styles = StyleSheet.create({
   diseaseSectionTitle: {
     marginTop: 10,
   },
+  vaccineStatusInfo: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  vaccineStatusInfoText: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 5,
+    lineHeight: 18,
+  },
 
  
   packageItem: {
@@ -1685,10 +1810,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  diseaseItemContent: {
+    flex: 1,
+  },
   diseaseItemText: {
     fontSize: 15,
     color: '#333',
-    flex: 1,
+    marginBottom: 3,
+  },
+  diseaseStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  diseaseStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  diseaseStatusIcon: {
+    marginLeft: 5,
   },
   selectedDiseaseIcon: {
     marginLeft: 5,
