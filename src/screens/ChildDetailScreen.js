@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, ActivityIndicator, ScrollView, Alert, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, Image, ActivityIndicator, ScrollView, Alert, TouchableOpacity, TextInput, Platform, ActionSheetIOS } from 'react-native';
 import childrenApi from '../store/api/childrenApi';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 
 export default function ChildDetailScreen({ route, navigation }) {
   const { childId } = route.params;
@@ -18,6 +19,7 @@ export default function ChildDetailScreen({ route, navigation }) {
     medicalHistory: '',
   });
   const [imageError, setImageError] = useState(false);
+  const [childImage, setChildImage] = useState(null); // { uri, fileName, type }
 
   const fetchChildDetail = async () => {
     try {
@@ -60,6 +62,7 @@ export default function ChildDetailScreen({ route, navigation }) {
 
   const handleCancelEdit = () => {
     setIsEditing(false);
+    setChildImage(null);
     setEditFields({
       fullName: child.fullName || '',
       birthDate: child.birthDate ? child.birthDate.slice(0, 10) : '',
@@ -70,12 +73,120 @@ export default function ChildDetailScreen({ route, navigation }) {
     });
   };
 
+  // ====== IMAGE PICKER ======
+  const pickFromLibrary = async () => {
+    console.log('pickFromLibrary called');
+    try {
+      const res = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: false,
+        quality: 0.8,
+        selectionLimit: 1,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      });
+      console.log('launchImageLibrary result:', res);
+      if (res?.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      }
+      if (res?.errorCode) {
+        console.log('Image picker error:', res.errorCode, res.errorMessage);
+        Alert.alert('Lỗi chọn ảnh', res.errorMessage || res.errorCode);
+        return;
+      }
+      const a = res.assets?.[0];
+      console.log('Selected asset:', a);
+      if (a?.uri) {
+        const imageData = { uri: a.uri, fileName: a.fileName || `child_${Date.now()}.jpg`, type: a.type || 'image/jpeg' };
+        console.log('Setting childImage:', imageData);
+        setChildImage(imageData);
+      }
+    } catch (error) {
+      console.log('Error in pickFromLibrary:', error);
+      Alert.alert('Lỗi', 'Không thể mở thư viện ảnh');
+    }
+  };
+
+  const takePhoto = async () => {
+    console.log('takePhoto called');
+    try {
+      const res = await launchCamera({
+        mediaType: 'photo',
+        includeBase64: false,
+        quality: 0.8,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        saveToPhotos: false,
+      });
+      console.log('launchCamera result:', res);
+      if (res?.didCancel) {
+        console.log('User cancelled camera');
+        return;
+      }
+      if (res?.errorCode) {
+        console.log('Camera error:', res.errorCode, res.errorMessage);
+        Alert.alert('Lỗi chụp ảnh', res.errorMessage || res.errorCode);
+        return;
+      }
+      const a = res.assets?.[0];
+      console.log('Camera asset:', a);
+      if (a?.uri) {
+        const imageData = { uri: a.uri, fileName: a.fileName || `child_${Date.now()}.jpg`, type: a.type || 'image/jpeg' };
+        console.log('Setting childImage from camera:', imageData);
+        setChildImage(imageData);
+      }
+    } catch (error) {
+      console.log('Error in takePhoto:', error);
+      Alert.alert('Lỗi', 'Không thể mở camera');
+    }
+  };
+
+  const openImageMenu = () => {
+    console.log('openImageMenu called, isEditing:', isEditing);
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Hủy', 'Chọn từ thư viện', 'Chụp ảnh'],
+          cancelButtonIndex: 0,
+        },
+        (idx) => {
+          console.log('ActionSheet selected index:', idx);
+          if (idx === 1) pickFromLibrary();
+          if (idx === 2) takePhoto();
+        }
+      );
+    } else {
+      Alert.alert('Chọn ảnh', 'Bạn muốn lấy ảnh từ đâu?', [
+        { text: 'Thư viện', onPress: pickFromLibrary },
+        { text: 'Hủy', style: 'cancel' },
+      ]);
+    }
+  };
+
   const handleSaveEdit = async () => {
     try {
       setLoading(true);
-      await childrenApi.updateChild(childId, { ...editFields, status: true });
+      const payload = {
+        fullName: editFields.fullName?.trim(),
+        birthDate: editFields.birthDate,
+        gender: editFields.gender,
+        bloodType: editFields.bloodType,
+        allergiesNotes: editFields.allergiesNotes?.trim(),
+        medicalHistory: editFields.medicalHistory?.trim(),
+        status: true,
+      };
+      
+      if (childImage?.uri) {
+        payload.image = childImage;
+        await childrenApi.updateChildWithImage(childId, payload);
+      } else {
+        await childrenApi.updateChild(childId, payload);
+      }
+      
       await fetchChildDetail();
       setIsEditing(false);
+      setChildImage(null);
       Alert.alert('Thành công', 'Cập nhật thông tin thành công');
     } catch (err) {
       Alert.alert('Lỗi', 'Cập nhật thông tin thất bại');
@@ -129,19 +240,33 @@ export default function ChildDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.profileSection}>
-        {child.imageURL && !imageError ? (
-          <Image 
-            source={{ uri: child.imageURL }} 
-            style={styles.avatar}
-            onError={() => setImageError(true)}
-            defaultSource={require('../../assets/icon.png')}
-          />
-        ) : (
-          <View style={[styles.avatar, styles.placeholderAvatar]}>
-            <FontAwesome name="user" size={50} color="#ccc" />
-          </View>
-        )}
+             <View style={styles.profileSection}>
+         <View style={isEditing ? styles.avatarEditable : null}>
+           <TouchableOpacity 
+             onPress={isEditing ? openImageMenu : null}
+             activeOpacity={isEditing ? 0.8 : 1}
+             style={styles.avatarContainer}
+           >
+             {childImage?.uri ? (
+               <Image 
+                 source={{ uri: childImage.uri }} 
+                 style={styles.avatar}
+               />
+             ) : child.imageURL && !imageError ? (
+               <Image 
+                 source={{ uri: child.imageURL }} 
+                 style={styles.avatar}
+                 onError={() => setImageError(true)}
+                 defaultSource={require('../../assets/icon.png')}
+               />
+             ) : (
+               <View style={[styles.avatar, styles.placeholderAvatar]}>
+                 <FontAwesome name="user" size={50} color="#ccc" />
+               </View>
+             )}
+             
+           </TouchableOpacity>
+         </View>
         {isEditing ? (
           <TextInput
             style={[styles.name, { borderBottomWidth: 1, borderColor: '#2196F3' }]}
@@ -267,7 +392,7 @@ export default function ChildDetailScreen({ route, navigation }) {
         </View>
       </View>
       {isEditing && (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 24 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 60 }}>
           <TouchableOpacity
             style={[styles.saveBtn, { backgroundColor: '#2196F3' }]}
             onPress={handleSaveEdit}
@@ -296,7 +421,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     position: 'absolute',
-    top: 16,
+    top: 50, // Tăng từ 16 lên 50 để đẩy xuống dưới
     left: 0,
     right: 0,
     zIndex: 20,
@@ -327,6 +452,7 @@ const styles = StyleSheet.create({
   profileSection: {
     alignItems: 'center',
     padding: 24,
+    paddingTop: 60, // Tăng thêm để tránh bị dính lên trên
     backgroundColor: '#fff',
   },
   avatar: {
@@ -336,6 +462,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 3,
     borderColor: '#2196F3',
+  },
+  avatarContainer: {
+    position: 'relative',
   },
   name: {
     fontSize: 24,
@@ -429,4 +558,9 @@ const styles = StyleSheet.create({
     marginRight: 16,
     marginBottom: 8,
   },
+
+  avatarEditable: {
+    position: 'relative',
+  },
+
 });

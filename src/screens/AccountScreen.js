@@ -200,7 +200,7 @@ export default function AccountScreen({ navigation, onLogout }) {
         {/* Header đơn giản */}
         <View style={styles.header}>
         <View style={styles.row}>
-          <TouchableOpacity onPress={openAvatarMenu} activeOpacity={0.8}>
+          <TouchableOpacity onPress={editing ? openAvatarMenu : null} activeOpacity={editing ? 0.8 : 1}>
             {avatar?.uri ? (
               <Image
                 source={{ uri: avatar.uri }}
@@ -230,7 +230,6 @@ export default function AccountScreen({ navigation, onLogout }) {
             style={styles.editChip}
           >
             <FontAwesomeIcon icon={faUserEdit} size={14} color={COLOR_PRIMARY} />
-            <Text style={styles.editChipText}> Sửa</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -445,7 +444,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 30,
     paddingBottom: 20,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E5E7EB',
