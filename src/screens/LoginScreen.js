@@ -125,14 +125,14 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
       <Image source={require('../../assets/logo.png')} style={styles.avatar} />
       <Text style={styles.title}>KidTrack</Text>
       <Text style={styles.welcome}>Chào mừng bạn đến với KidTrack</Text>
-      <Text style={styles.subtitle}>Theo dõi tiêm chủng và phát triển của bé</Text>
+      <Text style={styles.subtitle}>Theo dõi tăng trưởng và tiêm chủng của trẻ</Text>
       <View style={styles.inputContainer}>
-        <Text style={styles.inputLabel}>Số điện thoại hoặc email</Text>
+        <Text style={styles.inputLabel}>Tên tài khoản</Text>
         <View style={styles.inputBox}>
-          <Text style={styles.inputIcon}>📱</Text>
+          <Text style={styles.inputIcon}></Text>
           <TextInput
             style={styles.input}
-            placeholder="Nhập số điện thoại hoặc email"
+            placeholder="Nhập tên tài khoản"
             value={input}
             onChangeText={setInput}
             keyboardType="default"
@@ -141,7 +141,7 @@ export default function LoginScreen({ onLoginSuccess, navigation }) {
         </View>
         <Text style={styles.inputLabel}>Mật khẩu</Text>
         <View style={styles.inputBox}>
-          <Text style={styles.inputIcon}>🔒</Text>
+          <Text style={styles.inputIcon}></Text>
           <TextInput
             style={styles.input}
             placeholder="Nhập mật khẩu"

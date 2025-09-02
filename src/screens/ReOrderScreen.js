@@ -132,6 +132,15 @@ const ReOrderScreen = ({ navigation }) => {
 
 	const selectedChild = children.find(child => child.childId === selectedChildId);
 
+	// Parse childId from order.note (supports variants like "childId:118", "Child Id: 118")
+	const extractChildIdFromNote = (note) => {
+		if (typeof note !== 'string') return null;
+		const match = note.match(/(child\s*id|childid)\s*:\s*(\d+)/i);
+		if (!match) return null;
+		const parsed = parseInt(match[2], 10);
+		return Number.isNaN(parsed) ? null : parsed;
+	};
+
 	// Helpers for calendar
 	const getDaysInMonth = (month, year) => dayjs(`${year}-${month}-01`).daysInMonth();
 	const getFirstDayOfWeek = (month, year) => dayjs(`${year}-${month}-01`).day(); // 0=CN
@@ -140,7 +149,11 @@ const ReOrderScreen = ({ navigation }) => {
 		return date.isBefore(dayjs(), 'day');
 	};
 
-	const vaccinePackages = Array.isArray(orders) ? orders.map(order => ({
+	const ordersForSelectedChild = Array.isArray(orders)
+		? orders.filter(order => extractChildIdFromNote(order.note) === selectedChildId)
+		: [];
+
+	const vaccinePackages = Array.isArray(ordersForSelectedChild) ? ordersForSelectedChild.map(order => ({
 		id: order.orderId,
 		name: order.packageName,
 		price: order.totalAmount ? order.totalAmount.toLocaleString('vi-VN') + 'đ' : '',
@@ -255,7 +268,6 @@ const ReOrderScreen = ({ navigation }) => {
 
 		// Hiển thị payload để kiểm tra
 		console.log('ReOrder booking payload:', payload);
-		Alert.alert('Payload gửi đi', JSON.stringify(payload, null, 2));
 
 		try {
 			// Gọi API đặt lịch

@@ -19,7 +19,7 @@ const orderApi = {
     });
   },
 
-  createOrder: (packageItem, token) => {
+  createOrder: (packageItem, token, note) => {
     const selectedVaccines = packageItem.packageVaccines.map(pv => ({
       diseaseId: pv.diseaseId,
       facilityVaccineId: pv.facilityVaccineId,
@@ -30,6 +30,7 @@ const orderApi = {
       selectedVaccines,
       orderDate: new Date().toISOString(),
       status: 'Pending',
+      note,
     };
     
     return axiosClient.post('/Order/package', payload, {

@@ -555,7 +555,8 @@ const Booking = ({ navigation, route }) => {
         }
 
         // 1. Tạo order trực tiếp cho gói tiêm
-        const orderResponse = await orderApi.createOrder(selectedPackage, token);
+        const hiddenOrderNote = `childId:${selectedChildren[0]}`;
+        const orderResponse = await orderApi.createOrder(selectedPackage, token, hiddenOrderNote);
         const orderId = orderResponse.data?.orderId;
         if (!orderId) throw new Error('Không lấy được orderId từ server!');
         data.orderId = orderId;
@@ -802,7 +803,7 @@ const Booking = ({ navigation, route }) => {
                {facility.phone && (
                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
                    <FontAwesomeIcon icon={faPhone} size={13} color="#888" style={{ marginRight: 4 }} />
-                   <Text style={styles.popularFacilityPhone}>{facility.phone}</Text>
+                   <Text style={styles.popularFacilityPhone}>0{facility.phone}</Text>
                  </View>
                )}
              </TouchableOpacity>
@@ -821,7 +822,7 @@ const Booking = ({ navigation, route }) => {
             {selectedFacility.phone && (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
                 <FontAwesomeIcon icon={faPhone} size={13} color="#007bff" style={{ marginRight: 4 }} />
-                <Text style={styles.selectedFacilityPhone}>{selectedFacility.phone}</Text>
+                <Text style={styles.selectedFacilityPhone}>0{selectedFacility.phone}</Text>
               </View>
             )}
           </View>

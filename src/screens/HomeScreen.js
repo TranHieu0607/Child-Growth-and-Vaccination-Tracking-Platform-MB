@@ -47,7 +47,7 @@ const HomeListHeader = ({ newsTabs, newsTab, setNewsTab, navigation }) => (
               } else if (item.key === 'health_record') {
                 navigation.navigate('UpdateVaccHiss');
               } else if (item.key === 'payment_history') {
-                navigation.navigate('VaccBook');
+                navigation.navigate('ReOrder');
               }  
               else if (item.key === 'rating') {
                 navigation.navigate('DoctorFeedback');
