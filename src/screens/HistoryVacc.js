@@ -130,15 +130,18 @@ const HistoryVacc = ({ navigation }) => {
     return () => clearInterval(interval);
   }, [selectedChildId, activeTab, lastRefreshTime, fetchVaccineHistory, fetchAppointmentHistory]);
 
-  // Tự động refresh dữ liệu khi component mount và khi selectedChildId thay đổi
+  // Prefetch cả lịch sử vaccine và lịch hẹn khi đổi trẻ để phản hồi nhanh
   useEffect(() => {
-    if (selectedChildId) {
-      fetchVaccineHistory();
-      if (activeTab === 'tracking') {
-        fetchAppointmentHistory();
-      }
-    }
-  }, [selectedChildId, activeTab, fetchVaccineHistory, fetchAppointmentHistory]);
+    if (!selectedChildId) return;
+    (async () => {
+      try {
+        await Promise.all([
+          fetchVaccineHistory(),
+          fetchAppointmentHistory()
+        ]);
+      } catch (_) {}
+    })();
+  }, [selectedChildId, fetchVaccineHistory, fetchAppointmentHistory]);
 
   // Fetch vaccines, diseases, facilities một lần duy nhất
   useEffect(() => {
@@ -171,14 +174,6 @@ const HistoryVacc = ({ navigation }) => {
     setHistoryPage(1); // Reset về trang 1 khi chọn trẻ khác
     setTrackingPage(1); // Reset về trang 1 khi chọn trẻ khác
     setSearchQuery(''); // Reset search query khi chọn trẻ khác
-    
-    // Tự động fetch dữ liệu mới khi chọn trẻ khác
-    setTimeout(() => {
-      fetchVaccineHistory();
-      if (activeTab === 'tracking') {
-        fetchAppointmentHistory();
-      }
-    }, 100);
   };
 
   const calculateAge = (dob) => {

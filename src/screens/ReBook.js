@@ -82,13 +82,22 @@ const ReBook = ({ navigation, route }) => {
         const ordersRes = await orderApi.getMyOrders(1, 50, token);
         const allOrders = ordersRes.data?.data || [];
         
+        // Helper: parse childId from note (e.g., "childId:118" or "ChildId: 1")
+        const extractChildIdFromNote = (noteStr) => {
+          if (!noteStr || typeof noteStr !== 'string') return null;
+          const match = noteStr.match(/childId\s*:\s*(\d+)/i);
+          return match ? parseInt(match[1], 10) : null;
+        };
+
         // Lọc orders có status "Paid"
         const paidOrders = allOrders.filter(order => order.status === 'Paid');
-        
-        // Lọc orders có orderDetails chứa diseaseId và vaccineId khớp
+
+        // Chỉ giữ các đơn có note trỏ đúng childId hiện tại và có vaccine/disease khớp
         const matchingOrders = paidOrders.filter(order => {
-          return order.orderDetails?.some(detail => 
-            detail.diseaseId === vaccine.diseaseId && 
+          const noteChildId = extractChildIdFromNote(order.note);
+          if (!child?.childId || noteChildId !== child.childId) return false;
+          return order.orderDetails?.some(detail =>
+            detail.diseaseId === vaccine.diseaseId &&
             detail.facilityVaccine?.vaccineId === vaccine.vaccineId
           );
         });
@@ -104,7 +113,7 @@ const ReBook = ({ navigation, route }) => {
     };
     
     fetchAvailableOrders();
-  }, [vaccine.vaccineId, vaccine.diseaseId, token]);
+  }, [vaccine.vaccineId, vaccine.diseaseId, token, child?.childId]);
 
   // Fetch facilities that have this vaccine
   useEffect(() => {

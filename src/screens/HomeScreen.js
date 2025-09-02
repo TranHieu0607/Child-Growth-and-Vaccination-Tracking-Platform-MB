@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { FontAwesomeIcon } from '@fortawesome/react-native-fontawesome';
-import { faBaby, faCrown, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical, faBookOpen } from '@fortawesome/free-solid-svg-icons';
+import { faBaby, faCrown, faChartBar, faCalendarDays, faNewspaper, faNotesMedical, faSyringe, faBookMedical, faFileMedical, faBookOpen, faCalendarCheck } from '@fortawesome/free-solid-svg-icons';
 import useBlogs from '../store/hook/useBlogs';
 import BlogCard from '../component/BlogCard';
 
@@ -13,7 +13,7 @@ const features = [
   { key: 'vaccination_schedule', label: 'Lịch tiêm chủng', icon: <FontAwesomeIcon icon={faCalendarDays} size={32} color="#1565C0" /> },
   { key: 'vaccine_spot', label: 'Theo dõi hàng ngày', icon: <FontAwesomeIcon icon={faNotesMedical} size={32} color="#1565C0" /> },
   { key: 'health_record', label: 'Nhập lịch sử tiêm', icon: <FontAwesomeIcon icon={faFileMedical} size={32} color="#1565C0" /> },
-  { key: 'payment_history', label: 'Sổ tiêm chủng', icon: <FontAwesomeIcon icon={faBookOpen} size={32} color="#1565C0" /> },
+  { key: 'payment_history', label: 'Đặt lại lịch tiêm', icon: <FontAwesomeIcon icon={faCalendarCheck} size={32} color="#1565C0" /> },
   { key: 'news', label: 'Tin tức', icon: <FontAwesomeIcon icon={faNewspaper} size={32} color="#1565C0" /> },
   { key: 'rating', label: 'Phản hồi từ bác sĩ', icon: <FontAwesomeIcon icon={faBookMedical} size={32} color="#1565C0" /> },
 ];

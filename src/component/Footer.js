@@ -7,6 +7,7 @@ const tabs = [
   { key: 'add_vaccine', label: 'Nhập chỉ số', icon: <Ionicons name="analytics-outline" size={24} color="#1565C0" /> },
   { key: 'schedule', label: 'Đặt lịch', icon: <Ionicons name="calendar-outline" size={24} color="#1565C0" /> },
   { key: 'contact', label: 'Hàng ngày', icon: <Ionicons name="list-outline" size={24} color="#1565C0" /> },
+  { key: 'vacc_book', label: 'Sổ tiêm', icon: <Ionicons name="book-outline" size={24} color="#1565C0" /> },
   { key: 'account', label: 'Tài khoản', icon: <Ionicons name="person-outline" size={24} color="#1565C0" /> },
 ];
 
@@ -19,6 +20,7 @@ export default function Footer({ currentTab, onTabPress, navigation }) {
       else if (tabKey === 'contact') navigation.navigate('DailyRecord');
       else if (tabKey === 'add_vaccine') navigation.navigate('UpdateGrowth');
       else if (tabKey === 'schedule') navigation.navigate('Booking');
+      else if (tabKey === 'vacc_book') navigation.navigate('VaccBook');
       // Thêm các tab khác nếu muốn điều hướng
     }
   };

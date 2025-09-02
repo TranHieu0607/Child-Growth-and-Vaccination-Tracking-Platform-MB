@@ -119,8 +119,11 @@ export async function getFullGrowthData(childId, gender) {
 
   // OPTIMIZE: Load prediction data sau, không block UI
   let predictionData = null;
+  // Chọn horizon động: nếu latestDay > 720 thì 360 ngày, ngược lại 30 ngày
+  const latestDay = records.length > 0 ? Math.max(...records.map(r => r.ageInDays)) : 0;
+  const predictionHorizonDays = latestDay > 720 ? 360 : 30;
   // Không await prediction để không block UI chính
-  growthPredictionApi.getGrowthPrediction(childId, 30)
+  growthPredictionApi.getGrowthPrediction(childId, predictionHorizonDays)
     .then(response => predictionData = response.data)
     .catch(() => predictionData = null);
 
@@ -145,9 +148,9 @@ export async function getFullGrowthData(childId, gender) {
 /**
  * Load prediction data riêng biệt
  */
-export async function getPredictionData(childId) {
+export async function getPredictionData(childId, days = 30) {
   try {
-    const response = await growthPredictionApi.getGrowthPrediction(childId, 30);
+    const response = await growthPredictionApi.getGrowthPrediction(childId, days);
     return response.data;
   } catch (err) {
     return null;

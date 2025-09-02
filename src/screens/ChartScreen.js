@@ -5,6 +5,8 @@ import { faArrowLeft, faChevronDown, faBaby } from '@fortawesome/free-solid-svg-
 import CustomLineChart from '../components/CustomLineChart';
 import childrenApi from '../store/api/childrenApi';
 import { getFullGrowthData, getPredictionData } from '../store/api/growthApi';
+import membershipApi from '../store/api/membershipApi';
+import * as SecureStore from 'expo-secure-store';
 
 // Placeholder components
 const TabBar = ({ selectedTab, onSelectTab }) => {
@@ -155,6 +157,8 @@ const ChartScreen = ({ navigation }) => {
   const [headCircumferenceStandardData, setHeadCircumferenceStandardData] = useState([]);
   const [bmiStandardData, setBMIStandardData] = useState([]);
   const [predictionData, setPredictionData] = useState(null);
+  const [isVip, setIsVip] = useState(false);
+  const [vipChecked, setVipChecked] = useState(false);
 
   // Assessment state
   const [assessmentData, setAssessmentData] = useState(null);
@@ -186,6 +190,28 @@ const ChartScreen = ({ navigation }) => {
     fetchChildren();
   }, []);
 
+  // Check VIP status once
+  useEffect(() => {
+    const checkVip = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('token');
+        if (!token) {
+          setIsVip(false);
+          setVipChecked(true);
+          return;
+        }
+        const status = await membershipApi.getUserMembershipStatus(undefined, `Bearer ${token}`);
+        const active = !!(status && (status.isActive === true || status.status === true));
+        setIsVip(active);
+      } catch (e) {
+        setIsVip(false);
+      } finally {
+        setVipChecked(true);
+      }
+    };
+    checkVip();
+  }, []);
+
   useEffect(() => {
     const fetchAllDataForChild = async () => {
       if (!selectedChildId) {
@@ -199,6 +225,17 @@ const ChartScreen = ({ navigation }) => {
         setIsLoading(false);
         return;
       }
+
+      // Helper: get latest actual day from growthData across tabs
+      const getLatestActualDayFromGrowthData = (growthDataObj) => {
+        try {
+          const all = Object.values(growthDataObj?.data || {}).flat();
+          const ages = all.map(i => i?.ageInDays).filter(n => typeof n === 'number');
+          return ages.length > 0 ? Math.max(...ages) : 0;
+        } catch {
+          return 0;
+        }
+      };
 
       // Check cache first
       const cacheKey = `${selectedChildId}-${children.find(child => child.childId === selectedChildId)?.gender || 'male'}`;
@@ -214,9 +251,12 @@ const ChartScreen = ({ navigation }) => {
         setPredictionData(cached.predictionData);
         setIsLoading(false);
         
-        // Load prediction data in background if not cached
-        if (!cached.predictionData) {
-          loadPredictionDataAsync(selectedChildId);
+        // Decide desired horizon based on cached growth data
+        const latestDayCached = getLatestActualDayFromGrowthData(cached.growthData);
+        const desiredHorizon = latestDayCached > 720 ? 360 : 30;
+        // Load prediction data in background if not cached or horizon mismatched
+        if (!cached.predictionData || cached.predictionHorizonDays !== desiredHorizon) {
+          loadPredictionDataAsync(selectedChildId, desiredHorizon);
         }
         return;
       }
@@ -249,7 +289,9 @@ const ChartScreen = ({ navigation }) => {
             headCircumferenceStandardData: growthResult.headCircumferenceStandardData,
             bmiStandardData: growthResult.bmiStandardData,
             assessmentData: assessmentResult.data,
-            predictionData: growthResult.predictionData
+            predictionData: growthResult.predictionData,
+            // Set an initial horizon guess from current growth data
+            predictionHorizonDays: getLatestActualDayFromGrowthData(growthResult.growthData) > 720 ? 360 : 30
           }
         }));
 
@@ -257,7 +299,9 @@ const ChartScreen = ({ navigation }) => {
 
         // Load prediction data async if not available
         if (!growthResult.predictionData) {
-          loadPredictionDataAsync(selectedChildId);
+          const latestDayNow = getLatestActualDayFromGrowthData(growthResult.growthData);
+          const desired = latestDayNow > 720 ? 360 : 30;
+          loadPredictionDataAsync(selectedChildId, desired);
         } else {
           setPredictionData(growthResult.predictionData);
         }
@@ -279,10 +323,18 @@ const ChartScreen = ({ navigation }) => {
   }, [selectedChildId, children]);
 
   // Load prediction data separately
-  const loadPredictionDataAsync = async (childId) => {
+  const loadPredictionDataAsync = async (childId, forcedDays) => {
     setIsPredictionLoading(true);
     try {
-      const prediction = await getPredictionData(childId);
+      // Tính horizon động dựa trên điểm thực tế mới nhất (hoặc dùng forcedDays nếu truyền vào)
+      let days = forcedDays;
+      if (typeof days !== 'number') {
+        const allTabs = childGrowthData?.data || {};
+        const merged = Object.values(allTabs).flat().filter(item => typeof item?.ageInDays === 'number');
+        const latestDay = merged.length > 0 ? Math.max(...merged.map(i => i.ageInDays)) : 0;
+        days = latestDay > 720 ? 360 : 30;
+      }
+      const prediction = await getPredictionData(childId, days);
       setPredictionData(prediction);
       
       // Update cache
@@ -292,7 +344,8 @@ const ChartScreen = ({ navigation }) => {
         ...prev,
         [cacheKey]: {
           ...prev[cacheKey],
-          predictionData: prediction
+          predictionData: prediction,
+          predictionHorizonDays: days
         }
       }));
     } catch (error) {
@@ -368,10 +421,10 @@ const ChartScreen = ({ navigation }) => {
       tableData = last3ActualData;
     }
 
-    // Prediction data (dotted orange line) - chỉ lấy điểm cách 30 ngày từ ngày thực tế mới nhất
+    // Prediction data (dotted orange line) - nếu ngày thực tế mới nhất > 720 thì lấy theo năm (360 ngày), ngược lại 30 ngày
     if (predictionData && predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && validActualData.length > 0) {
       const lastActualPoint = validActualData[validActualData.length - 1];
-      const targetPredictionDay = lastActualPoint.ageInDays + 30; // Chỉ lấy điểm cách 30 ngày
+      const targetPredictionDay = lastActualPoint.ageInDays + (lastActualPoint.ageInDays > 720 ? 360 : 30);
       
       // Tìm prediction point gần nhất với targetPredictionDay
       const closestPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
@@ -595,6 +648,8 @@ const ChartScreen = ({ navigation }) => {
               measurementDate: null
             }));
         }
+        // Expose count of standard points to gate predictions later
+        labels.__standardPointsCount = filteredStandardData.length;
       }
     }
 
@@ -618,18 +673,26 @@ const ChartScreen = ({ navigation }) => {
       legend: datasets.map(d => d.label)
     };
     
-    return { chartKitData, tableData };
+    // Extract standard count from labels helper if present
+    const standardPointsCount = typeof labels.__standardPointsCount === 'number' ? labels.__standardPointsCount : 0;
+    return { chartKitData, tableData, standardPointsCount };
   };
   
 
   // Get the chart and table data based on the current selection
-  const { chartKitData, tableData } = getChartAndTableData(selectedTab);
-  // Ẩn legend mặc định
-  chartKitData.legend = [];
-
-  // Get actual data for prediction calculations
+  const { chartKitData, tableData, standardPointsCount } = getChartAndTableData(selectedTab);
   const actualData = childGrowthData?.data?.[selectedTab] || [];
   const validActualData = actualData.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
+  const actualPointsCount = validActualData.length;
+  const allowPrediction = isVip && (standardPointsCount || 0) >= 2 && actualPointsCount >= 2;
+  // Ẩn legend mặc định
+  chartKitData.legend = [];
+  // Nếu không đủ điều kiện, ẩn dataset dự đoán khỏi biểu đồ
+  if (!allowPrediction && chartKitData && Array.isArray(chartKitData.datasets)) {
+    chartKitData.datasets = chartKitData.datasets.filter(d => d && d.label !== 'Dự đoán');
+  }
+
+  // validActualData đã được tính ở trên để tính điều kiện allowPrediction
   // Determine whether to display X-axis in years (when latest actual day > 720)
   const latestActualDayForUnit = validActualData.length > 0 ? validActualData[validActualData.length - 1].ageInDays : 0;
   const useYearsOnXAxis = latestActualDayForUnit > 720;
@@ -1146,6 +1209,36 @@ const ChartScreen = ({ navigation }) => {
     Biểu đồ {selectedTab.toLowerCase()} ({selectedTab === 'Chiều cao' || selectedTab === 'Vòng đầu' ? 'cm' : selectedTab === 'Cân nặng' ? 'kg' : 'BMI'})
   </Text>
 
+  {/* Info notice when prediction cannot be shown */}
+  {vipChecked && (!allowPrediction) && (
+    <View style={{
+      backgroundColor: '#fff3cd',
+      borderColor: '#ffeeba',
+      borderWidth: 1,
+      borderRadius: 8,
+      padding: Math.max(10, screenWidth * 0.03),
+      marginBottom: Math.max(8, screenWidth * 0.02),
+      borderLeftWidth: 4,
+      borderLeftColor: '#ffc107'
+    }}>
+      {!isVip && (
+        <Text style={{ color: '#856404', fontSize: Math.max(12, screenWidth * 0.032), marginBottom: 4 }}>
+          Tính năng dự đoán chỉ dành cho tài khoản VIP.
+        </Text>
+      )}
+      {(standardPointsCount || 0) < 2 && (
+        <Text style={{ color: '#856404', fontSize: Math.max(12, screenWidth * 0.032) }}>
+          Cần ít nhất 2 mốc tiêu chuẩn gần đây để hiển thị đường dự đoán.
+        </Text>
+      )}
+      {actualPointsCount < 2 && (
+        <Text style={{ color: '#856404', fontSize: Math.max(12, screenWidth * 0.032), marginTop: 4 }}>
+          Cần ít nhất 2 lần đo thực tế để hiển thị đường dự đoán.
+        </Text>
+      )}
+    </View>
+  )}
+
   {/* Chart Legend */}
   <View style={{ 
     flexDirection: 'row', 
@@ -1176,8 +1269,8 @@ const ChartScreen = ({ navigation }) => {
         Thực tế
       </Text>
     </View>
-    {/* Prediction legend - only show if we have prediction data */}
-    {predictionData && predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && (
+    {/* Prediction legend - only show if we have prediction data and allowed */}
+    {allowPrediction && predictionData && predictionData.predictionPoints && predictionData.predictionPoints.length > 0 && (
       <View style={{ 
         flexDirection: 'row', 
         alignItems: 'center', 
@@ -1536,7 +1629,7 @@ const ChartScreen = ({ navigation }) => {
   )}
 
   {/* Prediction section with loading indicator */}
-  {(predictionData || isPredictionLoading) && (
+  {allowPrediction && (predictionData || isPredictionLoading) && (
     <View style={styles.predictionContainer}>
       <View style={styles.predictionHeader}>
         <Text style={styles.predictionTitle}>
@@ -1581,7 +1674,7 @@ const ChartScreen = ({ navigation }) => {
               {(() => {
                 // Giữ nguyên logic tìm prediction point (như code cũ)
                 const lastActualPoint = validActualData[validActualData.length - 1];
-                const targetPredictionDay = lastActualPoint.ageInDays + 30;
+                const targetPredictionDay = lastActualPoint.ageInDays + (lastActualPoint.ageInDays > 720 ? 360 : 30);
                 const selectedPredictionPoint = predictionData.predictionPoints.reduce((closest, current) => {
                   const currentDiff = Math.abs(current.ageInDays - targetPredictionDay);
                   const closestDiff = Math.abs(closest.ageInDays - targetPredictionDay);
