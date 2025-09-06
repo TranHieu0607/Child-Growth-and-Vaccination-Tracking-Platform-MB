@@ -101,7 +101,9 @@ export async function getFullGrowthData(childId, gender) {
         ? { 
             ageInDays: days[idx], 
             ageInMonths: Math.round(days[idx] / 30.44), 
-            median: arr[0].median 
+            median: arr[0].median,
+            sd3neg: arr[0].sd3neg,
+            sd3pos: arr[0].sd3pos
           } 
         : null;
     }).filter(item => item !== null && item.median !== null);

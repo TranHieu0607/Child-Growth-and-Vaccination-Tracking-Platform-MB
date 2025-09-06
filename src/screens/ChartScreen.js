@@ -620,9 +620,10 @@ const ChartScreen = ({ navigation }) => {
       
       // Kiểm tra an toàn trước khi tạo datasets
       if (filteredStandardData.length > 0) {
-        const medianValues = [0, ...filteredStandardData.map(item => item && item.median ? item.median : 0)];
         const standardLabels = ['0', ...filteredStandardData.map(item => item && item.standardDay ? item.standardDay.toString() : '0')];
         
+        // Tạo dataset cho đường median (tiêu chuẩn)
+        const medianValues = [0, ...filteredStandardData.map(item => item && item.median ? item.median : 0)];
         datasets.push({
           data: medianValues,
           labels: standardLabels,
@@ -630,6 +631,26 @@ const ChartScreen = ({ navigation }) => {
           strokeWidth: 2,
           label: 'Tiêu chuẩn'
         });
+        
+         // Tạo dataset cho đường sd3neg (min) - Màu xanh lá, nét liền
+         const sd3negValues = [0, ...filteredStandardData.map(item => item && item.sd3neg ? item.sd3neg : 0)];
+         datasets.push({
+           data: sd3negValues,
+           labels: standardLabels,
+           color: (opacity = 1) => `rgba(40,167,69,${opacity})`, // #28a745 - Xanh lá
+           strokeWidth: 2,
+           label: 'Min (-3SD)'
+         });
+         
+         // Tạo dataset cho đường sd3pos (max) - Màu đỏ, nét liền
+         const sd3posValues = [0, ...filteredStandardData.map(item => item && item.sd3pos ? item.sd3pos : 0)];
+         datasets.push({
+           data: sd3posValues,
+           labels: standardLabels,
+           color: (opacity = 1) => `rgba(220,53,69,${opacity})`, // #dc3545 - Đỏ
+           strokeWidth: 2,
+           label: 'Max (+3SD)'
+         });
         
         // Use standard labels if no actual data, otherwise keep actual labels
         if (labels.length === 0) {
@@ -687,7 +708,7 @@ const ChartScreen = ({ navigation }) => {
   const allowPrediction = isVip && (standardPointsCount || 0) >= 2 && actualPointsCount >= 2;
   // Ẩn legend mặc định
   chartKitData.legend = [];
-  // Nếu không đủ điều kiện, ẩn dataset dự đoán khỏi biểu đồ
+  // Nếu không đủ điều kiện, ẩn dataset dự đoán khỏi biểu đồ (nhưng giữ lại Min/Max)
   if (!allowPrediction && chartKitData && Array.isArray(chartKitData.datasets)) {
     chartKitData.datasets = chartKitData.datasets.filter(d => d && d.label !== 'Dự đoán');
   }
@@ -1251,7 +1272,7 @@ const ChartScreen = ({ navigation }) => {
     <View style={{ 
       flexDirection: 'row', 
       alignItems: 'center', 
-      marginRight: Math.max(15, screenWidth * 0.04), 
+      marginRight: Math.max(12, screenWidth * 0.03), 
       marginBottom: 4 
     }}>
       <View style={{ 
@@ -1264,7 +1285,7 @@ const ChartScreen = ({ navigation }) => {
       <Text style={{ 
         color: '#007bff', 
         fontWeight: 'bold',
-        fontSize: Math.max(11, Math.min(13, screenWidth / 28))
+        fontSize: Math.max(10, Math.min(12, screenWidth / 30))
       }}>
         Thực tế
       </Text>
@@ -1274,7 +1295,7 @@ const ChartScreen = ({ navigation }) => {
       <View style={{ 
         flexDirection: 'row', 
         alignItems: 'center', 
-        marginRight: Math.max(15, screenWidth * 0.04), 
+        marginRight: Math.max(12, screenWidth * 0.03), 
         marginBottom: 4 
       }}>
         <View style={{ 
@@ -1290,7 +1311,7 @@ const ChartScreen = ({ navigation }) => {
         <Text style={{ 
           color: '#FFA500', 
           fontWeight: 'bold',
-          fontSize: Math.max(11, Math.min(13, screenWidth / 28))
+          fontSize: Math.max(10, Math.min(12, screenWidth / 30))
         }}>
           Dự đoán 📈
         </Text>
@@ -1299,6 +1320,7 @@ const ChartScreen = ({ navigation }) => {
     <View style={{ 
       flexDirection: 'row', 
       alignItems: 'center', 
+      marginRight: Math.max(12, screenWidth * 0.03), 
       marginBottom: 4 
     }}>
       <View style={{ 
@@ -1311,11 +1333,55 @@ const ChartScreen = ({ navigation }) => {
       <Text style={{ 
         color: '#ff6384', 
         fontWeight: 'bold',
-        fontSize: Math.max(11, Math.min(13, screenWidth / 28))
+        fontSize: Math.max(10, Math.min(12, screenWidth / 30))
       }}>
         Tiêu chuẩn
       </Text>
     </View>
+     {/* Min (-3SD) */}
+     <View style={{ 
+       flexDirection: 'row', 
+       alignItems: 'center', 
+       marginRight: Math.max(12, screenWidth * 0.03), 
+       marginBottom: 4 
+     }}>
+       <View style={{ 
+         width: Math.max(12, screenWidth * 0.035), 
+         height: Math.max(3, screenWidth * 0.01), 
+         backgroundColor: '#28a745', 
+         borderRadius: 2, 
+         marginRight: Math.max(3, screenWidth * 0.01)
+       }} />
+       <Text style={{ 
+         color: '#28a745', 
+         fontWeight: 'bold',
+         fontSize: Math.max(10, Math.min(12, screenWidth / 30))
+       }}>
+         Min (-3SD)
+       </Text>
+     </View>
+     
+     {/* Max (+3SD) */}
+     <View style={{ 
+       flexDirection: 'row', 
+       alignItems: 'center', 
+       marginBottom: 4 
+     }}>
+       <View style={{ 
+         width: Math.max(12, screenWidth * 0.035), 
+         height: Math.max(3, screenWidth * 0.01), 
+         backgroundColor: '#dc3545', 
+         borderRadius: 2, 
+         marginRight: Math.max(3, screenWidth * 0.01)
+       }} />
+       <Text style={{ 
+         color: '#dc3545', 
+         fontWeight: 'bold',
+         fontSize: Math.max(10, Math.min(12, screenWidth / 30))
+       }}>
+         Max (+3SD)
+       </Text>
+     </View>
   </View>
 
   <View style={{ 
@@ -1468,6 +1534,31 @@ const ChartScreen = ({ navigation }) => {
                   }
                 } else {
                   // Fallback: tính theo index * 30
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(index * 30);
+                    labelUnit = 'năm';
+                  } else {
+                    label = (index * 30).toString();
+                    labelUnit = 'ngày';
+                  }
+                }
+              }
+            } else {
+              // Các đường Min/Max - xử lý tương tự standard data
+              if (index === 0) {
+                label = '0';
+                labelUnit = useYearsOnXAxis ? 'năm' : 'ngày';
+              } else {
+                if (currentDataset && currentDataset.labels && currentDataset.labels[index]) {
+                  const dayStr = currentDataset.labels[index];
+                  if (useYearsOnXAxis) {
+                    label = convertDaysToYearsString(parseFloat(dayStr));
+                    labelUnit = 'năm';
+                  } else {
+                    label = dayStr;
+                    labelUnit = 'ngày';
+                  }
+                } else {
                   if (useYearsOnXAxis) {
                     label = convertDaysToYearsString(index * 30);
                     labelUnit = 'năm';
