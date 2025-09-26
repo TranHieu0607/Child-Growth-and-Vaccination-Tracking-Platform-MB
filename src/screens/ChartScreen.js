@@ -183,12 +183,66 @@ const ChartScreen = ({ navigation }) => {
         const data = res.data || [];
         setChildren(data);
         if (data.length > 0) setSelectedChildId(data[0].childId);
+        // Prefetch tất cả dữ liệu cho mọi trẻ ngay khi vào màn hình
+        if (Array.isArray(data) && data.length > 0) {
+          prefetchAllChildrenData(data);
+        }
       } catch (e) {
         console.error("Failed to fetch children:", e);
       }
     };
     fetchChildren();
   }, []);
+
+  // Prefetch toàn bộ dữ liệu cho tất cả trẻ để khi chuyển tab/chọn trẻ không cần tải lại
+  const prefetchAllChildrenData = async (childrenList) => {
+    try {
+      const tasks = (childrenList || []).map(async (child) => {
+        if (!child?.childId) return null;
+        const gender = child?.gender || 'male';
+        try {
+          const [growthResult, assessmentResult] = await Promise.all([
+            getFullGrowthData(child.childId, gender),
+            childrenApi.getLatestGrowthAssessment(child.childId)
+          ]);
+
+          // Tính horizon dự đoán phù hợp cho từng trẻ
+          const all = Object.values(growthResult?.growthData?.data || {}).flat();
+          const ages = all.map(i => i?.ageInDays).filter(n => typeof n === 'number');
+          const latestDay = ages.length > 0 ? Math.max(...ages) : 0;
+          const horizon = latestDay > 720 ? 360 : 30;
+          let prediction = growthResult?.predictionData || null;
+          if (!prediction) {
+            prediction = await getPredictionData(child.childId, horizon);
+          }
+
+          // Lưu cache cho từng trẻ
+          const cacheKey = `${child.childId}-${gender}`;
+          setDataCache(prev => ({
+            ...prev,
+            [cacheKey]: {
+              growthData: growthResult.growthData,
+              heightStandardData: growthResult.heightStandardData,
+              weightStandardData: growthResult.weightStandardData,
+              headCircumferenceStandardData: growthResult.headCircumferenceStandardData,
+              bmiStandardData: growthResult.bmiStandardData,
+              assessmentData: assessmentResult?.data ?? null,
+              predictionData: prediction,
+              predictionHorizonDays: horizon,
+            }
+          }));
+        } catch (_) {
+          // Bỏ qua lỗi prefetch của từng trẻ, không chặn những trẻ khác
+        }
+        return null;
+      });
+
+      // Chạy song song nhưng không block UI
+      Promise.allSettled(tasks).then(() => {});
+    } catch (_) {
+      // ignore prefetch errors
+    }
+  };
 
   // Check VIP status once
   useEffect(() => {
@@ -240,7 +294,7 @@ const ChartScreen = ({ navigation }) => {
       // Check cache first
       const cacheKey = `${selectedChildId}-${children.find(child => child.childId === selectedChildId)?.gender || 'male'}`;
       if (dataCache[cacheKey]) {
-        console.log('Using cached data');
+        
         const cached = dataCache[cacheKey];
         setChildGrowthData(cached.growthData);
         setHeightStandardData(cached.heightStandardData);
@@ -249,15 +303,16 @@ const ChartScreen = ({ navigation }) => {
         setBMIStandardData(cached.bmiStandardData);
         setAssessmentData(cached.assessmentData);
         setPredictionData(cached.predictionData);
-        setIsLoading(false);
         
         // Decide desired horizon based on cached growth data
         const latestDayCached = getLatestActualDayFromGrowthData(cached.growthData);
         const desiredHorizon = latestDayCached > 720 ? 360 : 30;
-        // Load prediction data in background if not cached or horizon mismatched
+        // Nếu thiếu dự đoán hoặc sai horizon, tải ngay và đợi trước khi bỏ loading
         if (!cached.predictionData || cached.predictionHorizonDays !== desiredHorizon) {
-          loadPredictionDataAsync(selectedChildId, desiredHorizon);
+          const pred = await loadPredictionDataAsync(selectedChildId, desiredHorizon);
+          if (pred) setPredictionData(pred);
         }
+        setIsLoading(false);
         return;
       }
 
@@ -265,20 +320,29 @@ const ChartScreen = ({ navigation }) => {
       const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
       
       try {
-        // Load main data first (fast)
+        // Load main data đồng thời
         const [growthResult, assessmentResult] = await Promise.all([
           getFullGrowthData(selectedChildId, gender),
           childrenApi.getLatestGrowthAssessment(selectedChildId)
         ]);
 
-        // Set main data immediately
+        // Set main data
         setChildGrowthData(growthResult.growthData);
         setHeightStandardData(growthResult.heightStandardData);
         setWeightStandardData(growthResult.weightStandardData);
         setHeadCircumferenceStandardData(growthResult.headCircumferenceStandardData);
         setBMIStandardData(growthResult.bmiStandardData);
         setAssessmentData(assessmentResult.data);
-        
+
+        // Tải prediction đồng thời và đợi trước khi bỏ loading
+        const latestDayNow = getLatestActualDayFromGrowthData(growthResult.growthData);
+        const desired = latestDayNow > 720 ? 360 : 30;
+        let prediction = growthResult.predictionData;
+        if (!prediction) {
+          prediction = await getPredictionData(selectedChildId, desired);
+        }
+        setPredictionData(prediction);
+
         // Cache the data
         setDataCache(prev => ({
           ...prev,
@@ -289,22 +353,13 @@ const ChartScreen = ({ navigation }) => {
             headCircumferenceStandardData: growthResult.headCircumferenceStandardData,
             bmiStandardData: growthResult.bmiStandardData,
             assessmentData: assessmentResult.data,
-            predictionData: growthResult.predictionData,
+            predictionData: prediction,
             // Set an initial horizon guess from current growth data
-            predictionHorizonDays: getLatestActualDayFromGrowthData(growthResult.growthData) > 720 ? 360 : 30
+            predictionHorizonDays: desired
           }
         }));
 
         setIsLoading(false);
-
-        // Load prediction data async if not available
-        if (!growthResult.predictionData) {
-          const latestDayNow = getLatestActualDayFromGrowthData(growthResult.growthData);
-          const desired = latestDayNow > 720 ? 360 : 30;
-          loadPredictionDataAsync(selectedChildId, desired);
-        } else {
-          setPredictionData(growthResult.predictionData);
-        }
 
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -348,8 +403,10 @@ const ChartScreen = ({ navigation }) => {
           predictionHorizonDays: days
         }
       }));
+      return prediction;
     } catch (error) {
       console.error('Error loading prediction data:', error);
+      return null;
     } finally {
       setIsPredictionLoading(false);
     }
@@ -478,7 +535,10 @@ const ChartScreen = ({ navigation }) => {
       if (validActualData.length > 0) {
         const latestActualDay = validActualData[validActualData.length - 1].ageInDays;
         
-        console.log(`Latest actual day: ${latestActualDay}`); // Debug log
+        // Debug log (disabled in production)
+        if (__DEV__ && false) {
+          console.log(`Latest actual day: ${latestActualDay}`);
+        }
         
         if (latestActualDay <= 720) {
           // Logic cũ GIỮ NGUYÊN: ≤ 720 ngày, sử dụng hệ thống 30 ngày
@@ -503,7 +563,9 @@ const ChartScreen = ({ navigation }) => {
             );
           }
           
-          console.log(`Using 30-day system. Range: ${rangeStart}-${rangeEnd}`); // Debug log
+          if (__DEV__ && false) {
+            console.log(`Using 30-day system. Range: ${rangeStart}-${rangeEnd}`);
+          }
         } else {
           // Logic mới CẢI THIỆN CHO > 720 ngày: sử dụng hệ thống 360*x với ageInDays có sẵn
           
@@ -524,8 +586,10 @@ const ChartScreen = ({ navigation }) => {
           const target1 = 360 * targetMultipliers[0]; // Ví dụ: 360*5 = 1800
           const target2 = 360 * targetMultipliers[1]; // Ví dụ: 360*6 = 2160
           
-          console.log(`Using 360-day system. x=${x.toFixed(2)}, lowerX=${lowerX}, upperX=${upperX}`); // Debug log
-          console.log(`Target days: ${target1}, ${target2}`); // Debug log
+          if (__DEV__ && false) {
+            console.log(`Using 360-day system. x=${x.toFixed(2)}, lowerX=${lowerX}, upperX=${upperX}`);
+            console.log(`Target days: ${target1}, ${target2}`);
+          }
           
           // Tìm 2 điểm gần nhất với target1 và target2 trong standardData
           // SỬA: sử dụng ageInDays có sẵn từ API thay vì tính (index + 1) * 30
@@ -549,10 +613,12 @@ const ChartScreen = ({ navigation }) => {
           const point1 = findClosestStandardPoint(target1);
           const point2 = findClosestStandardPoint(target2);
           
-          console.log(`Found points:`, { 
-            point1: point1 ? `day ${point1.standardDay} (target: ${target1}, distance: ${point1.distance})` : 'null',
-            point2: point2 ? `day ${point2.standardDay} (target: ${target2}, distance: ${point2.distance})` : 'null'
-          }); // Debug log
+          if (__DEV__ && false) {
+            console.log(`Found points:`, { 
+              point1: point1 ? `day ${point1.standardDay} (target: ${target1}, distance: ${point1.distance})` : 'null',
+              point2: point2 ? `day ${point2.standardDay} (target: ${target2}, distance: ${point2.distance})` : 'null'
+            });
+          }
           
           // Loại bỏ điểm trùng lặp nếu có và kiểm tra null
           const uniquePoints = [];
@@ -569,7 +635,9 @@ const ChartScreen = ({ navigation }) => {
                filteredStandardData[0] && filteredStandardData[1] && 
                Math.abs(filteredStandardData[0].standardDay - filteredStandardData[1].standardDay) < 180)) {
             
-            console.log('Need to find additional points'); // Debug log
+            if (__DEV__ && false) {
+              console.log('Need to find additional points');
+            }
             
             // Tìm tất cả các điểm trong khoảng hợp lý và sắp xếp theo khoảng cách
             // SỬA: sử dụng ageInDays có sẵn thay vì tính (index + 1) * 30
@@ -583,7 +651,9 @@ const ChartScreen = ({ navigation }) => {
               .filter(item => Math.abs(item.standardDay - latestActualDay) <= 720) // Trong phạm vi ±720 ngày
               .sort((a, b) => a.distance - b.distance);
             
-            console.log(`Found ${allCandidates.length} candidates within ±720 days range`); // Debug log
+            if (__DEV__ && false) {
+              console.log(`Found ${allCandidates.length} candidates within ±720 days range`);
+            }
             
             if (allCandidates.length > 0) {
               // Chọn 2 điểm có khoảng cách hợp lý (ít nhất 180 ngày)
@@ -615,7 +685,9 @@ const ChartScreen = ({ navigation }) => {
           .filter(item => item && typeof item.standardDay === 'number')
           .sort((a, b) => a.standardDay - b.standardDay);
         
-        console.log(`Final filtered standard data:`, filteredStandardData.map(d => d ? `day ${d.standardDay}` : 'null')); // Debug log
+        if (__DEV__ && false) {
+          console.log(`Final filtered standard data:`, filteredStandardData.map(d => d ? `day ${d.standardDay}` : 'null'));
+        }
       }
       
       // Kiểm tra an toàn trước khi tạo datasets
@@ -639,7 +711,7 @@ const ChartScreen = ({ navigation }) => {
            labels: standardLabels,
            color: (opacity = 1) => `rgba(40,167,69,${opacity})`, // #28a745 - Xanh lá
            strokeWidth: 2,
-           label: 'Min (-3SD)'
+           label: 'Min'
          });
          
          // Tạo dataset cho đường sd3pos (max) - Màu đỏ, nét liền
@@ -649,7 +721,7 @@ const ChartScreen = ({ navigation }) => {
            labels: standardLabels,
            color: (opacity = 1) => `rgba(220,53,69,${opacity})`, // #dc3545 - Đỏ
            strokeWidth: 2,
-           label: 'Max (+3SD)'
+           label: 'Max'
          });
         
         // Use standard labels if no actual data, otherwise keep actual labels
@@ -699,12 +771,25 @@ const ChartScreen = ({ navigation }) => {
     return { chartKitData, tableData, standardPointsCount };
   };
   
+  // Memoize the heavy chart/table computation
+  const { chartKitData, tableData, standardPointsCount } = React.useMemo(() => (
+    getChartAndTableData(selectedTab)
+  ), [
+    selectedTab,
+    childGrowthData,
+    heightStandardData,
+    weightStandardData,
+    headCircumferenceStandardData,
+    bmiStandardData,
+    predictionData
+  ]);
 
-  // Get the chart and table data based on the current selection
-  const { chartKitData, tableData, standardPointsCount } = getChartAndTableData(selectedTab);
-  const actualData = childGrowthData?.data?.[selectedTab] || [];
-  const validActualData = actualData.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
-  const actualPointsCount = validActualData.length;
+  // Memoize actual data derivations
+  const { validActualData, actualPointsCount } = React.useMemo(() => {
+    const actualDataLocal = childGrowthData?.data?.[selectedTab] || [];
+    const valid = actualDataLocal.filter(item => typeof item.value === 'number' && isFinite(item.value) && item.status !== 'Dự đoán');
+    return { validActualData: valid, actualPointsCount: valid.length };
+  }, [childGrowthData, selectedTab]);
   const allowPrediction = isVip && (standardPointsCount || 0) >= 2 && actualPointsCount >= 2;
   // Ẩn legend mặc định
   chartKitData.legend = [];

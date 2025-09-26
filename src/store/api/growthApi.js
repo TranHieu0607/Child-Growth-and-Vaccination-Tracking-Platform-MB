@@ -84,7 +84,7 @@ export async function getFullGrowthData(childId, gender) {
   const actualData = processRecords('height'); // Dùng height để estimate
   const optimizedStandardDays = generateOptimizedStandardDays(records);
   
-  console.log('Optimized standard days:', optimizedStandardDays); // Debug log
+  
 
   // OPTIMIZE: Fetch song song nhưng ít API calls hơn
   const [resultsHeight, resultsWeight, resultsHead, resultsBMI] = await Promise.all([

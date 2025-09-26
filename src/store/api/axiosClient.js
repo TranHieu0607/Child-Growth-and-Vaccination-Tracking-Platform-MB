@@ -1,13 +1,44 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+// Resolve base URL from env/app config with sensible fallbacks
+const resolveBaseURL = () => {
+  // Prefer Expo public env first
+  let url = process.env.EXPO_PUBLIC_API_BASE_URL
+    || process.env.API_BASE_URL
+    || undefined;
+
+  // Fallback to app.json extra if available (evaluated at runtime)
+  try {
+    // Defer require to avoid circular deps if any
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const appConfig = require('../../../app.json');
+    const maybe = appConfig?.expo?.extra?.apiBaseUrl;
+    url = url || maybe;
+  } catch (_) {
+    // ignore
+  }
+
+  // Final fallback to previous production URL
+  url = url || 'https://api.kidditrack.site/api';
+
+  // Android emulator cannot access localhost directly
+  if (Platform.OS === 'android' && typeof url === 'string') {
+    url = url.replace('http://localhost', 'http://10.0.2.2')
+             .replace('https://localhost', 'http://10.0.2.2');
+  }
+
+  return url;
+};
 
 const axiosClient = axios.create({
-  baseURL: 'https://api.kidditrack.site/api',
+  baseURL: resolveBaseURL(),
   headers: {
     'Content-Type': 'application/json',
     Accept: '*/*',
   },
-  timeout: 15000,
+  timeout: 20000,
 });
 
 // Thêm interceptor để tự động gắn token vào header với format Bearer
@@ -30,7 +61,7 @@ axiosClient.interceptors.response.use(
   async (err) => {
     const status = err?.response?.status;
     const cfg = err?.config;
-    const isNetwork = !status && (err.code === "ECONNABORTED" || err.message?.includes("Network"));
+    const isNetwork = !status && (err?.message?.includes('Network') || err?.code === 'ECONNABORTED');
     
     if (!cfg || cfg.__retried || status === 400 || status === 401) {
       // Không retry 400/401 vì là lỗi logic

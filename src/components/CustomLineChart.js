@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import Svg, { Line, Circle, Text as SvgText, G, Path } from 'react-native-svg';
 import * as d3 from 'd3';
@@ -11,15 +11,21 @@ const CustomLineChart = ({
   onDataPointClick,
   style 
 }) => {
-  // Padding for the chart - tăng padding để có đủ không gian cho labels
-  const paddingLeft = Math.max(60, width * 0.15); // Responsive left padding
-  const paddingRight = Math.max(40, width * 0.1); // Responsive right padding
-  const paddingTop = Math.max(40, height * 0.15); // Responsive top padding
-  const paddingBottom = Math.max(60, height * 0.25); // Responsive bottom padding
-  
-  // Chart dimensions
-  const chartWidth = width - paddingLeft - paddingRight;
-  const chartHeight = height - paddingTop - paddingBottom;
+  // Memoize paddings and dimensions
+  const { paddingLeft, paddingRight, paddingTop, paddingBottom, chartWidth, chartHeight } = useMemo(() => {
+    const padLeft = Math.max(60, width * 0.15);
+    const padRight = Math.max(40, width * 0.1);
+    const padTop = Math.max(40, height * 0.15);
+    const padBottom = Math.max(60, height * 0.25);
+    return {
+      paddingLeft: padLeft,
+      paddingRight: padRight,
+      paddingTop: padTop,
+      paddingBottom: padBottom,
+      chartWidth: width - padLeft - padRight,
+      chartHeight: height - padTop - padBottom,
+    };
+  }, [width, height]);
   
   // Extract data
   const { labels, datasets } = data;
@@ -33,9 +39,9 @@ const CustomLineChart = ({
   }
   
   // Get all values from all datasets to determine scales
-  const allValues = datasets.reduce((acc, dataset) => {
-    return acc.concat(dataset.data || []);
-  }, []);
+  const allValues = useMemo(() => {
+    return datasets.reduce((acc, dataset) => acc.concat(dataset.data || []), []);
+  }, [datasets]);
   
   if (allValues.length === 0) {
     return (
@@ -46,85 +52,79 @@ const CustomLineChart = ({
   }
   
   // Create scales - tìm giá trị X tối đa từ tất cả datasets
-  let allXValues = [];
-  datasets.forEach((dataset, datasetIndex) => {
-    const datasetLabels = dataset.labels || labels || []; // Đảm bảo datasetLabels luôn là array
-    if (Array.isArray(datasetLabels)) {
-      datasetLabels.forEach(label => {
-        const numValue = parseFloat(label);
-        if (!isNaN(numValue)) {
-          allXValues.push(numValue);
+  const allXValues = useMemo(() => {
+    const arr = [];
+    datasets.forEach((dataset) => {
+      const datasetLabels = dataset.labels || labels || [];
+      if (Array.isArray(datasetLabels)) {
+        for (let i = 0; i < datasetLabels.length; i++) {
+          const numValue = parseFloat(datasetLabels[i]);
+          if (!isNaN(numValue)) arr.push(numValue);
         }
-      });
-    }
-  });
+      }
+    });
+    return arr;
+  }, [datasets, labels]);
   
-  console.log('All X Values:', allXValues); // Debug log
   
-  const maxX = Math.max(...allXValues, 0);
-  const xScale = d3.scaleLinear()
-    .domain([0, maxX])
-    .range([0, chartWidth]);
+  
+  const { xScale } = useMemo(() => {
+    const maxX = Math.max(...allXValues, 0);
+    return {
+      xScale: d3.scaleLinear().domain([0, maxX]).range([0, chartWidth])
+    };
+  }, [allXValues, chartWidth]);
     
-  console.log('X Scale domain:', [0, maxX]); // Debug log
+  
     
-  const yMax = d3.max(allValues) || 1;
-  const yScale = d3.scaleLinear()
-    .domain([0, yMax]) // Always start from 0
-    .range([chartHeight, 0]);
-    
-  // Generate Y-axis ticks
-  const yTicks = yScale.ticks(5);
+  const { yScale, yTicks } = useMemo(() => {
+    const yMax = d3.max(allValues) || 1;
+    const ys = d3.scaleLinear().domain([0, yMax]).range([chartHeight, 0]);
+    return { yScale: ys, yTicks: ys.ticks(5) };
+  }, [allValues, chartHeight]);
+  
   
   // Generate X-axis ticks (show every other label if too many) - responsive label count
-  const maxLabelsToShow = Math.min(6, Math.floor(width / 60)); // Responsive based on width
-  const uniqueXValues = [...new Set(allXValues)].sort((a, b) => a - b);
-  const labelStep = Math.max(1, Math.ceil(uniqueXValues.length / maxLabelsToShow));
+  const { uniqueXValues, labelStep } = useMemo(() => {
+    const maxLabelsToShow = Math.min(6, Math.floor(width / 60));
+    const uniq = [...new Set(allXValues)].sort((a, b) => a - b);
+    return {
+      uniqueXValues: uniq,
+      labelStep: Math.max(1, Math.ceil(uniq.length / maxLabelsToShow))
+    };
+  }, [allXValues, width]);
   
+  const handlePress = useCallback((event) => {
+    const { locationX, locationY } = event.nativeEvent;
+    let closestPoint = null;
+    let minDistance = Infinity;
+    datasets.forEach((dataset, datasetIndex) => {
+      const values = dataset.data || [];
+      const datasetLabels = dataset.labels || labels || [];
+      const datasetXValues = Array.isArray(datasetLabels) ? datasetLabels.map(label => {
+        const numValue = parseFloat(label);
+        return isNaN(numValue) ? 0 : numValue;
+      }) : [];
+      for (let index = 0; index < values.length; index++) {
+        const pointX = paddingLeft + xScale(datasetXValues[index] || 0);
+        const pointY = paddingTop + yScale(values[index]);
+        const dx = locationX - pointX;
+        const dy = locationY - pointY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance < minDistance && distance < 20) {
+          minDistance = distance;
+          closestPoint = { value: values[index], index, x: pointX, y: pointY, datasetIndex };
+        }
+      }
+    });
+    if (closestPoint && onDataPointClick) onDataPointClick(closestPoint);
+  }, [datasets, labels, paddingLeft, paddingTop, xScale, yScale, onDataPointClick]);
+
   return (
     <TouchableOpacity 
       style={[{ width, height }, style]}
       activeOpacity={1}
-      onPress={(event) => {
-        // Handle chart area clicks
-        const { locationX, locationY } = event.nativeEvent;
-        
-        // Find the closest data point across all datasets
-        let closestPoint = null;
-        let minDistance = Infinity;
-        
-        datasets.forEach((dataset, datasetIndex) => {
-          const values = dataset.data || [];
-          const datasetLabels = dataset.labels || labels || [];
-          const datasetXValues = Array.isArray(datasetLabels) ? datasetLabels.map(label => {
-            const numValue = parseFloat(label);
-            return isNaN(numValue) ? 0 : numValue;
-          }) : [];
-          
-          values.forEach((value, index) => {
-            const pointX = paddingLeft + xScale(datasetXValues[index] || 0);
-            const pointY = paddingTop + yScale(value);
-            const distance = Math.sqrt(
-              Math.pow(locationX - pointX, 2) + Math.pow(locationY - pointY, 2)
-            );
-            
-            if (distance < minDistance && distance < 20) { // 20px tolerance
-              minDistance = distance;
-              closestPoint = {
-                value,
-                index,
-                x: pointX,
-                y: pointY,
-                datasetIndex
-              };
-            }
-          });
-        });
-        
-        if (closestPoint && onDataPointClick) {
-          onDataPointClick(closestPoint);
-        }
-      }}
+      onPress={handlePress}
     >
       <Svg width={width} height={height}>
         {/* Chart background */}
@@ -169,10 +169,7 @@ const CustomLineChart = ({
               return isNaN(numValue) ? 0 : numValue;
             }) : [];
             
-            console.log(`Dataset ${datasetIndex} (${dataset.label}):`);
-            console.log('  Labels:', datasetLabels);
-            console.log('  X Values:', datasetXValues);
-            console.log('  Data Values:', values);
+            
             
             // Create line path for this dataset - sử dụng giá trị X riêng cho dataset này
             const line = d3.line()
