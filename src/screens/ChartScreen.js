@@ -168,7 +168,8 @@ const ChartScreen = ({ navigation }) => {
 
   // Thêm loading states
   const [isLoading, setIsLoading] = useState(true);
-  const [isPredictionLoading, setIsPredictionLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   // Cache để tránh reload không cần thiết
   const [dataCache, setDataCache] = useState({});
@@ -265,49 +266,78 @@ const ChartScreen = ({ navigation }) => {
       const gender = children.find(child => child.childId === selectedChildId)?.gender || 'male';
       
       try {
-        // Load main data first (fast)
-        const [growthResult, assessmentResult] = await Promise.all([
+        // Load tất cả data cùng lúc và đợi hoàn thành
+        const [growthResult, assessmentResult] = await Promise.allSettled([
           getFullGrowthData(selectedChildId, gender),
           childrenApi.getLatestGrowthAssessment(selectedChildId)
         ]);
 
-        // Set main data immediately
-        setChildGrowthData(growthResult.growthData);
-        setHeightStandardData(growthResult.heightStandardData);
-        setWeightStandardData(growthResult.weightStandardData);
-        setHeadCircumferenceStandardData(growthResult.headCircumferenceStandardData);
-        setBMIStandardData(growthResult.bmiStandardData);
-        setAssessmentData(assessmentResult.data);
+        // Xử lý prediction data sau khi có growth data
+        let predictionData = null;
+        if (growthResult.status === 'fulfilled') {
+          const growth = growthResult.value;
+          if (growth.predictionData) {
+            predictionData = growth.predictionData;
+          } else {
+            // Load prediction data riêng nếu chưa có
+            try {
+              const latestDay = getLatestActualDayFromGrowthData(growth.growthData);
+              const desired = latestDay > 720 ? 360 : 30;
+              predictionData = await getPredictionData(selectedChildId, desired);
+            } catch (predError) {
+              console.warn('Prediction data failed:', predError);
+              predictionData = null;
+            }
+          }
+        }
+
+        // Xử lý kết quả growth data
+        if (growthResult.status === 'fulfilled') {
+          const growth = growthResult.value;
+          setChildGrowthData(growth.growthData);
+          setHeightStandardData(growth.heightStandardData);
+          setWeightStandardData(growth.weightStandardData);
+          setHeadCircumferenceStandardData(growth.headCircumferenceStandardData);
+          setBMIStandardData(growth.bmiStandardData);
+        } else {
+          console.error('Growth data failed:', growthResult.reason);
+          throw growthResult.reason;
+        }
+
+        // Xử lý kết quả assessment data
+        if (assessmentResult.status === 'fulfilled') {
+          setAssessmentData(assessmentResult.value.data);
+        } else {
+          console.warn('Assessment data failed:', assessmentResult.reason);
+          setAssessmentData(null);
+        }
+
+        // Set prediction data
+        setPredictionData(predictionData);
         
         // Cache the data
+        const growth = growthResult.value;
         setDataCache(prev => ({
           ...prev,
           [cacheKey]: {
-            growthData: growthResult.growthData,
-            heightStandardData: growthResult.heightStandardData,
-            weightStandardData: growthResult.weightStandardData,
-            headCircumferenceStandardData: growthResult.headCircumferenceStandardData,
-            bmiStandardData: growthResult.bmiStandardData,
-            assessmentData: assessmentResult.data,
-            predictionData: growthResult.predictionData,
+            growthData: growth.growthData,
+            heightStandardData: growth.heightStandardData,
+            weightStandardData: growth.weightStandardData,
+            headCircumferenceStandardData: growth.headCircumferenceStandardData,
+            bmiStandardData: growth.bmiStandardData,
+            assessmentData: assessmentResult.status === 'fulfilled' ? assessmentResult.value.data : null,
+            predictionData: predictionData,
             // Set an initial horizon guess from current growth data
-            predictionHorizonDays: getLatestActualDayFromGrowthData(growthResult.growthData) > 720 ? 360 : 30
+            predictionHorizonDays: getLatestActualDayFromGrowthData(growth.growthData) > 720 ? 360 : 30
           }
         }));
 
+        // Chỉ set loading = false khi tất cả data đã load xong
         setIsLoading(false);
-
-        // Load prediction data async if not available
-        if (!growthResult.predictionData) {
-          const latestDayNow = getLatestActualDayFromGrowthData(growthResult.growthData);
-          const desired = latestDayNow > 720 ? 360 : 30;
-          loadPredictionDataAsync(selectedChildId, desired);
-        } else {
-          setPredictionData(growthResult.predictionData);
-        }
 
       } catch (err) {
         console.error('Error fetching data:', err);
+        setError(err);
         setChildGrowthData(null);
         setHeightStandardData([]);
         setWeightStandardData([]);
@@ -320,40 +350,8 @@ const ChartScreen = ({ navigation }) => {
     };
     
     fetchAllDataForChild();
-  }, [selectedChildId, children]);
+  }, [selectedChildId, children, retryCount]);
 
-  // Load prediction data separately
-  const loadPredictionDataAsync = async (childId, forcedDays) => {
-    setIsPredictionLoading(true);
-    try {
-      // Tính horizon động dựa trên điểm thực tế mới nhất (hoặc dùng forcedDays nếu truyền vào)
-      let days = forcedDays;
-      if (typeof days !== 'number') {
-        const allTabs = childGrowthData?.data || {};
-        const merged = Object.values(allTabs).flat().filter(item => typeof item?.ageInDays === 'number');
-        const latestDay = merged.length > 0 ? Math.max(...merged.map(i => i.ageInDays)) : 0;
-        days = latestDay > 720 ? 360 : 30;
-      }
-      const prediction = await getPredictionData(childId, days);
-      setPredictionData(prediction);
-      
-      // Update cache
-      const gender = children.find(child => child.childId === childId)?.gender || 'male';
-      const cacheKey = `${childId}-${gender}`;
-      setDataCache(prev => ({
-        ...prev,
-        [cacheKey]: {
-          ...prev[cacheKey],
-          predictionData: prediction,
-          predictionHorizonDays: days
-        }
-      }));
-    } catch (error) {
-      console.error('Error loading prediction data:', error);
-    } finally {
-      setIsPredictionLoading(false);
-    }
-  };
 
   const handleSelectChildPress = () => {
     setIsDropdownVisible(!isDropdownVisible);
@@ -362,6 +360,12 @@ const ChartScreen = ({ navigation }) => {
   const handleSelectChild = (childId) => {
     setSelectedChildId(childId);
     setIsDropdownVisible(false);
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    setRetryCount(prev => prev + 1);
+    setIsLoading(true);
   };
 
   const calculateAge = (dob) => {
@@ -1070,6 +1074,33 @@ const ChartScreen = ({ navigation }) => {
     );
   }
 
+  // Show error state
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <Text style={{ fontSize: 18, color: '#dc3545', marginBottom: 10, textAlign: 'center' }}>
+          Không thể tải dữ liệu
+        </Text>
+        <Text style={{ fontSize: 14, color: '#666', marginBottom: 20, textAlign: 'center' }}>
+          {error.message || 'Có lỗi xảy ra khi kết nối đến server'}
+        </Text>
+        <TouchableOpacity
+          onPress={handleRetry}
+          style={{
+            backgroundColor: '#007bff',
+            paddingHorizontal: 20,
+            paddingVertical: 10,
+            borderRadius: 8,
+          }}
+        >
+          <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>
+            Thử lại
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={[styles.container, { padding: Math.max(12, screenWidth * 0.03) }]}>
       {/* 1. Header Hồ sơ Trẻ */}
@@ -1719,20 +1750,16 @@ const ChartScreen = ({ navigation }) => {
     </View>
   )}
 
-  {/* Prediction section with loading indicator */}
-  {allowPrediction && (predictionData || isPredictionLoading) && (
+  {/* Prediction section */}
+  {allowPrediction && predictionData && (
     <View style={styles.predictionContainer}>
       <View style={styles.predictionHeader}>
         <Text style={styles.predictionTitle}>
-          📈 Dự đoán tăng trưởng {isPredictionLoading && '(Đang tải...)'}
+          📈 Dự đoán tăng trưởng
         </Text>
       </View>
       
-      {isPredictionLoading ? (
-        <Text style={{ color: '#ff6b00', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>
-          Đang tính toán dự đoán...
-        </Text>
-      ) : predictionData ? (
+      {predictionData ? (
         <>
           {/* Medical Disclaimer - hiển thị đầu tiên */}
           {predictionData.medicalDisclaimer && (

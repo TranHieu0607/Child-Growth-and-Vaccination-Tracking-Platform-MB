@@ -86,12 +86,34 @@ export async function getFullGrowthData(childId, gender) {
   
   console.log('Optimized standard days:', optimizedStandardDays); // Debug log
 
-  // OPTIMIZE: Fetch song song nhưng ít API calls hơn
+  // OPTIMIZE: Fetch song song nhưng ít API calls hơn với timeout riêng
+  const fetchWithTimeout = async (apiCall, timeout = 30000) => {
+    try {
+      return await Promise.race([
+        apiCall,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout')), timeout)
+        )
+      ]);
+    } catch (error) {
+      console.warn('API call failed:', error.message);
+      return { data: [] }; // Return empty data instead of throwing
+    }
+  };
+
   const [resultsHeight, resultsWeight, resultsHead, resultsBMI] = await Promise.all([
-    Promise.all(optimizedStandardDays.map(days => childrenApi.getHeightStandard(gender, days))),
-    Promise.all(optimizedStandardDays.map(days => childrenApi.getWeightStandard(gender, days))),
-    Promise.all(optimizedStandardDays.map(days => childrenApi.getHeadCircumferenceStandard(gender, days))),
-    Promise.all(optimizedStandardDays.map(days => childrenApi.getBMIStandard(gender, days))),
+    Promise.all(optimizedStandardDays.map(days => 
+      fetchWithTimeout(childrenApi.getHeightStandard(gender, days))
+    )),
+    Promise.all(optimizedStandardDays.map(days => 
+      fetchWithTimeout(childrenApi.getWeightStandard(gender, days))
+    )),
+    Promise.all(optimizedStandardDays.map(days => 
+      fetchWithTimeout(childrenApi.getHeadCircumferenceStandard(gender, days))
+    )),
+    Promise.all(optimizedStandardDays.map(days => 
+      fetchWithTimeout(childrenApi.getBMIStandard(gender, days))
+    )),
   ]);
 
   const createStandardData = (results, days) => {

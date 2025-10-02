@@ -7,7 +7,7 @@ const axiosClient = axios.create({
     'Content-Type': 'application/json',
     Accept: '*/*',
   },
-  timeout: 15000,
+  timeout: 30000, // Tăng timeout lên 30 giây
 });
 
 // Thêm interceptor để tự động gắn token vào header với format Bearer
